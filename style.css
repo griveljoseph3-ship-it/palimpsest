@@ -88,3 +88,4 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);font-family
 body.contrast #hint,body.contrast #preview{background:#000;color:#fff;padding:6px 12px}
 body.big{--fs:1.3}
 .inkpop{position:fixed;left:calc(330px + env(safe-area-inset-left));top:18px;color:#efe5cf;font-size:15px;pointer-events:none;font-style:italic}
+#hud{z-index:2}#touch{z-index:3}#words{z-index:5}#dialog{z-index:6}#vision{z-index:7}.panel{z-index:10}#title{z-index:12}#fade{z-index:20}.bubble{z-index:5}

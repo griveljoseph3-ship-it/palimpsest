@@ -297,7 +297,7 @@ function openPanel(forceId) {
   if (panel.open) { closePanel(); return; }
   panel.cands = forceId ? [ENT[forceId]] : candidates();
   if (!panel.cands.length || !panel.cands[0] || !visibleWords(panel.cands[0].id).length) { sfx.play('deny'); toastSmall(S.discovered.size ? 'Nessuna pagina da riscrivere qui' : 'Non conosci ancora nessuna parola'); return; }
-  panel.target = panel.cands[0]; panel.open = true; panel.wasFaded = false; panel.sel = 0; ink.openPanel(zoneSafe()); sfx.play('open'); input.rumble(0.15, 0, 50);
+  panel.target = panel.cands[0]; panel.open = true; panel.openedFrame = frame; panel.wasFaded = false; panel.sel = 0; ink.openPanel(zoneSafe()); sfx.play('open'); input.rumble(0.15, 0, 50);
   Tele.log('rewrite_open', { target: panel.target.id, ink: Math.round(ink.v), safe: ink.safe }); buildBubbles();
   if (ink.faded) { panel.wasFaded = true; $('words').classList.add('faded'); sfx.play('dry'); Tele.log('ink_faded', { ink: Math.round(ink.v) }); }
 }
@@ -344,13 +344,14 @@ function panelUpdate(dtReal) {
   const r = ink.tick(dtReal);
   if (ink.faded && !panel.wasFaded) { panel.wasFaded = true; $('words').classList.add('faded'); sfx.play('dry'); Tele.log('ink_faded', { ink: Math.round(ink.v) }); }
   if (r === 'autoclose') { const w = panel.words[panel.sel]; if (w && w !== 'reset') { S.prepared = w; Tele.log('faded_autoclose', { prepared: w }); } closePanel(); renderPrepared(); return; }
-  if (ink.canSelect()) {
+  const fresh = panel.openedFrame === frame;
+  if (ink.canSelect() && !fresh) {
     if (input.pressed('right')) selectWord((panel.sel + 1) % panel.words.length);
     if (input.pressed('left')) selectWord((panel.sel - 1 + panel.words.length) % panel.words.length);
     if ((input.pressed('up') || input.pressed('down')) && panel.cands.length > 1) { const i = panel.cands.indexOf(panel.target); panel.target = panel.cands[(i + (input.pressed('up') ? 1 : -1) + panel.cands.length) % panel.cands.length]; panel.sel = 0; buildBubbles(); }
     if (input.pressed('confirm') || input.pressed('interact')) { confirmWord(); return; }
   }
-  if (input.pressed('back') || input.pressed('rewrite')) { const w = panel.words[panel.sel]; if (ink.faded && w && w !== 'reset') { S.prepared = w; renderPrepared(); } closePanel(); return; }
+  if (!fresh && (input.pressed('back') || input.pressed('rewrite'))) { const w = panel.words[panel.sel]; if (ink.faded && w && w !== 'reset') { S.prepared = w; renderPrepared(); } closePanel(); return; }
   const e = panel.target; const v = new THREE.Vector3(e.x, (e.mesh.userData.height || 1.4) + 0.6, e.z).project(camera);
   const sx = (v.x * 0.5 + 0.5) * innerWidth, sy = (-v.y * 0.5 + 0.5) * innerHeight; const n = panel.words.length;
   $('wordTarget').style.left = sx + 'px'; $('wordTarget').style.top = (sy - 70) + 'px';
@@ -639,7 +640,7 @@ function visualUpdate(dt, rdt) {
   S.shake = Math.max(0, S.shake - rdt * 2.2); S.flash = Math.max(0, S.flash - rdt * 2); post.comp.uniforms.flash.value = opts.reduce ? 0 : S.flash * 0.5;
 }
 function loop() {
-  requestAnimationFrame(loop); const t = performance.now(); const rdt = Math.min(0.1, (t - last) / 1000); last = t; frame++;
+  requestAnimationFrame(loop); const t = performance.now(); const rawDt = Math.min(0.25, (t - last) / 1000); const rdt = Math.min(0.1, rawDt); last = t; frame++;
   try {
     input.poll();
     if (input.pressed('pause') && S.phase === 'play' && !panel.open) togglePause();
@@ -648,7 +649,7 @@ function loop() {
       let scale = panel.open ? (opts.pauseFull ? 0 : INK.worldScale) : 1; if (S.hitstop > 0) { S.hitstop -= rdt; scale *= 0.08; } if (slowT > 0) { slowT -= rdt; scale *= 0.4; }
       playerActions();
       acc += rdt * scale; let n = 0; while (acc >= STEP && n < 6) { step(STEP); acc -= STEP; n++; } if (n === 6) acc = 0;
-      panelUpdate(rdt); dlgUpdate(rdt); hudUpdate(rdt); visualUpdate(rdt * scale, rdt);
+      panelUpdate(rawDt); dlgUpdate(rdt); hudUpdate(rdt); visualUpdate(rdt * scale, rdt);
     } else if (S.phase === 'title') { INK_UNIFORMS.uTime.value += rdt; camera.position.set(Math.sin(t / 4000) * 2.5, 7.5, 6.5); camera.lookAt(0, 0.8, -3); particles.update(rdt); if (frame % 8 === 0) particles.emit(rnd(-5, 5), 3.5, rnd(-5, 2), 0, -0.4, 0, 3, 0.07, 0.95, 0.85, 0.6, 0); }
   } catch (err) { console.error(err); }
   post.render(scene, camera);

@@ -89,3 +89,4 @@ body.contrast #hint,body.contrast #preview{background:#000;color:#fff;padding:6p
 body.big{--fs:1.3}
 .inkpop{position:fixed;left:calc(330px + env(safe-area-inset-left));top:18px;color:#efe5cf;font-size:15px;pointer-events:none;font-style:italic}
 #hud{z-index:2}#touch{z-index:3}#words{z-index:5}#dialog{z-index:6}#vision{z-index:7}.panel{z-index:10}#title{z-index:12}#fade{z-index:20}.bubble{z-index:5}
+@media (orientation:portrait){#room{top:calc(80px + env(safe-area-inset-top))}#prepared{top:calc(110px + env(safe-area-inset-top))}#fan{transform:scale(.92);transform-origin:right bottom}}

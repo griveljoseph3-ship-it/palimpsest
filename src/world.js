@@ -52,7 +52,7 @@ export function buildWorld(scene, paper) {
   // pozze di luce calda (additive) e scrivania sotto il libro
   const lc = document.createElement('canvas'); lc.width = lc.height = 128; const lg = lc.getContext('2d'); const gr = lg.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,214,150,0.55)'); gr.addColorStop(0.5, 'rgba(255,190,120,0.18)'); gr.addColorStop(1, 'rgba(255,190,120,0)'); lg.fillStyle = gr; lg.fillRect(0, 0, 128, 128);
   const lt = new THREE.CanvasTexture(lc);
-  ROOMS.forEach((r, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w * 1.1, r.d * 1.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: lt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5 })); m.position.set(r.cx - 1.5, 0.02, r.cz - 0.5); g.add(m); });
+  ROOMS.forEach((r, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w * 1.1, r.d * 1.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: lt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.18 })); m.position.set(r.cx - 1.5, 0.02, r.cz - 0.5); g.add(m); });
   const dc = document.createElement('canvas'); dc.width = dc.height = 256; const dg = dc.getContext('2d'); dg.fillStyle = '#21160f'; dg.fillRect(0, 0, 256, 256); for (let i = 0; i < 160; i++) { dg.strokeStyle = `rgba(${60 + Math.random() * 30},${38 + Math.random() * 20},${24},.35)`; dg.lineWidth = 1 + Math.random() * 2; dg.beginPath(); const y = Math.random() * 256; dg.moveTo(0, y); dg.bezierCurveTo(80, y + Math.random() * 10 - 5, 170, y + Math.random() * 10 - 5, 256, y); dg.stroke(); }
   // lavatura d'inchiostro ai margini di ogni pagina
   const wc = document.createElement('canvas'); wc.width = 512; wc.height = 512; const wg = wc.getContext('2d');
@@ -63,7 +63,7 @@ export function buildWorld(scene, paper) {
   ROOMS.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.d).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: wt, transparent: true, depthWrite: false })); m.position.set(r.cx, 0.008, r.cz); g.add(m); });
   const dt = new THREE.CanvasTexture(dc); dt.wrapS = dt.wrapT = THREE.RepeatWrapping; dt.repeat.set(6, 20); dt.colorSpace = THREE.SRGBColorSpace;
   const desk = new THREE.Mesh(new THREE.PlaneGeometry(80, 140).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: dt, color: 0x9a8a7a })); desk.position.set(0, -0.6, -40); g.add(desk);
-  const under = new THREE.Mesh(new THREE.BoxGeometry(18.5, 0.58, 96), new THREE.MeshBasicMaterial({ color: 0xcfc3a6 })); under.position.set(0, -0.3, -40); g.add(under); // spessore delle pagine
+  const under = new THREE.Mesh(new THREE.BoxGeometry(18.5, 0.58, 96), new THREE.MeshBasicMaterial({ color: 0x5e5244 })); under.position.set(0, -0.3, -40); g.add(under); // spessore delle pagine
   // corridoio della prova nella stanza di Elara
   addWall(-5, -38, -5, -46.2);
   // fogli che pendono e rilegatura: dettagli d'atmosfera
@@ -83,10 +83,14 @@ export function makeBoard() {
 }
 export function makeCharger() {
   const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
-  const core = inked(new THREE.IcosahedronGeometry(0.42, 1), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.y = 0.75; body.add(core);
-  const armor = inked(new THREE.SphereGeometry(0.85, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.62), { color: 0xc9b896, y0: 0.2, y1: 1.6 }); armor.position.y = 0.45; armor.scale.set(1, 0.95, 1.25); body.add(armor);
-  const horn = inked(new THREE.ConeGeometry(0.16, 0.7, 6), { color: 0x2a211a }); horn.rotation.x = Math.PI / 2.4; horn.position.set(0, 0.9, 0.95); body.add(horn);
-  for (const s of [-1, 1]) { const leg = inked(new THREE.CylinderGeometry(0.1, 0.06, 0.5, 5), { color: 0x2a211a }); leg.position.set(s * 0.5, 0.25, 0.3); body.add(leg); const l2 = leg.clone(); l2.position.z = -0.4; body.add(l2); }
+  const core = inked(new THREE.IcosahedronGeometry(0.38, 1), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.set(0, 0.8, -0.1); body.add(core);
+  const armor = new THREE.Group(); body.add(armor);
+  for (let i = 0; i < 3; i++) { const sh = inked(new THREE.SphereGeometry(0.78 - i * 0.08, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), { color: i === 1 ? 0xd2c3a0 : 0xbfae8a, y0: 0.2, y1: 1.5, ow: 0.03 });
+    sh.scale.set(1, 0.85, 0.75); sh.position.set(0, 0.45 + i * 0.05, -0.55 + i * 0.5); sh.rotation.x = -0.35 + i * 0.25; armor.add(sh); }
+  const head = inked(new THREE.BoxGeometry(0.7, 0.45, 0.45), { color: 0x2a211a }); head.position.set(0, 0.6, 0.95); body.add(head);
+  for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff5530 })); eye.position.set(s * 0.18, 0.68, 1.18); body.add(eye);
+    const horn = inked(new THREE.ConeGeometry(0.09, 0.55, 5), { color: 0xe8dcc0 }); horn.rotation.x = Math.PI / 2.3; horn.rotation.z = s * -0.4; horn.position.set(s * 0.28, 0.82, 1.2); body.add(horn);
+    for (const z of [0.5, -0.1, -0.6]) { const leg = inked(new THREE.CylinderGeometry(0.07, 0.04, 0.55, 5), { color: 0x2a211a, ow: 0.02 }); leg.position.set(s * 0.62, 0.22, z); leg.rotation.z = s * 0.5; body.add(leg); } }
   grp.userData = { body, core, armor, r: 0.85, height: 1.6 }; return grp;
 }
 export function makeCustode() {

@@ -22,7 +22,7 @@ const BLACK = new THREE.Color(0, 0, 0);
 // ---------- render ----------
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
-renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.info.autoReset = false;
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 let pr = opts.q === 'low' ? 0.9 : opts.q === 'high' ? Math.min(devicePixelRatio, 2) : Math.min(devicePixelRatio, isTouch ? 1.25 : 1.5);
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a130e);
@@ -540,7 +540,7 @@ function startGame() {
 }
 function inkDrop() {
   for (let i = 0; i < 6; i++) setTimeout(() => particles.emit(0.3 + rnd(-0.05, 0.05), 4, -4.75, 0, -2, 0, 1.2, 0.3, 0.03, 0.02, 0.02, 9), i * 90);
-  setTimeout(() => { sfx.play('tear'); traces.add(0.3, -4.3, 1, 0, now); S.shake = 0.3; hint(ST.HINTS.look); }, 900);
+  setTimeout(() => { sfx.play('tear'); traces.add(0.3, -4.3, 1, 0, now); S.shake = 0.3; if (S.room === 'intro' && !S.discovered.has('state.fragile')) hint(ST.HINTS.look); }, 900);
 }
 function goEnd() {
   const r = W.ROOMS[5]; S.lock = true; $('fade').style.opacity = 1;
@@ -631,6 +631,7 @@ function visualUpdate(dt, rdt) {
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
   if (frame % 20 === 0) particles.emit(P.x + rnd(-8, 8), rnd(1, 4), P.z + rnd(-8, 4), rnd(-0.1, 0.1), 0.05, rnd(-0.1, 0.1), 4, 0.06, 0.95, 0.85, 0.6, 0); // pulviscolo di luce
   ghostUpdate(dt); particles.update(dt);
+  INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -62, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 13 : 11;
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
   const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.25 : 1.08; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
@@ -652,7 +653,7 @@ function loop() {
       panelUpdate(rawDt); dlgUpdate(rdt); hudUpdate(rdt); visualUpdate(rdt * scale, rdt);
     } else if (S.phase === 'title') { INK_UNIFORMS.uTime.value += rdt; camera.position.set(Math.sin(t / 4000) * 2.5, 7.5, 6.5); camera.lookAt(0, 0.8, -3); particles.update(rdt); if (frame % 8 === 0) particles.emit(rnd(-5, 5), 3.5, rnd(-5, 2), 0, -0.4, 0, 3, 0.07, 0.95, 0.85, 0.6, 0); }
   } catch (err) { console.error(err); }
-  post.render(scene, camera);
+  renderer.info.reset(); post.render(scene, camera);
   fpsAcc += rdt; fpsN++; if (fpsAcc > 2) { const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps;
     if (opts.q === 'auto' && S.phase === 'play') { if (fps < 50) { lowStreak++; if (lowStreak >= 2 && pr > 0.75) { pr = Math.max(0.75, pr - 0.15); resize(); lowStreak = 0; Tele.log('quality_drop', { pr }); } } else lowStreak = 0; } }
 }
@@ -665,5 +666,5 @@ window.PAL = { S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, pa
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },
   interact, skipDialog: () => { let k = 0; while (dlg.active && !dlg.opt.choices && k++ < 50) { dlg.ch = 1e9; dlgNext(); } if (dlg.active && dlg.opt.choices) { dlg.i = dlg.lines.length - 1; dlg.ch = 1e9; } },
   choose: (i) => { if (dlg.active && dlg.opt.choices) pickChoice(i); }, attack: (heavy) => startAttack(heavy), quick: quickReapply, reset: resetPhrase, recompose,
-  kill: () => { P.inv = 0; P.hp = 1; damagePlayer(5, null, null); }, room: () => S.room };
+  info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, pr, fps: window.__fps }), kill: () => { P.inv = 0; P.hp = 1; damagePlayer(5, null, null); }, room: () => S.room };
 if (Q.has('autostart')) startGame();

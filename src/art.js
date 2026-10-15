@@ -29,7 +29,7 @@ float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(
 float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vnoise(p);p*=2.03;a*=.5;}return s;}`;
 
-export const INK_UNIFORMS = { uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 } };
+export const INK_UNIFORMS = { uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 } };
 
 export function inkMaster(opts = {}) {
   const m = new THREE.ShaderMaterial({
@@ -45,16 +45,16 @@ export function inkMaster(opts = {}) {
     vertexColors: true,
     vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
       void main(){ vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(modelMatrix)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
-    fragmentShader: `uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast; uniform vec3 uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
+    fragmentShader: `uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
         vec3 an=abs(n); vec2 uv= an.y>.6? vW.xz : (an.x>an.z? vW.zy: vW.xy);
         vec3 paper=texture2D(uPaper,uv*uScale).rgb;
         vec3 base=mix(uColor, uColor*paper*1.25, TextureBlend);
-        float wob=fbm(vW.xz*2.+uTime*.15)*.12;
+        float wob=vnoise(vW.xz*2.+uTime*.15)*.12;
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
-        vec2 sp=gl_FragCoord.xy; float hatch=step(.5,fract((sp.x+sp.y)*.16+fbm(sp*.02)*1.5));
+        vec2 sp=gl_FragCoord.xy; float hatch=step(.5,fract((sp.x+sp.y)*.16+vnoise(sp*.02)*1.5));
         float hatch2=step(.5,fract((sp.x-sp.y)*.16));
         float dark=1.-tone; float hm=mix(1.,.7,hatch*smoothstep(.35,.5,dark))*mix(1.,.78,hatch2*smoothstep(.7,.8,dark));
         float ao=mix(.68,1.,smoothstep(0.,.9,vW.y-uH.x+.05));
@@ -63,16 +63,17 @@ export function inkMaster(opts = {}) {
         float rim=pow(1.-abs(dot(n,normalize(cameraPosition-vW))),3.); col=mix(col,uInk,rim*.35*vMask);
         col=mix(col, uShiftColor*(.6+.4*tone), ColorShift*vMask);
         // segni persistenti delle riscritture (scarabocchi d'inchiostro)
-        float sc=smoothstep(.62,.66,fbm(vW.xy*3.1+vW.zx*2.3+7.))*step(.001,uMarks);
-        col=mix(col,uInk*1.4,sc*min(uMarks,3.)*.22*vMask);
+        if(uMarks>0.){ float sc=smoothstep(.62,.66,fbm(vW.xy*3.1+vW.zx*2.3+7.)); col=mix(col,uInk*1.4,sc*min(uMarks,3.)*.22*vMask); }
         // crepe del componente Fragile
-        float cr=1.-smoothstep(.0,.035,abs(fbm(vW.xz*4.+vW.y*3.)-.5)); col=mix(col,uInk,cr*uCrack*vMask);
+        if(uCrack>0.){ float cr=1.-smoothstep(.0,.035,abs(fbm(vW.xz*4.+vW.y*3.)-.5)); col=mix(col,uInk,cr*uCrack*vMask); }
         // eco di riscrittura: linea che ridisegna il componente (0,12–0,35 s)
         if(uRedraw>=0.){ float hy=mix(uH.x,uH.y,uRedraw); float l=1.-smoothstep(0.,.07,abs(vW.y-hy)); col=mix(col,uInk,l*.9); col+=uGlow*l*1.5; }
         col+=uGlow*(.35+.25*sin(uTime*6.));
         // dissoluzione in inchiostro
-        float dn=fbm(vW.xy*3.+vW.zz*2.);
-        if(DissolveAmount>0.){ if(dn<DissolveAmount) discard; col=mix(col,uInk,1.-smoothstep(0.,.08,dn-DissolveAmount)); }
+        if(DissolveAmount>0.){ float dn=fbm(vW.xy*3.+vW.zz*2.); if(dn<DissolveAmount) discard; col=mix(col,uInk,1.-smoothstep(0.,.08,dn-DissolveAmount)); }
+        // lampada da lettura che segue il giocatore: il resto della pagina sprofonda nel buio caldo
+        float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.25,1.,ld+vnoise(vW.xz*.6+uTime*.05)*.18);
+        col*=mix(vec3(.26,.22,.24),vec3(1.06,1.,.9),lamp);
         col=mix(col, vec3(dot(col,vec3(.33)))*1.1, uContrast*.6);
         gl_FragColor=vec4(col,1.);
         #include <colorspace_fragment>
@@ -168,9 +169,9 @@ export class Post {
           col+=texture2D(b,uv).rgb*.55;
           float lum=dot(col,vec3(.299,.587,.114)); col=mix(col,vec3(lum)*vec3(1.05,.97,.86),.18+focus*.45);
           col=pow(col,vec3(1.03)); col*=vec3(1.03,1.,.95);
-          float vig=smoothstep(.85,.25,r+fbm(uv*3.+time*.02)*.12); col*=mix(.42,1.,vig);
+          float vig=smoothstep(.85,.25,r+vnoise(uv*3.+time*.02)*.12); col*=mix(.42,1.,vig);
           // bordi della pagina che si inchiostrano durante la lettura
-          float edge=smoothstep(.36,.75,r+fbm(uv*6.+time*.1)*.2)*focus; col=mix(col,vec3(.05,.035,.03),edge*.8);
+          if(focus>.01){ float edge=smoothstep(.36,.75,r+fbm(uv*6.+time*.1)*.2)*focus; col=mix(col,vec3(.05,.035,.03),edge*.8); }
           col=mix(col,vec3(lum*.9+.1),sbiadito*.5);
           col+=(h21(uv*res+fract(time)*100.)-.5)*.045;
           col=mix(col,vec3(.98,.95,.88),flash);

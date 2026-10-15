@@ -46,3 +46,8 @@ Legenda: **Fatto** = implementato e provato con test automatici · **In corso** 
 - iPad: Safari non permette la vibrazione dal web; si usano luce e suono.
 - Il rendering nei test gira in software (circa 10 fps): la fluidità reale va provata sull'iPad.
 - I nomi, le voci e la musica sono generati; niente doppiaggio.
+
+## Ultimo giro di test (16 ottobre, ~02:45 ora di Parigi)
+- Partite intere: forced+controllo, evidence+rottura, trust+ambiente, evidence+azione: PASS, 0 errori in console. Nella stessa notte sono passate anche forced+rottura, forced+azione, trust+controllo, trust+rottura, evidence+controllo.
+- Sistemi (tastiera, touch, Sbiadito, riscrittura veloce, Lumi, memoria): 28/28. Controller simulato: 8/8. S1 e S3: OK.
+- Aiuti usati dal bot nei test: teletrasporto, salute piena e Inchiostro ricaricato quando serve. Servono a provare la logica, non dicono niente sulla difficoltà.

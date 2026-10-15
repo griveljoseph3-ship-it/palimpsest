@@ -1,0 +1,70 @@
+// Testi e memoria delle versioni precedenti. Il mondo è un libro che non vuole essere corretto.
+const MK = 'pal.memory';
+export function loadMem() { try { return JSON.parse(localStorage.getItem(MK)) || { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } catch (e) { return { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } }
+export function saveMem(m) { try { localStorage.setItem(MK, JSON.stringify(m)); } catch (e) {} }
+
+export const WHO = { narr: 'Il Libro', elara: 'Elara', lumi: 'Lumi', custode: 'Il Custode', you: 'Tu' };
+
+export function introLines(mem) {
+  if (mem.runs === 0) return [
+    ['narr', "C'era una volta una storia finita. Qualcuno l'ha riaperta."],
+    ['narr', 'Le pagine non vogliono essere corrette. Ma una goccia è già caduta.'],
+  ];
+  return [
+    ['narr', 'Di nuovo tu. Le cancellature della volta scorsa sono ancora qui.'],
+    ['narr', `${mem.runs === 1 ? 'Una versione' : mem.runs + ' versioni'} di questa storia ${mem.runs === 1 ? 'è stata riscritta' : 'sono state riscritte'}. La carta ricorda.`],
+  ];
+}
+export const HINTS = {
+  look: 'Avvicinati alla tavola lacerata e guarda',
+  firstRewrite: 'Scegli la parola. Poi colpisci forte',
+  heavy: 'Colpo impegnato: carica e rompi',
+  charger: 'Il Caricatore ti punta. Prova la stessa parola sulla sua corazza',
+  pillar: 'Fallo caricare contro un pilastro',
+  core: 'Il nucleo è esposto: colpiscilo!',
+  press: 'La pressa batte ogni 4 secondi. Un impulso esiste già: dagli una strada',
+  door: 'La porta giudica. Tre strade: forzare il relè, portare la prova, oppure affidarti a Elara',
+  arena: 'Interrompi il legame tra il Custode e il nucleo, poi tocca il sigillo',
+  seal: 'Il legame si è allentato: tocca il sigillo!',
+};
+export function elaraDoor(mem) {
+  const prev = mem.routes[mem.routes.length - 1];
+  const base = [['elara', 'Mi stai leggendo. Lo sento dal margine.'], ['elara', 'La parola sopra di me non è mia. È il relè a dire COLPEVOLE. Io guardo solo come scrivi.']];
+  if (prev === 'forced') base.unshift(['elara', "Tu. L'altra volta mi hai strappata. La cucitura si vede ancora, guarda."]);
+  if (prev === 'evidence') base.unshift(['elara', "Hai ancora la prova dell'altra volta? No... quella versione è stata chiusa."]);
+  if (prev === 'trust') base.unshift(['elara', "Ricordo una versione in cui ti sei fermato a difendermi. Era questa?"]);
+  return base;
+}
+export const ROUTE_TEXT = {
+  forced: 'Hai forzato il relè. La porta si è aperta strappandosi.',
+  evidence: 'Hai portato la prova al lettore. Il verdetto si è spento da solo.',
+  trust: 'Ti sei affidato a Elara e l\'hai difesa mentre si riscriveva.',
+};
+export const PLAN_TEXT = { controllo: 'Controllo (CAUTO)', rottura: 'Rottura (FRAGILE)', ambiente: 'Ambiente (CONDUTTIVO)', azione: 'Azione pura' };
+
+export function custodeLines(deaths, mem) {
+  if (deaths === 0 && mem.runs > 0) return [['custode', 'Ti conosco. Sei quello che cambia le cose finite.']];
+  if (deaths === 0) return [['custode', 'Questa pagina è chiusa. Io sono ciò che resta quando una storia smette di cambiare.']];
+  if (deaths === 1) return [['custode', 'Hai già perso qui. La pagina lo ha scritto.']];
+  return [['custode', `${deaths} volte. Ogni volta lasci una macchia. Continua: più macchie, meno storia.`]];
+}
+export function consequence(st, mem) {
+  const L = [];
+  L.push(['narr', 'Il sigillo si spezza come una ceralacca. Il capitolo si riapre.']);
+  if (st.doorRoute === 'evidence') { L.push(['elara', 'Ho confrontato il tuo documento con una nuova testimonianza. Coincide.']); L.push(['elara', 'Lo tengo io. Ti guiderò fuori: hai corretto senza strappare.']); }
+  else if (st.doorRoute === 'forced') { L.push(['elara', 'C\'è una nuova testimonianza. Non te la do.']); L.push(['elara', 'Chi strappa una pagina può strapparne un\'altra. Il bordo di me è ancora sfilacciato.']); }
+  else { L.push(['elara', 'Mi hai difesa trenta secondi. Non è tanto, per un libro.']); L.push(['elara', 'Ma ora ho una riga scritta da me. Ti racconterò cosa c\'era prima del verdetto.']); }
+  const pt = { controllo: ['custode', 'Mi hai fatto avere paura. Non sapevo di poterla avere.'], rottura: ['custode', 'Mi hai incrinato. Le crepe resteranno nel margine.'], ambiente: ['custode', 'Hai usato la mia pagina contro di me. Era scritta male, forse.'], azione: ['custode', 'Niente parole. Solo colpi. Anche questa è una scrittura.'] };
+  L.push(pt[st.plan] || pt.azione);
+  if (st.deaths >= 3) L.push(['lumi', `Sono le ${st.deaths} macchie che hai lasciato. Non le cancellare. Sono io.`]);
+  else if (st.deaths > 0) L.push(['lumi', 'Una piccola macchia, là in fondo. È così che nasco: quando sbagli e riprovi.']);
+  else L.push(['lumi', 'Nessuna macchia. Strano. Di solito resta sempre qualcosa.']);
+  if (mem.runs > 0) L.push(['elara', 'Questa versione è diversa dall\'altra. Le ricordo tutte e due.']);
+  L.push(['narr', 'Fine del frammento. Il resto della storia non ha ancora deciso se lasciarsi correggere.']);
+  return L;
+}
+export const LUMI_VISION = {
+  rottura: 'Lumi ti mostra una versione fallita: il Custode carica, sbatte contro un pilastro... e la corazza si apre.',
+  controllo: 'Lumi ti mostra una versione fallita: il Custode ha paura, si allontana dal nucleo, e il legame cede.',
+  ambiente: 'Lumi ti mostra una versione fallita: il ponte trasporta l\'impulso e la piega sposta il Custode.',
+};

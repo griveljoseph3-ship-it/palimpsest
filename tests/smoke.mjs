@@ -1,0 +1,12 @@
+import { chromium } from 'playwright-core';
+const BASE = process.env.BASE || 'http://localhost:8941/';
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const ctx = await b.newContext({ viewport: { width: 1366, height: 1024 }, deviceScaleFactor: 1, hasTouch: true });
+const pg = await ctx.newPage(); const errs = [];
+pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); }); pg.on('pageerror', (e) => errs.push('PE ' + e.message));
+await pg.goto(BASE + '?fast'); await pg.waitForTimeout(1500); await pg.screenshot({ path: '/workspace/palimpsest-shots/00-title.png' });
+await pg.evaluate(() => PAL.start()); await pg.waitForTimeout(2500); await pg.evaluate(() => PAL.skipDialog()); await pg.waitForTimeout(1500);
+await pg.screenshot({ path: '/workspace/palimpsest-shots/01-intro.png' });
+console.log(JSON.stringify(await pg.evaluate(() => ({ room: PAL.S.room, fps: window.__fps, p: [PAL.P.x, PAL.P.z] }))));
+console.log('ERR', errs.slice(0, 10));
+await b.close();

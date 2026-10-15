@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#16110d">
+<title>PALIMPSEST — Cambia una parola</title>
+<link rel="stylesheet" href="style.css"><link rel="icon" href="icon.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head><body>
+<svg width="0" height="0" style="position:absolute"><filter id="inkEdge"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3"><animate attributeName="seed" values="1;4;7;2" dur="1.2s" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" scale="6"/></filter></svg>
+<canvas id="c"></canvas>
+<div id="hud" class="hidden">
+  <div id="inkWrap"><div id="inkLabel">INCHIOSTRO</div><div id="inkBar"><div id="inkFill"></div><div id="inkMark"></div></div><div id="inkNum">100</div></div>
+  <div id="hp"></div>
+  <div id="room"></div>
+  <div id="prepared" class="hidden"><span>pronta</span><b id="prepWord"></b></div>
+  <div id="hint"></div>
+  <div id="toast"></div>
+  <div id="topBtns"><button id="bJournal" aria-label="Diario">✒︎</button><button id="bPause" aria-label="Pausa">❚❚</button></div>
+</div>
+<div id="words" class="hidden"><div id="wordTarget"></div><div id="bubbles"></div><div id="preview"><div id="pvText"></div><div id="pvCombo"></div></div><div id="wordHelp"></div></div>
+<div id="touch" class="hidden">
+  <div id="stickZone"></div><div id="stickBase"><div id="stickKnob"></div></div>
+  <div id="fan">
+    <button id="tAttack" class="tb big">⟋<small>colpo</small></button>
+    <button id="tHeavy" class="tb">⟰<small>forte</small></button>
+    <button id="tDodge" class="tb">≋<small>schiva</small></button>
+    <button id="tRewrite" class="tb ink">✎<small>riscrivi</small></button>
+    <button id="tQuick" class="tb mini">↻<small id="tQuickW">—</small></button>
+    <button id="tInteract" class="tb ctx hidden">◉<small id="tInteractL">guarda</small></button>
+    <button id="tReset" class="tb mini2">⌫<small>ripristina</small></button>
+  </div>
+</div>
+<div id="dialog" class="hidden"><div id="dWho"></div><div id="dText"></div><div id="dNext">▸</div></div>
+<div id="vision" class="hidden"><div id="visionText"></div></div>
+<div id="journal" class="panel hidden"><h2>Diario</h2><div id="jList"></div><button class="pbtn" data-close>Chiudi</button></div>
+<div id="pause" class="panel hidden"><h2>Pausa</h2>
+  <button class="pbtn" id="pResume">Riprendi</button>
+  <button class="pbtn" id="pRecompose">Ricomponi prova</button>
+  <h3>Opzioni</h3>
+  <label>Volume <input type="range" id="oVol" min="0" max="1" step="0.05"></label>
+  <label>Musica <input type="range" id="oMus" min="0" max="1" step="0.05"></label>
+  <label><input type="checkbox" id="oPauseFull"> Lettura a pausa completa (al posto del rallentamento 0,3x)</label>
+  <label><input type="checkbox" id="oReduce"> Riduci movimento (niente scosse ed effetti forti)</label>
+  <label><input type="checkbox" id="oContrast"> Alto contrasto</label>
+  <label><input type="checkbox" id="oBig"> Testo grande</label>
+  <label><input type="checkbox" id="oPanel"> Pannello laterale avanzato (slot)</label>
+  <label><input type="checkbox" id="oEasy"> Aiuto: meno danni subiti</label>
+  <label>Qualità <select id="oQ"><option value="auto">Automatica</option><option value="low">Leggera</option><option value="high">Alta</option></select></label>
+  <button class="pbtn" id="pTele">Esporta telemetria locale</button>
+  <button class="pbtn" id="pRestart">Ricomincia il frammento</button>
+  <p class="small">Controller: stick muovi · A interagisci/conferma · X colpo · Y colpo forte · B schiva · RB riscrivi · LB riapplica · Select ripristina frase<br>Tastiera: WASD · J colpo · K forte · Spazio schiva · E interagisci · Q riscrivi · R riapplica · T ripristina · Y ricomponi · Esc pausa</p>
+</div>
+<div id="title"><div class="tpage"><h1>PALIMPSEST</h1><p class="sub">«Cambia una parola. Scopri chi o cosa cambia con lei.»</p><button id="bStart" class="pbtn big">Apri il libro</button><p class="small" id="tMem"></p><p class="small">Meglio con le cuffie. Controller o touch.</p></div></div>
+<div id="fade"></div>
+<script type="module" src="src/main.js"></script>
+</body></html>

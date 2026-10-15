@@ -52,6 +52,7 @@ trail.rotation.x = -Math.PI / 2; scene.add(trail);
 // ---------- entità ----------
 const ENT = {}; const circles = [{ x: decor.well.x, z: decor.well.z, r: decor.well.r }];
 function matsOf(obj) { const a = []; obj.traverse((o) => { if (o.material && o.material.userData && o.material.userData.ink) a.push(o.material); }); return a; }
+function setOutlines(obj, v) { obj.traverse((o) => { if (o.userData && o.userData.outline) o.userData.outline.visible = v; }); }
 function setU(mats, k, v) { for (const m of mats) { const u = m.uniforms[k]; if (!u) continue; if (u.value && u.value.isColor) u.value.copy(v); else if (u.value && u.value.isVector2) u.value.copy(v); else u.value = v; } }
 function addEnt(id, type, mesh, x, z, extra = {}) {
   mesh.position.x = x; mesh.position.z = z; scene.add(mesh);
@@ -97,10 +98,11 @@ const seal = W.makeSeal(); seal.position.set(0, 0, -68.5); scene.add(seal);
 const tether = W.makeTether(); tether.visible = false; scene.add(tether);
 const arena = { t: 0, period: 4, loosenT: 0, window: 0, windowPlan: null, snapped: false, hazardT: 0, warn: false };
 // VI · fine
-const elara2 = W.makeElaraPage(false); elara2.position.set(-2.5, 0, -84.3); elara2.scale.setScalar(0.7); scene.add(elara2);
+const elara2 = W.makeElaraPage(false); elara2.position.set(-2.6, 0, -82.6); elara2.scale.setScalar(0.75); scene.add(elara2);
 const lumi = { mesh: W.makeLumi(), on: false, x: 0, z: 0 }; scene.add(lumi.mesh); lumi.mesh.visible = false;
 const lumiTraces = [];
-const warnRings = [];
+const warnRings = []; const waves = [];
+function inkWave(x, z, maxR = 3.5, color = 0x0d0907) { const m = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, depthWrite: false })); m.position.set(x, 0.035, z); scene.add(m); waves.push({ m, t: 0, maxR }); }
 function ring(x, z, r, life, color = 0x8a1a10, onEnd) {
   const m = new THREE.Mesh(new THREE.RingGeometry(r * 0.85, r, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false })); m.position.set(x, 0.03, z); scene.add(m);
   warnRings.push({ m, life, max: life, onEnd });
@@ -133,7 +135,7 @@ function breakArmor(e, by) {
   particles.burst(e.x, 1.2, e.z, 30, 6); traces.add(e.x, e.z, 3, 3, now); S.tracePos.push([e.x, e.z]);
   const bx = e.x, bz = e.z;
   ring(bx, bz, 1.5, 0.5, 0x8a1a10, () => { sfx.play('heavy'); particles.burst(bx, 0.3, bz, 20, 4, [0.8, 0.72, 0.58], 0.18); if (Math.hypot(P.x - bx, P.z - bz) < 1.5) damagePlayer(1, { x: bx, z: bz }, 'frag' + e.id + attackCounter); });
-  toast(e.boss ? 'CORAZZA INCRINATA' : 'CORAZZA ROTTA'); hint(ST.HINTS.core);
+  inkWave(e.x, e.z, 5, 0x5a1810); toast(e.boss ? 'CORAZZA INCRINATA' : 'CORAZZA ROTTA'); hint(ST.HINTS.core);
   if (e.boss) { S.arenaProgress = true; S.attempted.add(by === 'action' ? 'azione' : 'rottura'); }
   Tele.log('component_break', { id: e.id, by });
 }
@@ -373,7 +375,7 @@ function applyWord(e, w, via) {
   e.echo = 0; e.marks++; setU(e.mats, 'uMarks', e.marks); sfx.play(EFFECTS[w].sound); sfx.play('confirm'); input.rumble(0.5, 0.8, 120); S.flash = opts.reduce ? 0 : 0.12;
   traces.add(e.x + rnd(-0.5, 0.5), e.z + rnd(-0.5, 0.5), rnd(1.2, 1.8), Math.floor(rnd(0, 3)), now); S.tracePos.push([e.x, e.z]);
   for (let i = 0; i < 14; i++) particles.emit(e.x + rnd(-0.5, 0.5), (e.mesh.userData.height || 1.2) * rnd(0.5, 1), e.z + rnd(-0.5, 0.5), rnd(-0.6, 0.6), rnd(0, 1.5), rnd(-0.6, 0.6), rnd(1, 2), rnd(0.1, 0.22), 0.04, 0.03, 0.03, 7);
-  showWordFloat(e, EFFECTS[w].word);
+  showWordFloat(e, EFFECTS[w].word); inkWave(e.x, e.z, 3.2, w === 'element.conductive' ? 0x1b5a7a : w === 'temperament.cautious' ? 0x2a2440 : 0x0d0907);
   Tele.log(via === 'quick' ? 'quick_reapply' : 'rewrite_confirm', { target: e.id, eff: w, combo: res.combo ? res.combo.id : null, ink: Math.round(ink.v) });
   if (res.combo) toast('✦ ' + EFFECTS[res.combo.a].word + ' + ' + EFFECTS[res.combo.b].word);
   if (e.id === 'board') hint(ST.HINTS.heavy);
@@ -459,7 +461,7 @@ function enterRoom(r) {
 function endEncounter(id) { S.encounter = null; ink.encounterEnd(); sfx.tension(false); Tele.log('encounter_end', { id }); popInk('Inchiostro pieno'); }
 function die() {
   P.st = 'dead'; P.t = 1.4; S.deaths++; mem.deaths++; sfx.play('death'); closePanel(); S.shake = 0.6; Tele.log('death', { room: S.room, deaths: S.deaths });
-  traces.add(P.x, P.z, 1.6, 0, now); traces.add(P.x, P.z, 1.1, 3, now); S.tracePos.push([P.x, P.z]);
+  traces.add(P.x, P.z, 1.6, 0, now); traces.add(P.x, P.z, 1.1, 3, now); S.tracePos.push([P.x, P.z]); inkWave(P.x, P.z, 4);
   for (let i = 0; i < 30; i++) particles.emit(P.x + rnd(-0.3, 0.3), rnd(0.2, 1.6), P.z + rnd(-0.3, 0.3), rnd(-1, 1), rnd(0, 2), rnd(-1, 1), rnd(0.8, 1.6), rnd(0.12, 0.25), 0.04, 0.03, 0.03, 5);
   const lt = W.makeLumi(); lt.scale.setScalar(0.45); lt.position.set(P.x, 0.25, P.z); scene.add(lt); lumiTraces.push(lt); // la traccia d'inchiostro dell'errore
   if (S.room === 'arena' && !S.arenaProgress) S.arenaDeaths++;
@@ -550,8 +552,8 @@ function inkDrop() { controlsCard();
 }
 function goEnd() {
   const r = W.ROOMS[5]; S.lock = true; $('fade').style.opacity = 1;
-  setTimeout(() => { P.x = 0; P.z = r.cz + 3; P.face = Math.PI; camera.position.set(0, 14, P.z + 11); $('fade').style.opacity = 0; enterRoom(r); lumi.on = true; lumi.mesh.visible = true; lumi.x = 2; lumi.z = -82;
-    const rem = W.makeCustode(); rem.scale.setScalar(0.6); rem.position.set(3, 0, -85); rem.rotation.y = -0.5; rem.userData.armor.visible = !custode.armorBroken; scene.add(rem);
+  setTimeout(() => { P.x = 0; P.z = r.cz + 1.5; P.face = Math.PI; camera.position.set(0, 14, P.z + 11); $('fade').style.opacity = 0; enterRoom(r); lumi.on = true; lumi.mesh.visible = true; lumi.x = 2; lumi.z = -82;
+    const rem = W.makeCustode(); rem.scale.setScalar(0.6); rem.position.set(2.8, 0, -82.8); rem.rotation.y = -0.5; rem.userData.armor.visible = !custode.armorBroken; scene.add(rem);
     if (S.doorRoute === 'forced') { elara2.userData.st.seam = true; elara2.userData.redraw(); }
     say(ST.consequence(S, mem), { done: finish }); }, FAST ? 50 : 700);
 }
@@ -606,12 +608,14 @@ function visualUpdate(dt, rdt) {
   u.body.rotation.x = lerp(u.body.rotation.x, sp * 0.03 + (P.st === 'dodge' ? 0.5 : 0), 0.2); u.body.position.y = Math.abs(Math.sin(now * 11)) * 0.05 * Math.min(1, sp / 4);
   u.cloak.scale.set(1 + Math.sin(now * 9) * 0.03 * sp / 5, 1, 1 + sp * 0.03); const sq = P.st === 'heavy' && P.t > P.hitAt ? 0.9 : 1; u.body.scale.set(2 - sq, sq, 2 - sq);
   if (P.st === 'attack') u.quillPivot.rotation.y = lerp(1.6, -1.6, clamp(1 - (P.t - 0.05) / 0.27, 0, 1)); else if (P.st === 'heavy') { u.quillPivot.rotation.x = P.t > P.hitAt ? -1.2 : 0.6; u.quillPivot.rotation.y = 0; } else { u.quillPivot.rotation.y = lerp(u.quillPivot.rotation.y, 0.3, 0.2); u.quillPivot.rotation.x = lerp(u.quillPivot.rotation.x, 0, 0.2); }
-  if (P.st === 'dead') P.mesh.visible = P.t > 0 && Math.random() < P.t; else P.mesh.visible = !(P.inv > 0 && P.st !== 'dodge' && Math.sin(now * 40) < -0.3);
+  if (!P.mats) P.mats = matsOf(P.mesh); setU(P.mats, 'DissolveAmount', P.st === 'dead' ? clamp(1.05 - P.t / 1.4 * 1.05, 0, 1.05) : 0);
+  const wantOl = P.st !== 'dead'; if (P.olOn !== wantOl) { P.olOn = wantOl; setOutlines(P.mesh, wantOl); }
+  if (P.st === 'dead') P.mesh.visible = P.t > -0.1; else P.mesh.visible = !(P.inv > 0 && P.st !== 'dodge' && Math.sin(now * 40) < -0.3);
   if (P.st === 'dodge' && frame % 2 === 0) particles.emit(P.x, 0.5, P.z, 0, 0.5, 0, 0.4, 0.3, 0.06, 0.04, 0.04, 0);
   if (sp > 3 && frame % 9 === 0) traces.add(P.x + rnd(-0.1, 0.1), P.z, 0.12, 1, now);
   pShadow.position.set(P.x, 0.015, P.z); trail.material.opacity *= 0.82;
   for (const e of [charger, custode]) { const m = e.mesh; m.position.set(e.x, 0, e.z); m.rotation.y = lerpAng(m.rotation.y, e.face, 0.2); shadows[e.id].position.set(e.x, 0.015, e.z); const b = m.userData.body;
-    if (e.st === 'dead') { e.dying = (e.dying || 0) + dt; setU(e.mats, 'DissolveAmount', Math.min(1.05, e.dying * 0.7)); if (frame % 3 === 0 && e.dying < 1.5) particles.emit(e.x + rnd(-0.6, 0.6), rnd(0.3, 2), e.z + rnd(-0.6, 0.6), 0, rnd(0.5, 2), 0, 1.2, 0.2, 0.05, 0.03, 0.03, -1); if (e.dying > 1.6) { m.visible = false; shadows[e.id].visible = false; } continue; }
+    if (e.st === 'dead') { if (!e.olOff) { e.olOff = true; setOutlines(m, false); } e.dying = (e.dying || 0) + dt; setU(e.mats, 'DissolveAmount', Math.min(1.05, e.dying * 0.7)); if (frame % 3 === 0 && e.dying < 1.5) particles.emit(e.x + rnd(-0.6, 0.6), rnd(0.3, 2), e.z + rnd(-0.6, 0.6), 0, rnd(0.5, 2), 0, 1.2, 0.2, 0.05, 0.03, 0.03, -1); if (e.dying > 1.6) { m.visible = false; shadows[e.id].visible = false; } continue; }
     const caut = grammar.has(e.id, 'temperament.cautious'), frag = grammar.has(e.id, 'state.fragile'), cond = grammar.has(e.id, 'element.conductive'); const pvOn = panel.open && panel.target === e;
     b.rotation.x = lerp(b.rotation.x, e.st === 'windup' ? -0.2 : e.st === 'charge' ? 0.25 : caut ? -0.15 : 0, 0.15); b.scale.y = e.st === 'windup' ? 0.92 + Math.sin(now * 50) * 0.02 : lerp(b.scale.y, 1, 0.2);
     if (e.boss) { const a1 = e.comp.userData['arm1'], a2 = e.comp.userData['arm-1']; a1.rotation.x = lerp(a1.rotation.x, e.st === 'swipeWU' ? -1.6 : e.st === 'swipe' ? 1.2 : Math.sin(now * 2) * 0.1, 0.3); a2.rotation.x = lerp(a2.rotation.x, e.st === 'swipe' ? 0.6 : Math.sin(now * 2 + 1) * 0.1, 0.3); m.userData.eye.material.color.setHex(e.st === 'windup' || e.st === 'swipeWU' ? 0xff3010 : 0x8a1a10); }
@@ -630,9 +634,11 @@ function visualUpdate(dt, rdt) {
   for (const pl of [plate, evplate, bridge]) { const c = grammar.has(pl.id, 'element.conductive'); if (!(panel.open && panel.target === pl) && pl.echo == null) setU(pl.mats, 'uGlow', c ? cBlue.setRGB(0.05, 0.22 + 0.08 * Math.sin(now * 8), 0.4) : BLACK); setU(pl.mats, 'ColorShift', c ? 0.5 : 0); }
   for (const g of Object.values(gates)) if (g.mesh && g.open && g.mesh.position.y > -2) g.mesh.position.y -= dt * 2;
   if (door.open != null && door.open < 1) { door.open = Math.min(1, door.open + dt * 0.6); elara.rotation.y = door.open * (S.doorRoute === 'forced' ? 1.5 : 1.2); elara.position.x = -door.open * 1.3; }
+  if (frame % 240 === 0 && S.room === 'door') { const st = elara.userData.st, e0 = st.eyes; st.eyes = 200; elara.userData.redraw(); setTimeout(() => { st.eyes = e0; elara.userData.redraw(); }, 140); }
   elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
   if (lumi.on) { lumi.x = lerp(lumi.x, P.x + 1.2, 0.03); lumi.z = lerp(lumi.z, P.z + 0.8, 0.03); lumi.mesh.position.set(lumi.x, 1.2 + Math.sin(now * 2) * 0.15, lumi.z); if (frame % 6 === 0) particles.emit(lumi.x, 1.1, lumi.z, rnd(-0.2, 0.2), -0.3, rnd(-0.2, 0.2), 1, 0.12, 0.05, 0.03, 0.04, 3); }
   for (const l of lumiTraces) l.position.y = 0.25 + Math.sin(now * 1.5 + l.position.x) * 0.06;
+  for (let i = waves.length - 1; i >= 0; i--) { const w = waves[i]; w.t += rdt; const k = w.t / 0.55; w.m.scale.setScalar(0.3 + k * w.maxR); w.m.material.opacity = 0.85 * (1 - k); if (k >= 1) { scene.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); waves.splice(i, 1); } }
   for (let i = warnRings.length - 1; i >= 0; i--) { const w = warnRings[i]; w.life -= dt; w.m.material.opacity = 0.4 + 0.5 * Math.abs(Math.sin(w.life * 20)); w.m.scale.setScalar(1 + (1 - w.life / w.max) * 0.1); if (w.life <= 0) { scene.remove(w.m); w.m.geometry.dispose(); warnRings.splice(i, 1); if (w.onEnd) w.onEnd(); } }
   decor.quill.position.y = 4.6 + Math.sin(now * 0.9) * 0.15; decor.quill.rotation.z = 0.12 + Math.sin(now * 0.6) * 0.04; if (!board.broken && frame % 50 === 0 && S.room === 'intro') particles.emit(0.3, 2.5, -4.75, 0, -1, 0, 1.6, 0.18, 0.03, 0.02, 0.02, 9);
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
@@ -642,7 +648,7 @@ function visualUpdate(dt, rdt) {
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
   const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.25 : 1.08; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
-  let tx = P.x * 0.85, tz = P.z - 0.6; if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -62, 0.3); }
+  let tx = P.x * 0.85, tz = P.z - 0.6; if (S.room === 'end') { tx = 0; tz = -80.5; } if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -62, 0.3); }
   camLook.lerp(tmpV.set(tx, 0.8, tz), 1 - Math.pow(0.004, rdt)); camPos.set(camLook.x, camLook.y + dy, camLook.z + dz);
   camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3; camera.position.x += rnd(-sh, sh); camera.position.y += rnd(-sh, sh); camera.lookAt(camLook);
   S.shake = Math.max(0, S.shake - rdt * 2.2); S.flash = Math.max(0, S.flash - rdt * 2); post.comp.uniforms.flash.value = opts.reduce ? 0 : S.flash * 0.5;

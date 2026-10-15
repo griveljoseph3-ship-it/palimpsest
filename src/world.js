@@ -176,3 +176,33 @@ export function makeRelay() { const g = new THREE.Group(); const sup = inked(new
 export function makeTether() { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 5, 1, true), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); return m; }
 export function makeShadow() { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(20,14,10,.55)'); gr.addColorStop(1, 'rgba(20,14,10,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); m.position.y = 0.015; return m; }
+
+// ---- decorazioni: capolettera, penna gigante, calamaio, crepe dell'arena ----
+function decal(scene, tex, w, h, x, z, rot = 0, opacity = 1) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity })); m.rotation.y = rot; m.position.set(x, 0.01, z); scene.add(m); return m; }
+export function buildDecor(scene) {
+  const out = {};
+  // capolettera miniato: la prima lettera della storia
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+  g.strokeStyle = 'rgba(138,26,16,.85)'; g.lineWidth = 6; g.strokeRect(40, 40, 432, 432); g.lineWidth = 2; g.strokeRect(56, 56, 400, 400);
+  for (let i = 0; i < 26; i++) { g.beginPath(); const a = i / 26 * Math.PI * 2; g.moveTo(256 + Math.cos(a) * 150, 256 + Math.sin(a) * 150); g.bezierCurveTo(256 + Math.cos(a + 0.4) * 230, 256 + Math.sin(a + 0.4) * 230, 256 + Math.cos(a + 0.8) * 120, 256 + Math.sin(a + 0.8) * 120, 256 + Math.cos(a + 1) * 190, 256 + Math.sin(a + 1) * 190); g.strokeStyle = 'rgba(30,20,14,.35)'; g.stroke(); }
+  g.fillStyle = '#8a1a10'; g.font = 'bold italic 360px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('C', 256, 280);
+  g.fillStyle = 'rgba(20,14,10,.75)'; g.font = 'italic 34px Georgia'; g.fillText("'era una volta", 256, 470);
+  decal(scene, new THREE.CanvasTexture(c), 3.6, 3.6, -3.4, 1.6, 0.08, 0.9);
+  // penna gigante che pende sopra la tavola e gocciola
+  const quill = new THREE.Group(); const shaft = inked(new THREE.ConeGeometry(0.12, 4.2, 8), { color: 0x15100c, ow: 0.03 }); shaft.rotation.x = Math.PI; quill.add(shaft);
+  const vane = inked(new THREE.PlaneGeometry(0.9, 2.6, 1, 6), { color: 0xf1e8d4, ow: 0.02 }); vane.material.side = THREE.DoubleSide; vane.position.set(0.35, 0.9, 0); vane.rotation.z = -0.15; quill.add(vane);
+  quill.position.set(0.3, 4.6, -4.75); quill.rotation.z = 0.12; scene.add(quill); out.quill = quill;
+  // calamaio
+  const well = inked(new THREE.CylinderGeometry(0.55, 0.7, 0.8, 12), { color: 0x1a1410, shift: 0x3a1a40 }); well.position.set(4.2, 0.4, -3.2); scene.add(well);
+  const lip = inked(new THREE.TorusGeometry(0.35, 0.08, 6, 14), { color: 0x2b221b }); lip.rotation.x = Math.PI / 2; lip.position.set(4.2, 0.82, -3.2); scene.add(lip); out.well = { x: 4.2, z: -3.2, r: 0.75 };
+  for (let i = 0; i < 5; i++) { const ball = inked(new THREE.IcosahedronGeometry(0.22 + Math.random() * 0.12, 1), { color: 0xeee4cf, ow: 0.02 }); ball.position.set(-4.6 + Math.random() * 1.6, 0.2, -3.5 + Math.random() * 2.5); ball.rotation.set(Math.random() * 3, Math.random() * 3, 0); scene.add(ball); }
+  // crepe d'inchiostro che partono dal nucleo dell'arena
+  const k = document.createElement('canvas'); k.width = k.height = 512; const kg = k.getContext('2d'); kg.strokeStyle = 'rgba(20,12,8,.8)'; kg.lineCap = 'round';
+  for (let i = 0; i < 11; i++) { let x = 256, y = 256, a = i / 11 * Math.PI * 2 + Math.random() * 0.3; kg.lineWidth = 5; kg.beginPath(); kg.moveTo(x, y); for (let s = 0; s < 14; s++) { a += (Math.random() - 0.5) * 0.7; x += Math.cos(a) * 16; y += Math.sin(a) * 16; kg.lineTo(x, y); kg.lineWidth = Math.max(1, 5 - s * 0.35); } kg.stroke(); }
+  decal(scene, new THREE.CanvasTexture(k), 9, 9, 0, -62, 0, 0.75);
+  // segni di cancellatura sul pavimento della porta: "COLPEVOLE" riscritto mille volte
+  const d = document.createElement('canvas'); d.width = 1024; d.height = 256; const dg = d.getContext('2d'); dg.font = 'bold 54px Georgia'; dg.fillStyle = 'rgba(138,26,16,.35)';
+  for (let i = 0; i < 9; i++) { dg.save(); dg.translate(60 + i * 110, 130 + Math.sin(i) * 40); dg.rotate((Math.random() - 0.5) * 0.5); dg.fillText('COLPEVOLE', -60, 0); dg.strokeStyle = 'rgba(20,12,8,.6)'; dg.lineWidth = 4; dg.beginPath(); dg.moveTo(-70, -16); dg.lineTo(260, -10); dg.stroke(); dg.restore(); }
+  decal(scene, new THREE.CanvasTexture(d), 9, 2.2, 0.5, -46.2, 0, 0.8);
+  return out;
+}

@@ -81,7 +81,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);font-family
 .pbtn.big{font-size:20px;padding:16px}.pbtn.sel{outline:3px solid var(--red)}
 .small{font-size:12px;opacity:.7;line-height:1.5}
 #jList p{margin:6px 0;padding-left:12px;border-left:3px solid var(--red)}
-#title{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#2a201a,#0b0807)}
+#title{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,rgba(42,32,26,.25),rgba(11,8,7,.85))}
+.tpage{animation:tIn 1.4s cubic-bezier(.2,.9,.3,1) both}@keyframes tIn{from{opacity:0;transform:rotate(-4deg) translateY(30px) scale(.95)}}
+#controls{position:fixed;left:50%;top:58%;transform:translate(-50%,-50%);background:rgba(239,229,207,.94);padding:14px 22px;border-radius:3px;font-size:calc(15px*var(--fs));line-height:1.6;box-shadow:0 10px 40px rgba(0,0,0,.6);z-index:8;transition:opacity .8s;pointer-events:none;filter:url(#inkEdge)}
 .tpage{background:var(--paper);width:min(520px,86vw);padding:44px 36px;text-align:center;box-shadow:0 30px 80px #000;transform:rotate(-1deg);filter:url(#inkEdge)}
 .tpage h1{font-size:46px;letter-spacing:.28em;margin:0 0 10px}.sub{font-style:italic}
 #fade{position:fixed;inset:0;background:#0b0807;opacity:0;pointer-events:none;transition:opacity .6s}

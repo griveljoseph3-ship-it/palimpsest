@@ -30,7 +30,7 @@ const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 120);
 const post = new Post(renderer);
 const paper = paperTexture(); INK_UNIFORMS.uPaper.value = paper;
 const world = W.buildWorld(scene, paper);
-const traces = new Traces(scene); const particles = new Particles(scene);
+const decor = W.buildDecor(scene); const traces = new Traces(scene); const particles = new Particles(scene);
 function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w < h ? 46 : 34; camera.updateProjectionMatrix(); post.setSize(Math.floor(w * pr), Math.floor(h * pr)); particles.points.material.uniforms.uPR.value = pr; }
 addEventListener('resize', resize);
 
@@ -50,7 +50,7 @@ const trail = new THREE.Mesh(new THREE.RingGeometry(1.2, 1.9, 24, 1, -0.9, 1.8),
 trail.rotation.x = -Math.PI / 2; scene.add(trail);
 
 // ---------- entità ----------
-const ENT = {}; const circles = [];
+const ENT = {}; const circles = [{ x: decor.well.x, z: decor.well.z, r: decor.well.r }];
 function matsOf(obj) { const a = []; obj.traverse((o) => { if (o.material && o.material.userData && o.material.userData.ink) a.push(o.material); }); return a; }
 function setU(mats, k, v) { for (const m of mats) { const u = m.uniforms[k]; if (!u) continue; if (u.value && u.value.isColor) u.value.copy(v); else if (u.value && u.value.isVector2) u.value.copy(v); else u.value = v; } }
 function addEnt(id, type, mesh, x, z, extra = {}) {
@@ -94,7 +94,7 @@ const press2 = W.makePress(); press2.position.set(-7.1, 0, -66.6); scene.add(pre
 const wireF = W.makeWire([[-7.1, -65.6], [-7.1, -59.8]]); scene.add(wireF);
 const hazard = W.makePlate(2.2, 4.4, 0x5a4632); hazard.position.set(-6.6, 0.05, -59.6); scene.add(hazard);
 const seal = W.makeSeal(); seal.position.set(0, 0, -68.5); scene.add(seal);
-const tether = W.makeTether(); scene.add(tether);
+const tether = W.makeTether(); tether.visible = false; scene.add(tether);
 const arena = { t: 0, period: 4, loosenT: 0, window: 0, windowPlan: null, snapped: false, hazardT: 0, warn: false };
 // VI · fine
 const elara2 = W.makeElaraPage(false); elara2.position.set(-2.5, 0, -84.3); elara2.scale.setScalar(0.7); scene.add(elara2);
@@ -205,7 +205,7 @@ function playerUpdate(dt) {
   if ((P.st === 'attack' || P.st === 'heavy') && P.t <= 0) P.st = 'idle';
 }
 function playerActions() { // input a fronte d'onda letti ogni frame (non perdere pressioni brevi)
-  if (S.lock || panel.open || S.phase !== 'play' || paused || P.st === 'dead' || dlg.active && dlg.opt.choices) { if (dlg.active && input.pressed('interact')) dlgNext(); return; }
+  if (S.lock || panel.open || S.phase !== 'play' || paused || P.st === 'dead' || (dlg.active && dlg.opt.choices)) { if (dlg.active && !dlg.opt.choices && input.pressed('interact')) dlgNext(); return; }
   const mx = input.move.x, mz = input.move.y, ml = Math.hypot(mx, mz);
   if (input.pressed('dodge') && P.cd <= 0 && P.st !== 'dodge' && P.st !== 'hurt') { P.dx = ml > 0.1 ? mx / ml : Math.sin(P.face); P.dz = ml > 0.1 ? mz / ml : Math.cos(P.face); P.st = 'dodge'; P.t = 0.22; P.inv = 0.32; P.cd = 0.5; sfx.play('dodge'); Tele.log('dodge'); }
   else if (input.pressed('attack') && (P.st === 'idle' || (P.st === 'attack' && P.t < 0.12))) startAttack(false);
@@ -261,7 +261,7 @@ function interactables() {
   return L;
 }
 function nearestInteract() { let b = null, bd = 1e9; for (const it of interactables()) { const d = Math.hypot(P.x - it.x, P.z - it.z); if (d < it.r && d < bd) { bd = d; b = it; } } return b; }
-function interact() { if (dlg.active) { dlgNext(); return; } const it = nearestInteract(); if (it) it.fn(); }
+function interact() { const it = nearestInteract(); if (dlg.active && (S.lock || dlg.opt.choices || !it)) { dlgNext(); return; } if (it) { if (dlg.active) endDialog(); it.fn(); } }
 function talkElara() {
   const L = ST.elaraDoor(mem).slice(); L.push(['elara', 'Se vuoi passare senza strappare niente, difendimi mentre riscrivo la mia riga. Trenta secondi.']);
   say(L, { choices: [['Affidati a Elara', () => startDefense()], ['Non ora', () => {}]] });
@@ -538,7 +538,13 @@ function startGame() {
   enterRoom(W.ROOMS[0]);
   say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } });
 }
-function inkDrop() {
+function controlsCard() {
+  const d = document.createElement('div'); d.id = 'controls';
+  d.innerHTML = input.mode === 'pad' ? '<b>Stick</b> muovi · <b>A</b> guarda/conferma · <b>X</b> colpo · <b>Y</b> colpo forte · <b>B</b> schiva<br><b>RB</b> riscrivi · <b>LB</b> riapplica l\'ultima parola · <b>Select</b> ripristina frase'
+    : input.mode === 'touch' ? '<b>Trascina a sinistra</b> per muoverti · <b>◉</b> guarda quando appare<br><b>✎</b> riscrivi · tocca una parola per vederla, toccala di nuovo per scriverla' : '<b>WASD</b> muovi · <b>E</b> guarda · <b>J</b>/clic colpo · <b>K</b>/clic destro forte · <b>Spazio</b> schiva<br><b>Q</b> riscrivi · <b>R</b> riapplica · <b>T</b> ripristina · <b>Y</b> ricomponi';
+  document.body.appendChild(d); setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 900); }, FAST ? 300 : 6500);
+}
+function inkDrop() { controlsCard();
   for (let i = 0; i < 6; i++) setTimeout(() => particles.emit(0.3 + rnd(-0.05, 0.05), 4, -4.75, 0, -2, 0, 1.2, 0.3, 0.03, 0.02, 0.02, 9), i * 90);
   setTimeout(() => { sfx.play('tear'); traces.add(0.3, -4.3, 1, 0, now); S.shake = 0.3; if (S.room === 'intro' && !S.discovered.has('state.fragile')) hint(ST.HINTS.look); }, 900);
 }
@@ -628,6 +634,7 @@ function visualUpdate(dt, rdt) {
   if (lumi.on) { lumi.x = lerp(lumi.x, P.x + 1.2, 0.03); lumi.z = lerp(lumi.z, P.z + 0.8, 0.03); lumi.mesh.position.set(lumi.x, 1.2 + Math.sin(now * 2) * 0.15, lumi.z); if (frame % 6 === 0) particles.emit(lumi.x, 1.1, lumi.z, rnd(-0.2, 0.2), -0.3, rnd(-0.2, 0.2), 1, 0.12, 0.05, 0.03, 0.04, 3); }
   for (const l of lumiTraces) l.position.y = 0.25 + Math.sin(now * 1.5 + l.position.x) * 0.06;
   for (let i = warnRings.length - 1; i >= 0; i--) { const w = warnRings[i]; w.life -= dt; w.m.material.opacity = 0.4 + 0.5 * Math.abs(Math.sin(w.life * 20)); w.m.scale.setScalar(1 + (1 - w.life / w.max) * 0.1); if (w.life <= 0) { scene.remove(w.m); w.m.geometry.dispose(); warnRings.splice(i, 1); if (w.onEnd) w.onEnd(); } }
+  decor.quill.position.y = 4.6 + Math.sin(now * 0.9) * 0.15; decor.quill.rotation.z = 0.12 + Math.sin(now * 0.6) * 0.04; if (!board.broken && frame % 50 === 0 && S.room === 'intro') particles.emit(0.3, 2.5, -4.75, 0, -1, 0, 1.6, 0.18, 0.03, 0.02, 0.02, 9);
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
   if (frame % 20 === 0) particles.emit(P.x + rnd(-8, 8), rnd(1, 4), P.z + rnd(-8, 4), rnd(-0.1, 0.1), 0.05, rnd(-0.1, 0.1), 4, 0.06, 0.95, 0.85, 0.6, 0); // pulviscolo di luce
   ghostUpdate(dt); particles.update(dt);

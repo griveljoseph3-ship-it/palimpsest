@@ -10,7 +10,7 @@ pg.on('requestfailed', (r) => errs.push('REQ ' + r.url()));
 pg.on('response', (r) => { if (r.status() >= 400 && !r.url().includes('favicon')) errs.push(r.status() + ' ' + r.url()); });
 const E = (f, a) => pg.evaluate(f, a); const W = (ms) => pg.waitForTimeout(ms);
 const shot = async (n) => { if (shots) await pg.screenshot({ path: `${shots}/${n}.png` }); };
-async function until(fn, ms, label, tick) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (tick) await E(tick); if (await E(fn)) return true; await W(150); } throw new Error('timeout: ' + label + ' ' + JSON.stringify(await E(() => ({ room: PAL.S.room, p: [PAL.P.x, PAL.P.z], c: [PAL.custode.x, PAL.custode.z, PAL.custode.st], ch: [PAL.charger.x, PAL.charger.z, PAL.charger.st], hp: PAL.P.hp })))); }
+async function until(fn, ms, label, tick) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (tick) await E(tick); if (await E(fn)) return true; await W(150); } throw new Error('timeout: ' + label + ' ' + JSON.stringify(await E(() => ({ door: [PAL.door.hasDoc, PAL.door.docPlaced, PAL.grammar.has('evplate','element.conductive'), PAL.ink.v, PAL.dlg.active], room: PAL.S.room, p: [PAL.P.x, PAL.P.z], c: [PAL.custode.x, PAL.custode.z, PAL.custode.st], ch: [PAL.charger.x, PAL.charger.z, PAL.charger.st], hp: PAL.P.hp })))); }
 const keepAlive = () => { PAL.P.hp = 5; };
 await pg.goto(BASE + '?fast'); await W(800); await E(() => PAL.start()); await W(600); await E(() => PAL.skipDialog()); await W(1200);
 // I · tavola

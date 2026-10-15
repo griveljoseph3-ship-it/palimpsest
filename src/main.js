@@ -88,7 +88,7 @@ const wireD = W.makeWire([[2.7, -48.8], [2.7, -47.6], [-2.6, -47.6]]); const wir
 const door = { hasDoc: false, docPlaced: false, relayT: 0, defense: null, mites: [], open: null };
 // V · arena
 const monolith = W.makeMonolith(); monolith.position.set(0, 0.6, -62); scene.add(monolith); circles.push({ x: 0, z: -62, r: 0.6 });
-const custode = addEnt('custode', 'custode', W.makeCustode(), 0, -59.5, { boss: true });
+const custode = addEnt('custode', 'custode', W.makeCustode(), 0, -60.3, { boss: true });
 for (const [x, z] of [[-4.6, -61], [4.6, -61]]) { const m = W.makePillar(); m.position.set(x, 1.3, z); scene.add(m); circles.push({ x, z, r: 0.72, pillar: true, mesh: m }); }
 const bridge = addEnt('bridge', 'bridge', W.makePlate(12, 1.4, 0x7d5a36), 0, -66.6);
 const press2 = W.makePress(); press2.position.set(-7.1, 0, -66.6); scene.add(press2);

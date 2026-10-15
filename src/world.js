@@ -43,12 +43,27 @@ export function buildWorld(scene, paper) {
     ms.position.set(r.cx + (i % 2 ? 1 : -1), 0.006, r.cz + 1.2); g.add(ms);
     addWall(x0, zs, x0, zn); addWall(x1, zs, x1, zn);
     const hasS = i > 0, hasN = i < ROOMS.length - 1;
-    if (hasS) { addWall(x0, zs, -GAP / 2, zs); addWall(GAP / 2, zs, x1, zs); } else addWall(x0, zs, x1, zs);
+    if (hasS) { addWall(x0, zs, -GAP / 2, zs, 0.45); addWall(GAP / 2, zs, x1, zs, 0.45); } else addWall(x0, zs, x1, zs, 0.45);
     if (hasN) { addWall(x0, zn, -GAP / 2, zn); addWall(GAP / 2, zn, x1, zn);
-      const nz = ROOMS[i + 1].cz + ROOMS[i + 1].d / 2; addWall(-GAP / 2 - 0.15, zn, -GAP / 2 - 0.15, nz, 1.0); addWall(GAP / 2 + 0.15, zn, GAP / 2 + 0.15, nz, 1.0);
+      const nz = ROOMS[i + 1].cz + ROOMS[i + 1].d / 2; addWall(-GAP / 2 - 0.15, zn, -GAP / 2 - 0.15, nz, 0.7); addWall(GAP / 2 + 0.15, zn, GAP / 2 + 0.15, nz, 0.7);
       const cf = new THREE.Mesh(withMask(new THREE.PlaneGeometry(GAP + 0.3, zn - nz).rotateX(-Math.PI / 2), 0), floorMat); cf.position.set(0, -0.001, (zn + nz) / 2); g.add(cf);
     } else addWall(x0, zn, x1, zn);
   });
+  // pozze di luce calda (additive) e scrivania sotto il libro
+  const lc = document.createElement('canvas'); lc.width = lc.height = 128; const lg = lc.getContext('2d'); const gr = lg.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,214,150,0.55)'); gr.addColorStop(0.5, 'rgba(255,190,120,0.18)'); gr.addColorStop(1, 'rgba(255,190,120,0)'); lg.fillStyle = gr; lg.fillRect(0, 0, 128, 128);
+  const lt = new THREE.CanvasTexture(lc);
+  ROOMS.forEach((r, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w * 1.1, r.d * 1.2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: lt, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5 })); m.position.set(r.cx - 1.5, 0.02, r.cz - 0.5); g.add(m); });
+  const dc = document.createElement('canvas'); dc.width = dc.height = 256; const dg = dc.getContext('2d'); dg.fillStyle = '#21160f'; dg.fillRect(0, 0, 256, 256); for (let i = 0; i < 160; i++) { dg.strokeStyle = `rgba(${60 + Math.random() * 30},${38 + Math.random() * 20},${24},.35)`; dg.lineWidth = 1 + Math.random() * 2; dg.beginPath(); const y = Math.random() * 256; dg.moveTo(0, y); dg.bezierCurveTo(80, y + Math.random() * 10 - 5, 170, y + Math.random() * 10 - 5, 256, y); dg.stroke(); }
+  // lavatura d'inchiostro ai margini di ogni pagina
+  const wc = document.createElement('canvas'); wc.width = 512; wc.height = 512; const wg = wc.getContext('2d');
+  for (let i = 0; i < 260; i++) { const t = Math.random(), side = Math.floor(Math.random() * 4); let x = side < 2 ? t * 512 : (side === 2 ? 0 : 512), y = side < 2 ? (side === 0 ? 0 : 512) : t * 512; const r = 30 + Math.random() * 70;
+    const rg = wg.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, 'rgba(26,18,12,0.22)'); rg.addColorStop(1, 'rgba(26,18,12,0)'); wg.fillStyle = rg; wg.fillRect(x - r, y - r, r * 2, r * 2); }
+  for (let i = 0; i < 14; i++) { wg.fillStyle = 'rgba(20,12,8,0.5)'; const x = Math.random() * 512, y = Math.random() < 0.5 ? Math.random() * 40 : 472 + Math.random() * 40; wg.beginPath(); wg.arc(x, y, 2 + Math.random() * 6, 0, 6.3); wg.fill(); }
+  const wt = new THREE.CanvasTexture(wc);
+  ROOMS.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.d).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: wt, transparent: true, depthWrite: false })); m.position.set(r.cx, 0.008, r.cz); g.add(m); });
+  const dt = new THREE.CanvasTexture(dc); dt.wrapS = dt.wrapT = THREE.RepeatWrapping; dt.repeat.set(6, 20); dt.colorSpace = THREE.SRGBColorSpace;
+  const desk = new THREE.Mesh(new THREE.PlaneGeometry(80, 140).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: dt, color: 0x9a8a7a })); desk.position.set(0, -0.6, -40); g.add(desk);
+  const under = new THREE.Mesh(new THREE.BoxGeometry(18.5, 0.58, 96), new THREE.MeshBasicMaterial({ color: 0xcfc3a6 })); under.position.set(0, -0.3, -40); g.add(under); // spessore delle pagine
   // corridoio della prova nella stanza di Elara
   addWall(-5, -38, -5, -46.2);
   // fogli che pendono e rilegatura: dettagli d'atmosfera

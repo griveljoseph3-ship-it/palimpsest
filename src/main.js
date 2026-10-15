@@ -105,6 +105,9 @@ function ring(x, z, r, life, color = 0x8a1a10, onEnd) {
   const m = new THREE.Mesh(new THREE.RingGeometry(r * 0.85, r, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.8, depthWrite: false })); m.position.set(x, 0.03, z); scene.add(m);
   warnRings.push({ m, life, max: life, onEnd });
 }
+function castShadow(x, z, w, l) { const m = W.makeShadow(); m.scale.set(w, 1, l); m.rotation.y = -0.9; m.position.set(x + 0.55 * l / 2, 0.014, z - 0.45 * l / 2); scene.add(m); return m; }
+for (const c of circles) if (c.pillar) castShadow(c.x, c.z, 1.5, 4.2);
+castShadow(-4.4, -28, 1.8, 3.4); castShadow(-7.1, -66.6, 1.8, 3.4); castShadow(0, -62, 1.2, 2.2); castShadow(0.4, -49.6, 3, 5); castShadow(2.7, -49.2, 0.8, 2.5);
 const shadows = {}; for (const id of ['charger', 'custode']) { const s = W.makeShadow(); s.scale.setScalar(2.2); scene.add(s); shadows[id] = s; }
 
 // ---------- IA (Caricatore e Custode) ----------
@@ -576,6 +579,7 @@ function slowmo(t) { slowT = t; }
 function step(sdt) {
   S.time += sdt; now += sdt; grammar.tick(sdt);
   playerUpdate(sdt); aiUpdate(charger, sdt); aiUpdate(custode, sdt); devicesUpdate(sdt); if (S.room === 'arena') arenaUpdate(sdt); defenseUpdate(sdt);
+  for (const e of [charger, custode]) { if (!e.alive || e.st === 'dead' || e.st === 'charge' || P.st === 'dodge') continue; const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz), rr = P.r + e.cfg.r; if (d < rr && d > 1e-4) { const k = (rr - d) / d; P.x += dx * k * 0.7; P.z += dz * k * 0.7; e.x -= dx * k * 0.3; e.z -= dz * k * 0.3; collide(P, P.r, false); } }
   const r = roomAt(P.x, P.z); if (r && S.phase === 'play' && !S.lock && r.id !== 'end') enterRoom(r);
 }
 function defenseUpdate(dt) {
@@ -628,7 +632,7 @@ function visualUpdate(dt, rdt) {
   ghostUpdate(dt); particles.update(dt);
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
-  const portrait = innerWidth < innerHeight; const dz = (portrait ? 12.5 : 10.5) - focus * 2, dy = (portrait ? 16.5 : 13.5) - focus * 2.4;
+  const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.25 : 1.08; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
   let tx = P.x * 0.85, tz = P.z - 0.6; if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -62, 0.3); }
   camLook.lerp(tmpV.set(tx, 0.8, tz), 1 - Math.pow(0.004, rdt)); camPos.set(camLook.x, camLook.y + dy, camLook.z + dz);
   camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3; camera.position.x += rnd(-sh, sh); camera.position.y += rnd(-sh, sh); camera.lookAt(camLook);

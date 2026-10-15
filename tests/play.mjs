@@ -23,7 +23,7 @@ await E(() => PAL.rewrite('charger', 'state.fragile'));
 const behindPillar = (id, pillars) => `(() => { const e = PAL.${id}; if (e.armorBroken) return; PAL.P.hp=5; PAL.ink.v=Math.max(PAL.ink.v,60); if (e.st!=='idle') return; if (!PAL.grammar.has('${id}','state.fragile')) PAL.rewrite('${id}','state.fragile');
   let best=null; for (const [x,z] of ${JSON.stringify(pillars)}) { const dx=x-e.x, dz=z-e.z, l=Math.hypot(dx,dz); const px=x+dx/l*2.2, pz=z+dz/l*2.2; const d=Math.hypot(px-e.x,pz-e.z); if (d>4.3&&d<10.5&&(!best||d<best.d)) best={px,pz,d}; } if (best) PAL.tp(best.px,best.pz); })()`;
 await until(() => PAL.charger.armorBroken, 30000, 'charger armor', behindPillar('charger', [[-3.6, -17], [3.6, -12.5]])); await shot('04-charger-broken');
-await E(() => { const e = PAL.charger; PAL.tp(e.x + 1.2, e.z + 0.5); PAL.face(e.x, e.z); PAL.attack(true); }); await until(() => !PAL.charger.alive, 3000, 'charger dead');
+await W(700); await until(() => !PAL.charger.alive, 15000, 'charger dead', () => { PAL.P.hp = 5; const e = PAL.charger; if (PAL.P.st === 'idle' && e.exposed > 0) { PAL.tp(e.x + 1.3, e.z + 0.5); PAL.face(e.x, e.z); PAL.attack(true); } });
 // III · Conduttivo
 await E(() => PAL.tp(0, -24.5)); await until(() => PAL.S.room === 'conduct', 3000, 'enter conduct'); await E(() => PAL.skipDialog()); await E(() => PAL.tp(0, -26.3));
 await E(() => PAL.rewrite('plate', 'element.conductive')); await shot('05-plate'); await until(() => PAL.gates.r2.open, 6000, 'r2 gate');

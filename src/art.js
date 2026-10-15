@@ -56,9 +56,9 @@ export function inkMaster(opts = {}) {
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
         vec2 sp=gl_FragCoord.xy; float hatch=step(.5,fract((sp.x+sp.y)*.16+fbm(sp*.02)*1.5));
         float hatch2=step(.5,fract((sp.x-sp.y)*.16));
-        float dark=1.-tone; float hm=mix(1.,.72,hatch*step(.45,dark))*mix(1.,.8,hatch2*step(.8,dark));
+        float dark=1.-tone; float hm=mix(1.,.7,hatch*smoothstep(.35,.5,dark))*mix(1.,.78,hatch2*smoothstep(.7,.8,dark));
         float ao=mix(.68,1.,smoothstep(0.,.9,vW.y-uH.x+.05));
-        vec3 col=base*(.52+.48*tone)*hm*ao;
+        vec3 shadowC=base*vec3(.42,.43,.52); vec3 litC=base*vec3(1.04,1.,.92); vec3 col=mix(shadowC,litC,tone)*hm*ao;
         col+=vec3(1.,.82,.55)*pow(max(ndl,0.),3.)*.12; // luce calda
         float rim=pow(1.-abs(dot(n,normalize(cameraPosition-vW))),3.); col=mix(col,uInk,rim*.35*vMask);
         col=mix(col, uShiftColor*(.6+.4*tone), ColorShift*vMask);
@@ -184,7 +184,7 @@ export class Post {
     const r = this.r; if (!this.enabled) { r.setRenderTarget(null); r.render(scene, camera); return; }
     r.setRenderTarget(this.rt); r.render(scene, camera);
     const bw = this.rtB.width, bh = this.rtB.height;
-    this.quad.material = this.blur; this.blur.uniforms.t.value = this.rt.texture; this.blur.uniforms.dir.value.set(1.5 / bw, 0); this.blur.uniforms.thr.value = 0.82; r.setRenderTarget(this.rtB); r.render(this.scene, this.cam);
+    this.quad.material = this.blur; this.blur.uniforms.t.value = this.rt.texture; this.blur.uniforms.dir.value.set(1.5 / bw, 0); this.blur.uniforms.thr.value = 0.92; r.setRenderTarget(this.rtB); r.render(this.scene, this.cam);
     this.blur.uniforms.t.value = this.rtB.texture; this.blur.uniforms.dir.value.set(0, 1.5 / bh); this.blur.uniforms.thr.value = 0; r.setRenderTarget(this.rtC); r.render(this.scene, this.cam);
     this.quad.material = this.comp; this.comp.uniforms.t.value = this.rt.texture; this.comp.uniforms.b.value = this.rtC.texture; r.setRenderTarget(null); r.render(this.scene, this.cam);
   }

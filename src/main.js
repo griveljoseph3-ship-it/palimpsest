@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.7.2';
-import { EFFECTS } from './data.js?v=1.7.2';
-import { Grammar } from './resolver.js?v=1.7.2';
-import { Ink, INK } from './ink.js?v=1.7.2';
-import { Input } from './input.js?v=1.7.2';
-import { Sfx } from './audio.js?v=1.7.2';
-import { Tele } from './telemetry.js?v=1.7.2';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.7.2';
-import * as W from './world.js?v=1.7.2';
-import * as ST from './story.js?v=1.7.2';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.7.2';
+import * as THREE from '../vendor/three.module.js?v=1.8.0';
+import { EFFECTS } from './data.js?v=1.8.0';
+import { Grammar } from './resolver.js?v=1.8.0';
+import { Ink, INK } from './ink.js?v=1.8.0';
+import { Input } from './input.js?v=1.8.0';
+import { Sfx } from './audio.js?v=1.8.0';
+import { Tele } from './telemetry.js?v=1.8.0';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.8.0';
+import * as W from './world.js?v=1.8.0';
+import * as ST from './story.js?v=1.8.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.8.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -68,7 +68,7 @@ function setComp(e, obj) { e.comp = obj; e.compMats = matsOf(obj); }
 const wellEnt = addEnt('well', 'well', new THREE.Group(), decor.well.x, decor.well.z); wellEnt.mesh.userData.height = 1.0; wellEnt.mats = []; for (const m of decor.well.meshes) wellEnt.mats.push(...matsOf(m)); wellEnt.compMats = wellEnt.mats;
 const SECRETS = { c1_trap: 'La botola sotto la matita', c1_well: 'Dietro il calamaio', c1_shelf: 'Lo scaffale dell\'archivio', c2_stone: 'Sotto il sasso della chiusa', c2_pile: 'Tra i libri crollati', c2_dam: 'Il sasso dell\'acqua ferma' };
 const chapSecrets = (c) => Object.keys(SECRETS).filter((k) => k.startsWith('c' + c + '_'));
-const trap = { x: -7.2, z: 4.4, open: false };
+const trap = { x: -5.2, z: 4.4, open: false };
 const trapMark = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.strokeStyle = 'rgba(60,50,40,.7)'; g.lineWidth = 4; g.setLineDash([14, 8]); g.strokeRect(30, 30, 196, 196); g.setLineDash([]); g.lineWidth = 2; for (let i = 0; i < 12; i++) { g.beginPath(); g.moveTo(40 + i * 15, 220); g.lineTo(60 + i * 15, 40); g.stroke(); } g.fillStyle = 'rgba(60,50,40,.8)'; g.font = 'italic 26px Georgia'; g.fillText('qui suona vuoto', 40, 140);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0 })); m.position.set(trap.x, 0.012, trap.z); scene.add(m); return m; })();
 const trapHole = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0a0605 })); trapHole.position.set(trap.x, 0.014, trap.z); trapHole.visible = false; scene.add(trapHole);
@@ -476,9 +476,9 @@ function playerActions() { // input a fronte d'onda letti ogni frame (non perder
   if (input.pressed('recompose')) recompose();
 }
 function lerpAng(a, b, t) { return a + angDiff(b, a) * t; }
-function startAttack(heavy) { const tgt = nearestEnemy(4); if (tgt) P.face = Math.atan2(tgt.x - P.x, tgt.z - P.z);
+function startAttack(heavy) { const tgt = nearestEnemy(4.5); if (tgt) { P.face = Math.atan2(tgt.x - P.x, tgt.z - P.z); const d = Math.hypot(tgt.x - P.x, tgt.z - P.z), want = (tgt.r || 0.4) + 1.1; if (d > want && d < 3.6 && !tgt.cfg) { const k = Math.min(d - want, 1.6) / d; P.x += (tgt.x - P.x) * k; P.z += (tgt.z - P.z) * k; collide(P, P.r, false); } }
   P.st = heavy ? 'heavy' : 'attack'; P.t = heavy ? 0.8 : 0.32; P.hitAt = heavy ? 0.35 : 0.2; P.hitDone = false; P.atkId = 'pa' + (++P.atkSeq); sfx.play(heavy ? 'heavy' : 'swing', 1); input.rumble(0.2, heavy ? 0.5 : 0.1, 60); }
-function nearestEnemy(r) { let b = null, bd = r; for (const e of [charger, custode, ...door.mites]) { if (!e.alive || e.st === 'dead') continue; const d = dist(P, e); if (d < bd) { bd = d; b = e; } } return b; }
+function nearestEnemy(r) { let b = null, bd = r; for (const e of [charger, custode, ...door.mites, ...swarm.filter((m) => m.room === S.room)]) { if (!e.alive || e.st === 'dead') continue; const d = dist(P, e); if (d < bd) { bd = d; b = e; } } return b; }
 function inArc(o, range, arc) { const dx = o.x - P.x, dz = o.z - P.z, d = Math.hypot(dx, dz); if (d > range) return false; return d < 0.6 || Math.abs(angDiff(Math.atan2(dx, dz), P.face)) < arc; }
 function doHit(heavy) {
   const range = heavy ? 2.4 : 1.9, arc = heavy ? 1.1 : 0.95; let any = false;
@@ -496,7 +496,7 @@ function doHit(heavy) {
     else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); toastSmall('La corazza è integra: attendi un varco'); dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.3, e.z, 'PARATO', 'block'); }
     const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; if (e.st !== 'charge') { e.vx += dx / l * (heavy ? 4 : 1.5); e.vz += dz / l * (heavy ? 4 : 1.5); }
   }
-  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range, arc + 0.3)) { if (!heavy && m.hp > 1) { m.hp--; any = true; sfx.play('hit'); const kx = m.x - P.x, kz = m.z - P.z, kl = Math.hypot(kx, kz) || 1; m.x += kx / kl * 1.2; m.z += kz / kl * 1.2; collide(m, m.r, false); particles.burst(m.x, 0.4, m.z, 8, 3); continue; } m.alive = false; miteDrop(m); any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); }
+  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range + 0.7 + (m.r || 0.3), arc + 0.7)) { if (!heavy && m.hp > 1) { m.hp--; any = true; sfx.play('hit'); const kx = m.x - P.x, kz = m.z - P.z, kl = Math.hypot(kx, kz) || 1; m.x += kx / kl * 1.2; m.z += kz / kl * 1.2; collide(m, m.r, false); particles.burst(m.x, 0.4, m.z, 8, 3); continue; } m.alive = false; miteDrop(m); any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); }
   if (!board.broken && dist(P, board) < 2.4 && heavy) { if (grammar.has('board', 'state.fragile')) breakBoard(); else { sfx.play('deny'); toastSmall('La tavola è integra. Il libro dice: integra.'); } any = true; }
   if (!relay.broken && dist(P, relay) < 2.2 && heavy && !S.doorRoute && !door.defense) { if (grammar.has('relay', 'state.fragile')) forceRelay(); else { sfx.play('deny'); toastSmall('Il supporto del relè regge'); } any = true; }
   if (heavy && trySecretsOnHeavy()) any = true;
@@ -1039,7 +1039,7 @@ function visualUpdate(dt, rdt) {
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
   if (frame % 20 === 0) particles.emit(P.x + rnd(-8, 8), rnd(1, 4), P.z + rnd(-8, 4), rnd(-0.1, 0.1), 0.05, rnd(-0.1, 0.1), 4, 0.06, 0.95, 0.85, 0.6, 0); // pulviscolo di luce
   ghostUpdate(dt); particles.update(dt);
-  INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -124, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 16 : S.room === 'c2d' ? 11 : S.room === 'intro' ? 18 : S.room === 'maze' ? 14 : 12;
+  INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -124, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 16 : S.room === 'c2d' ? 11 : S.room === 'intro' ? 13 : S.room === 'maze' ? 14 : 12;
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
   const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.12 : 0.96; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
@@ -1269,10 +1269,10 @@ function takeCurse(id) { const c = CURSED[id]; if (!c || c.taken) return; c.take
   for (const m of swarm) if (m.alive) m.aggroR = (m.aggroR || 0) * 1.3 || m.aggroR;
   toast('✠ PAGINA MALEDETTA · ' + S.cursed + ' · più forte, ma il capitolo si indurisce'); journal('Hai preso una pagina maledetta: il tuo pennino morde di più, ma i nemici ti cercano con più rabbia.'); Tele.log('cursed_page', { id, n: S.cursed }); }
 // ---- Caricatore: il sostegno che crolla (seconda soluzione) ----
-const SUP = { x: 10.6, z: -21.5, fallen: false, t: -1 };
+const SUP = { x: 8.2, z: -22.5, fallen: false, t: -1 };
 SUP.mesh = (() => { const g = new THREE.Group(); const col = inked(new THREE.CylinderGeometry(0.45, 0.55, 3.2, 8, 3), { color: 0xb8a684, shift: 0x9e2b1c, y0: 0, y1: 3.2 }); col.position.y = 1.6; g.add(col);
   const cr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.05), new THREE.MeshBasicMaterial({ color: 0x1a120c })); cr.position.set(0.3, 1.4, 0.35); cr.rotation.z = 0.3; g.add(cr);
-  const balc = inked(new THREE.BoxGeometry(3.4, 0.25, 7), { color: 0x8a6a4a, ow: 0.025 }); balc.position.set(1.7, 3.25, 0); g.add(balc); g.userData = { col, balc }; g.position.set(SUP.x, 0, SUP.z); scene.add(g); return g; })();
+  const balc = inked(new THREE.BoxGeometry(3.4, 0.25, 7), { color: 0x8a6a4a, ow: 0.025 }); balc.position.set(0.9, 3.25, 0); balc.scale.x = 0.55; g.add(balc); g.userData = { col, balc }; g.position.set(SUP.x, 0, SUP.z); scene.add(g); return g; })();
 SUP.circle = { x: SUP.x, z: SUP.z, r: 0.6, pillar: true, support: true, mesh: SUP.mesh }; circles.push(SUP.circle);
 SUP.ramp = inked(new THREE.BoxGeometry(3.2, 0.25, 7.6), { color: 0x8a6a4a, ow: 0.025 }); SUP.ramp.visible = false; scene.add(SUP.ramp);
 function collapseSupport() { if (SUP.fallen) return; SUP.fallen = true; SUP.t = 0; const i = circles.indexOf(SUP.circle); if (i >= 0) circles.splice(i, 1); sfx.play('break'); S.shake = 1.2; S.hitstop = 0.15; particles.burst(SUP.x, 2, SUP.z, 40, 6, [0.85, 0.78, 0.62], 0.25);
@@ -1333,17 +1333,17 @@ function v16Interactables(L) {
 }
 const _readGuide = readGuide; readGuide = function (id) { if (id === 'pesante') { MZ.guide.add(id); ink.interact(); sfx.play('page'); S.discovered.add('weight.heavy'); S.discovered.add('state.fragile');
   say([['ilde', 'Questa pila di registri chiude un passaggio. Da sola una parola non basta.'], ['ilde', 'FRAGILE e PESANTE insieme: crolla sotto il proprio peso. Ma per comporre due parole serve il Pennino d\'acciaio.']]); journal('Hai trovato la parola PESANTE.'); return; } _readGuide(id); };
-addCursed('ch', 13, -18.5); // sul ballatoio del Caricatore (arrivi dalla rampa o con coraggio)
+addCursed('ch', 8.6, -20.2); // sul ballatoio del Caricatore (arrivi dalla rampa o con coraggio)
 const INTRO_SWAY = [];
 
 // ---- stanza I: corridoio più luminoso e pieno di dettagli ----
 (() => { const sh = new THREE.Group(); scene.add(sh); const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
-  for (const sd of [-1, 1]) { const frame = inked(new THREE.BoxGeometry(0.7, 2.6, 17), { color: 0x5a3e28, ow: 0.025, y0: 0, y1: 2.6 }); frame.position.set(sd * 11.4, 1.3, 0); sh.add(frame); circles.push(...[-6, -2, 2, 6].map((z) => ({ x: sd * 11.4, z, r: 0.5 }))); }
+  for (const sd of [-1, 1]) { const frame = inked(new THREE.BoxGeometry(0.7, 2.6, 17), { color: 0x5a3e28, ow: 0.025, y0: 0, y1: 2.6 }); frame.position.set(sd * 6.55, 1.3, 0); sh.add(frame); circles.push(...[-6, -2, 2, 6].map((z) => ({ x: sd * 6.4, z, r: 0.45 }))); }
   const n = 300, books = new THREE.InstancedMesh(bg, inkMasterLike(0x9a5a3a), n), m4 = new THREE.Matrix4(), col = new THREE.Color(); let k = 0;
-  for (const sd of [-1, 1]) for (let row = 0; row < 3; row++) for (let i = 0; i < 50; i++) { const z = -8.2 + i * 0.33, h = 0.45 + Math.random() * 0.25; m4.makeScale(0.42, h, 0.26 + Math.random() * 0.06); m4.setPosition(sd * 11.0, 0.2 + row * 0.82, z); books.setMatrixAt(k, m4); if (books.setColorAt) books.setColorAt(k, col.setHSL(Math.random() * 0.1, 0.45, 0.25 + Math.random() * 0.3)); k++; }
+  for (const sd of [-1, 1]) for (let row = 0; row < 3; row++) for (let i = 0; i < 50; i++) { const z = -8.2 + i * 0.33, h = 0.45 + Math.random() * 0.25; m4.makeScale(0.42, h, 0.26 + Math.random() * 0.06); m4.setPosition(sd * 6.15, 0.2 + row * 0.82, z); books.setMatrixAt(k, m4); if (books.setColorAt) books.setColorAt(k, col.setHSL(Math.random() * 0.1, 0.45, 0.25 + Math.random() * 0.3)); k++; }
   books.frustumCulled = false; sh.add(books);
-  for (let i = 0; i < 14; i++) { const p = inked(new THREE.PlaneGeometry(0.5, 0.7), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set((Math.random() - 0.5) * 16, 2.4 + Math.random() * 0.8, -8 + Math.random() * 16); p.rotation.set(Math.random(), Math.random() * 3, 0); p.userData.sw = Math.random() * 6; sh.add(p); INTRO_SWAY.push(p); }
-  for (const [x, z, kd] of [[-8, 7, 'lamp'], [8, 2, 'lamp'], [-8, -3, 'lamp'], [8, -7, 'lamp'], [-3, 8.5, 'candle'], [3, 8.5, 'candle']]) { const m = kd === 'lamp' ? W.makeLamp() : W.makeCandle(0.6); m.position.set(x, 0, z); scene.add(m); storyLights.push({ m, x, y: m.userData.ly, z, r: kd === 'lamp' ? 6 : 3.4, col: kd === 'lamp' ? [1.35, 1.0, 0.65] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: kd }); }
+  for (let i = 0; i < 14; i++) { const p = inked(new THREE.PlaneGeometry(0.5, 0.7), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set((Math.random() - 0.5) * 10, 2.4 + Math.random() * 0.8, -8 + Math.random() * 16); p.rotation.set(Math.random(), Math.random() * 3, 0); p.userData.sw = Math.random() * 6; sh.add(p); INTRO_SWAY.push(p); }
+  for (const [x, z, kd] of [[-5, 7, 'lamp'], [5, 2, 'lamp'], [-5, -3, 'lamp'], [5, -7, 'lamp'], [-3, 8.5, 'candle'], [3, 8.5, 'candle']]) { const m = kd === 'lamp' ? W.makeLamp() : W.makeCandle(0.6); m.position.set(x, 0, z); scene.add(m); storyLights.push({ m, x, y: m.userData.ly, z, r: kd === 'lamp' ? 4.6 : 3.2, col: kd === 'lamp' ? [0.85, 0.65, 0.42] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: kd }); }
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
@@ -1354,6 +1354,20 @@ function v16Update(dt) {
 }
 
 
+
+function trimRoom(oldR, newR) { const inOld = (x, z) => Math.abs(x - oldR.cx) <= oldR.w / 2 + 0.6 && Math.abs(z - oldR.cz) <= oldR.d / 2 + 0.6, inNew = (x, z) => Math.abs(x - newR.cx) <= newR.w / 2 - 0.25 && Math.abs(z - newR.cz) <= newR.d / 2 - 0.25;
+  const out = (x, z) => inOld(x, z) && !inNew(x, z) && !(Math.abs(x - newR.cx) < 2 && Math.abs(z - newR.cz) > newR.d / 2 - 1); const v = new THREE.Vector3(), m4 = new THREE.Matrix4(), zero = new THREE.Matrix4().makeScale(0, 0, 0); const skip = new Set(Object.values(ENT).map((e) => e.mesh)); skip.add(P.mesh);
+  const visit = (o) => { if (skip.has(o)) return; if (o.isInstancedMesh) { let ch = false; for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m4); v.setFromMatrixPosition(m4).applyMatrix4(o.matrixWorld); if (out(v.x, v.z)) { o.setMatrixAt(i, zero); ch = true; } } if (ch) o.instanceMatrix.needsUpdate = true; return; }
+    o.getWorldPosition(v); if (o.parent && (o.parent === scene || o.parent === world.group) && out(v.x, v.z) && v.y < 6) { o.visible = false; return; } for (const c of o.children) if (c.isInstancedMesh) visit(c); };
+  scene.updateMatrixWorld(true); for (const o of [...scene.children]) { if (o === world.group) { for (const c of o.children) visit(c); continue; } visit(o); }
+  for (let i = circles.length - 1; i >= 0; i--) if (out(circles[i].x, circles[i].z)) circles.splice(i, 1);
+  for (let i = storyLights.length - 1; i >= 0; i--) { const l = storyLights[i]; if (out(l.x, l.z)) { l.m.visible = false; storyLights.splice(i, 1); } } }
+trimRoom({ cx: 0, cz: 0, w: 24, d: 20 }, W.ROOMS[0]); trimRoom({ cx: 0, cz: -28, w: 28, d: 24 }, W.ROOMS[1]);
+// stanza II più densa: casse, scaffali rovesciati, colonne spezzate (ostacoli bassi che il Caricatore sfonda solo se FRAGILE… restano)
+(() => { for (const [x, z, w, d, h, ry] of [[-6.5, -21, 1.6, 1.2, 1.0, 0.3], [-8.4, -29, 1.2, 2.6, 0.7, 0], [5.8, -35.2, 2.2, 1.0, 0.9, -0.4], [-3.5, -36, 1.2, 1.2, 1.2, 0.8], [3.4, -19.8, 1.0, 1.0, 0.8, 0.2], [8.6, -30.5, 1.0, 2.2, 1.1, 0]]) {
+    const m = inked(new THREE.BoxGeometry(w, h, d), { color: 0x7a5a3a, shift: 0x8a2416, y0: 0, y1: h, ow: 0.025 }); m.position.set(x, h / 2, z); m.rotation.y = ry; scene.add(m); circles.push({ x, z, r: Math.max(w, d) * 0.45 }); }
+  for (let i = 0; i < 26; i++) { const p = inked(new THREE.PlaneGeometry(0.55, 0.75), { color: 0xf1e8d4, outline: false }); p.rotation.set(-Math.PI / 2, 0, Math.random() * 3); p.position.set((Math.random() - 0.5) * 18, 0.02, -28 + (Math.random() - 0.5) * 16); scene.add(p); }
+  for (const [x, z] of [[-9.2, -24], [9.2, -34]]) { const c = W.makeCandle(0.7); c.position.set(x, 0, z); scene.add(c); storyLights.push({ m: c, x, y: c.userData.ly, z, r: 3.6, col: [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: 'candle' }); } })();
 // ================= v1.7 · una zona alla volta: ogni oggetto statico appartiene a una stanza (layer); si disegnano solo la stanza attuale e le vicine =================
 const ZONE = { ready: false, active: '' };
 (() => { const box = new THREE.Box3(), v = new THREE.Vector3(), sz = new THREE.Vector3(); const skip = new Set([MZ.group, P.mesh, lumi.mesh]); for (const e of Object.values(ENT)) skip.add(e.mesh);

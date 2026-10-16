@@ -1,10 +1,10 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=1.7.2';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.7.2';
+import * as THREE from '../vendor/three.module.js?v=1.8.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.8.0';
 
 export const ROOMS = [
-  { id: 'intro', cx: 0, cz: 0, w: 24, d: 20, safe: true, title: 'I · La tavola' },
-  { id: 'charger', cx: 0, cz: -28, w: 28, d: 24, safe: false, title: 'II · Il Caricatore' },
+  { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
+  { id: 'charger', cx: 0, cz: -28, w: 20, d: 18, safe: false, title: 'II · Il Caricatore' },
   { id: 'conduct', cx: 0, cz: -56, w: 24, d: 20, safe: true, title: 'III · La pressa' },
   { id: 'door', cx: 0, cz: -88, w: 32, d: 24, safe: true, title: 'IV · La porta che giudica' },
   { id: 'arena', cx: 0, cz: -124, w: 32, d: 28, safe: false, title: 'V · Il Custode della Fenditura' },

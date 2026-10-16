@@ -1,7 +1,7 @@
 // Prologo cinematografico in-engine: inquadrature, movimenti di camera, personaggi animati, letterbox, sottotitoli e voce narrante.
-import * as THREE from '../vendor/three.module.js?v=1.6.0';
-import { inked, INK_UNIFORMS } from './art.js?v=1.6.0';
-import * as W from './world.js?v=1.6.0';
+import * as THREE from '../vendor/three.module.js?v=1.7.0';
+import { inked, INK_UNIFORMS } from './art.js?v=1.7.0';
+import * as W from './world.js?v=1.7.0';
 
 const ease = (t) => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
 const V = (x, y, z) => new THREE.Vector3(x, y, z);

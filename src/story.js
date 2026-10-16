@@ -42,7 +42,8 @@ export const ROUTE_TEXT = {
 };
 export const PLAN_TEXT = { controllo: 'Controllo (CAUTO)', rottura: 'Rottura (FRAGILE)', ambiente: 'Ambiente (CONDUTTIVO)', azione: 'Azione pura' };
 
-export function custodeLines(deaths, mem) {
+export function custodeLines(deaths, mem) { return [['custode', 'Ti ho letto. Ogni parola che hai scritto per arrivare qui, l\'ho letta.']].concat(custodeLines0(deaths, mem)); }
+function custodeLines0(deaths, mem) {
   if (deaths === 0 && mem.runs > 0) return [['custode', 'Ti conosco. Sei quello che cambia le cose finite.']];
   if (deaths === 0) return [['custode', 'Questa pagina è chiusa. Io sono ciò che resta quando una storia smette di cambiare.']];
   if (deaths === 1) return [['custode', 'Hai già perso qui. La pagina lo ha scritto.']];

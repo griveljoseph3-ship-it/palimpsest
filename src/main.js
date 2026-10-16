@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.6.0';
-import { EFFECTS } from './data.js?v=1.6.0';
-import { Grammar } from './resolver.js?v=1.6.0';
-import { Ink, INK } from './ink.js?v=1.6.0';
-import { Input } from './input.js?v=1.6.0';
-import { Sfx } from './audio.js?v=1.6.0';
-import { Tele } from './telemetry.js?v=1.6.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.6.0';
-import * as W from './world.js?v=1.6.0';
-import * as ST from './story.js?v=1.6.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.6.0';
+import * as THREE from '../vendor/three.module.js?v=1.7.0';
+import { EFFECTS } from './data.js?v=1.7.0';
+import { Grammar } from './resolver.js?v=1.7.0';
+import { Ink, INK } from './ink.js?v=1.7.0';
+import { Input } from './input.js?v=1.7.0';
+import { Sfx } from './audio.js?v=1.7.0';
+import { Tele } from './telemetry.js?v=1.7.0';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.7.0';
+import * as W from './world.js?v=1.7.0';
+import * as ST from './story.js?v=1.7.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.7.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -1340,13 +1340,26 @@ const INTRO_SWAY = [];
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
-  opUpdate(dt); curseUpdate(dt); custodePhases(dt);
+  opUpdate(dt); curseUpdate(dt); custodePhases(dt); zoneUpdate();
   if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
   if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
   if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
 }
 
-window.PAL = { OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+
+// ================= v1.7 · una zona alla volta: ogni oggetto statico appartiene a una stanza (layer); si disegnano solo la stanza attuale e le vicine =================
+const ZONE = { ready: false, active: '' };
+(() => { const box = new THREE.Box3(), v = new THREE.Vector3(), sz = new THREE.Vector3(); const skip = new Set([MZ.group, P.mesh, lumi.mesh]); for (const e of Object.values(ENT)) skip.add(e.mesh);
+  const assign = (o) => { if (skip.has(o) || o.isInstancedMesh || o.isLight || o.isCamera) return false; box.setFromObject(o); if (box.isEmpty()) return false; box.getSize(sz); box.getCenter(v);
+    const r = roomAt(v.x, v.z); if (!r || sz.x > r.w + 1 || sz.z > r.d + 1) return false; const L = W.ROOMS.indexOf(r) + 1; if (L > 30) return false; o.traverse((c) => c.layers.set(L)); return true; };
+  for (const o of [...scene.children]) { if (o === world.group) { for (const c of [...o.children]) assign(c); continue; } assign(o); }
+  ZONE.ready = true; })();
+function zoneNeighbors(id) { const r = W.ROOMS.find((q) => q.id === id); if (!r) return []; const ch = W.ROOMS.filter((q) => (q.chain || 'c1') === (r.chain || 'c1')); const i = ch.indexOf(r); const out = [r, ch[i - 1], ch[i + 1]];
+  if (id === 'charger' || id === 'conduct') out.push(...W.ROOMS.filter((q) => q.id === 'archive' || q.id === 'crypt')); if (id === 'archive' || id === 'crypt') out.push(...W.ROOMS.filter((q) => q.id === 'charger' || q.id === 'conduct'));
+  return out.filter(Boolean); }
+function zoneUpdate() { const id = S.room || 'intro'; if (ZONE.active === id) return; ZONE.active = id; camera.layers.disableAll(); camera.layers.enable(0); for (const r of zoneNeighbors(id)) camera.layers.enable(W.ROOMS.indexOf(r) + 1); }
+
+window.PAL = { ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

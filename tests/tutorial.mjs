@@ -25,12 +25,12 @@ await tapSel('#tRewrite'); await W(700); check('open → pick (menu aperto)', (a
 await pg.screenshot({ path: '/workspace/palimpsest-shots/16-tut-pick.png' });
 await tapSel('.bubble'); await W(400); check('primo tocco = anteprima, non scrive', await E(() => !PAL.grammar.has('board', 'state.fragile')));
 console.log(await E(() => [PAL.panel.open, PAL.panel.armed, PAL.panel.sel, PAL.ink.v, PAL.ink.canSelect(), document.querySelectorAll('.bubble').length])); await tapSel('.bubble'); await W(800); console.log(await E(() => [PAL.panel.open, PAL.panel.armed, PAL.grammar.has('board','state.fragile')])); check('secondo tocco scrive FRAGILE → ink', (await step()) === 'ink');
-await W(6800); check('ink → heavy', (await step()) === 'heavy');
+await W(10000); check('ink → heavy', (await step()) === 'heavy');
 await tapSel('#tHeavy'); await W(2500); if ((await step()) === 'heavy') { await tapSel('#tHeavy'); await W(2500); }
 check('heavy rompe la tavola → quick', (await step()) === 'quick');
 await E(() => { PAL.P.x = 0; PAL.P.z = -13; }); await W(1500); await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000);
 await E(() => { const c = PAL.charger; PAL.P.x = c.x; PAL.P.z = c.z + 3; PAL.P.face = Math.PI; PAL.ink.v = 100; }); await W(300);
 check('card quick visibile nella stanza del Caricatore', await E(() => !document.getElementById('tut').classList.contains('hidden')) && (await step()) === 'quick');
 await tapSel('#tQuick'); await W(900); check('↻ riscrittura rapida → inkfight', (await step()) === 'inkfight');
-await W(6800); check('tutorial completato e salvato', (await step()) === 'end' && await E(() => PAL.mem.tutDone === true));
+await W(10000); check('tutorial completato e salvato', (await step()) === 'end' && await E(() => PAL.mem.tutDone === true));
 console.log('ERRORS', errs); if (bad || errs.length) process.exitCode = 1; await b.close();

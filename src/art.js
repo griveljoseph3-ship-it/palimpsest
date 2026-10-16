@@ -29,7 +29,8 @@ float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(
 float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vnoise(p);p*=2.03;a*=.5;}return s;}`;
 
-export const INK_UNIFORMS = { uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 } };
+export const INK_UNIFORMS = { uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 },
+  uPL: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, -99, 0, 1)) }, uPC: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) } };
 
 export function inkMaster(opts = {}) {
   const m = new THREE.ShaderMaterial({
@@ -45,7 +46,7 @@ export function inkMaster(opts = {}) {
     vertexColors: true,
     vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
       void main(){ vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(modelMatrix)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
-    fragmentShader: `uniform float uHit; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
+    fragmentShader: `uniform vec4 uPL[8]; uniform vec3 uPC[8]; uniform float uHit; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
@@ -58,7 +59,7 @@ export function inkMaster(opts = {}) {
         float hatch2=step(.5,fract((sp.x-sp.y)*.16));
         float dark=1.-tone; float hm=mix(1.,.7,hatch*smoothstep(.35,.5,dark))*mix(1.,.78,hatch2*smoothstep(.7,.8,dark));
         float ao=mix(.68,1.,smoothstep(0.,.9,vW.y-uH.x+.05));
-        vec3 shadowC=base*vec3(.42,.43,.52); vec3 litC=base*vec3(1.04,1.,.92); vec3 col=mix(shadowC,litC,tone)*hm*ao;
+        vec3 shadowC=base*vec3(.33,.33,.43); vec3 litC=base*vec3(1.04,1.,.92); vec3 col=mix(shadowC,litC,tone)*hm*ao;
         col+=vec3(1.,.82,.55)*pow(max(ndl,0.),3.)*.12; // luce calda
         float rim=pow(1.-abs(dot(n,normalize(cameraPosition-vW))),3.); col=mix(col,uInk,rim*.35*vMask);
         col=mix(col, uShiftColor*(.6+.4*tone), ColorShift*vMask);
@@ -73,7 +74,9 @@ export function inkMaster(opts = {}) {
         if(DissolveAmount>0.){ float dn=fbm(vW.xy*3.+vW.zz*2.); if(dn<DissolveAmount) discard; col=mix(col,uInk,1.-smoothstep(0.,.08,dn-DissolveAmount)); }
         // lampada da lettura che segue il giocatore: il resto della pagina sprofonda nel buio caldo
         float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.25,1.,ld+vnoise(vW.xz*.6+uTime*.05)*.18);
-        col*=mix(vec3(.26,.22,.24),vec3(1.06,1.,.9),lamp);
+        col*=mix(vec3(.17,.14,.17),vec3(1.06,1.,.9),lamp);
+        // candele, lampade e inchiostro luminoso
+        for(int i=0;i<8;i++){ vec3 dv=uPL[i].xyz-vW; float a=max(0.,1.-length(dv)/uPL[i].w); a*=a; col+=base*uPC[i]*a*1.7*(.45+.55*max(dot(n,normalize(dv)),0.)); }
         col=mix(col, vec3(dot(col,vec3(.33)))*1.1, uContrast*.6);
         col=mix(col,vec3(1.,.96,.88),uHit);
         gl_FragColor=vec4(col,1.);

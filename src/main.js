@@ -31,7 +31,7 @@ const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 120);
 const post = new Post(renderer);
 const paper = paperTexture(); INK_UNIFORMS.uPaper.value = paper;
 const world = W.buildWorld(scene, paper);
-const decor = W.buildDecor(scene); const traces = new Traces(scene); const particles = new Particles(scene);
+const decor = W.buildDecor(scene); const storyLights = W.buildStory(scene); const traces = new Traces(scene); const particles = new Particles(scene);
 function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w < h ? 46 : 34; camera.updateProjectionMatrix(); post.setSize(Math.floor(w * pr), Math.floor(h * pr)); particles.points.material.uniforms.uPR.value = pr; }
 addEventListener('resize', resize);
 
@@ -797,6 +797,16 @@ function phase2Update(dt) {
   arena.p2T -= dt; if (arena.p2T <= 0 && !S.lock) { arena.p2T = 2.3; const x = P.x, z = P.z; sfx.play('warn');
     ring(x, z, 1.6, 0.9, 0x8a1a10, () => { sfx.play('heavy'); particles.burst(x, 0.3, z, 18, 4, [0.1, 0.05, 0.04], 0.18); traces.add(x, z, 1.2, 0, now); if (Math.hypot(P.x - x, P.z - z) < 1.6) damagePlayer(1, { x, z }, 'wave' + (++attackCounter)); }); }
 }
+function lightsUpdate() {
+  const t = performance.now() / 1000; const px = P.x, pz = P.z;
+  const near = storyLights.map((l) => [l, (l.x - px) ** 2 + (l.z - pz) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 7).map((a) => a[0]);
+  const PL = INK_UNIFORMS.uPL.value, PC = INK_UNIFORMS.uPC.value;
+  for (let i = 0; i < 8; i++) { PL[i].set(0, -99, 0, 1); PC[i].set(0, 0, 0); }
+  near.forEach((l, i) => { const f = l.kind === 'lamp' ? 1 + Math.sin(t * 2 + l.ph) * 0.03 : 0.85 + Math.sin(t * 13 + l.ph) * 0.08 + Math.sin(t * 7.1 + l.ph * 2) * 0.07; PL[i].set(l.x, l.y, l.z, l.r * 1.35 * f); PC[i].set(l.col[0] * f, l.col[1] * f, l.col[2] * f);
+    const u = l.m.userData; u.glow.scale.setScalar((l.kind === 'lamp' ? 1.6 : 0.9) * f); if (l.kind === 'candle') u.flame.scale.set(1, 2.2 * f, 1); });
+  // la penna del giocatore è sempre una piccola luce d'inchiostro
+  const q = P.mesh.userData.nibWorld; if (q) { P.mesh.userData.nib.getWorldPosition(q); PL[7].set(q.x, q.y, q.z, panel.open ? 3.2 : 1.8); const k = panel.open ? 1.4 : 0.6; PC[7].set(1.0 * k, 0.25 * k, 0.15 * k); P.mesh.userData.nibGlow.scale.setScalar(panel.open ? 0.6 : 0.3 + Math.sin(t * 4) * 0.05); if (frame % 75 === 0 && S.phase === 'play') particles.emit(q.x, q.y, q.z, 0, -0.5, 0, 1.4, 0.08, 0.45, 0.06, 0.04, 9); }
+}
 function lumiGuide(dt) {
   S.roomT += dt; if (S.lock || dlg.active || S.done) return;
   if (S.room === 'intro' && board.broken && S.roomT > 25 && !S.lumiSecretHint && (!trap.open || !wellEnt.broken)) { S.lumiSecretHint = true; showLumiTip('Lumi: "Il pavimento segnato a matita suona vuoto… e il calamaio di Ilde sembra incrinato."'); return; }
@@ -804,7 +814,7 @@ function lumiGuide(dt) {
 }
 function showLumiTip(t) { hint(t); sfx.play('voice'); Tele.log('lumi_tip', { room: S.room }); }
 function hudUpdate(dt) {
-  tutUpdate(dt); healthUpdate(dt); lumiGuide(dt); phase2Update(dt); trapUpdate();
+  tutUpdate(dt); healthUpdate(dt); lumiGuide(dt); lightsUpdate(); phase2Update(dt); trapUpdate();
   if (frame % 10 === 0) { const g = goalText(); if ($('goal').textContent !== g) { $('goal').textContent = g; $('goal').classList.remove('flash'); void $('goal').offsetWidth; $('goal').classList.add('flash'); } }
   $('inkFill').style.width = ink.v + '%'; $('inkNum').textContent = Math.round(ink.v); $('inkWrap').classList.toggle('low', ink.v < 25 && !zoneSafe());
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
@@ -845,10 +855,11 @@ function setupTitle() {
 }
 const CHAPTERS = [['I', 'La tavola', 'FRAGILE · CAUTO · CONDUTTIVO'], ['II', 'Il fiume di carta', 'PESANTE · LEGGERO'], ['III', 'L\'incendio del frontespizio', 'CIECO · ARDENTE'], ['IV', 'L\'orologio di Ilde', 'LENTO · LEGATO'], ['V', 'La pagina bianca', 'NON SCRITTO']];
 function renderChapters() {
-  const ch = mem.chapters || {}; $('chList').innerHTML = CHAPTERS.map(([n, t, w], i) => { const done = ch[i + 1] && ch[i + 1].done; const open = i === 0 || (i === 1 && ch[1] && ch[1].done);
+  const ch = mem.chapters || {}; $('chList').innerHTML = CHAPTERS.map(([n, t, w], i) => { const done = ch[i + 1] && ch[i + 1].done; const open = i === 0 || (C2_READY && i === 1 && ch[1] && ch[1].done);
     return `<button class="chap ${open ? '' : 'locked'}" data-ch="${i + 1}" ${open ? '' : 'disabled'}><b>Capitolo ${n}</b> · ${t}<small>${open ? (done ? '✔ completato · pagine nascoste ' + ch[i + 1].secrets + '/3' : 'parole: ' + w) : 'in scrittura… (' + w + ')'}</small></button>`; }).join('');
   $('chList').querySelectorAll('.chap:not(.locked)').forEach((b) => b.onclick = () => { $('chapters').classList.add('hidden'); try { localStorage.removeItem(SAVE_KEY); } catch (e) {} if (b.dataset.ch === '2') { pendingChapter = 2; startGame(); } else beginWithIntro(false); });
 }
+const C2_READY = false;
 let pendingSave = null, pendingChapter = sessionStorage.getItem('pal_goto') === 'c2' ? 2 : 0; sessionStorage.removeItem('pal_goto');
 function startGame() {
   if (S.phase !== 'title') return;
@@ -966,7 +977,7 @@ function visualUpdate(dt, rdt) {
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
   if (frame % 20 === 0) particles.emit(P.x + rnd(-8, 8), rnd(1, 4), P.z + rnd(-8, 4), rnd(-0.1, 0.1), 0.05, rnd(-0.1, 0.1), 4, 0.06, 0.95, 0.85, 0.6, 0); // pulviscolo di luce
   ghostUpdate(dt); particles.update(dt);
-  INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -62, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 13 : 11;
+  INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -62, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' || S.room === 'c2d' ? 11 : 8.5;
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
   const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.25 : 1.08; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;

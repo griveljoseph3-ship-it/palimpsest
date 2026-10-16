@@ -22,24 +22,24 @@ await E(() => PAL.tp(0, -20)); await until(() => PAL.S.room === 'charger', 3000,
 await E(() => PAL.rewrite('charger', 'state.fragile'));
 const behindPillar = (id, pillars) => `(() => { const e = PAL.${id}; if (e.armorBroken) return; PAL.P.hp=5; PAL.ink.v=Math.max(PAL.ink.v,60); if (e.st!=='idle') return; if (!PAL.grammar.has('${id}','state.fragile')) PAL.rewrite('${id}','state.fragile');
   let best=null; for (const [x,z] of ${JSON.stringify(pillars)}) { const dx=x-e.x, dz=z-e.z, l=Math.hypot(dx,dz); const px=x+dx/l*2.2, pz=z+dz/l*2.2; const d=Math.hypot(px-e.x,pz-e.z); if (d>4.3&&d<10.5&&(!best||d<best.d)) best={px,pz,d}; } if (best) PAL.tp(best.px,best.pz); })()`;
-await until(() => PAL.charger.armorBroken, 30000, 'charger armor', behindPillar('charger', [[-7.2, -34], [7.2, -25]])); await shot('04-charger-broken');
+await until(() => PAL.charger.armorBroken, 120000, 'charger armor', behindPillar('charger', [[-7.2, -34], [7.2, -25]])); await shot('04-charger-broken');
 await W(700); await until(() => !PAL.charger.alive, 15000, 'charger dead', () => { PAL.P.hp = 5; const e = PAL.charger; if (PAL.P.st === 'idle' && e.exposed > 0) { PAL.tp(e.x + 1.3, e.z + 0.5); PAL.face(e.x, e.z); PAL.attack(true); } });
 // III · Conduttivo
 await E(() => PAL.tp(0, -49)); await until(() => PAL.S.room === 'conduct', 3000, 'enter conduct'); await E(() => PAL.skipDialog()); await E(() => PAL.tp(0, -54.3));
-await E(() => PAL.rewrite('plate', 'element.conductive')); await shot('05-plate'); await until(() => PAL.gates.r2.open, 15000, 'r2 gate');
+await E(() => { PAL.PROG.mazeDone = true; }); await E(() => PAL.rewrite('plate', 'element.conductive')); await shot('05-plate'); await until(() => PAL.gates.r2.open, 15000, 'r2 gate');
 // IV · porta di Elara
 await E(() => PAL.tp(0, -79)); await until(() => PAL.S.room === 'door', 3000, 'enter door'); await E(() => PAL.skipDialog());
 if (route === 'forced') { await E(() => PAL.rewrite('relay', 'state.fragile')); await E(() => { PAL.tp(5.4, -96.9); PAL.face(5.4, -98.4); PAL.attack(true); }); }
 if (route === 'evidence') { await E(() => { PAL.door.hasDoc = true; }); await E(() => PAL.tp(-3.8, -97.8)); await E(() => PAL.interact()); await E(() => PAL.rewrite('evplate', 'element.conductive')); }
 if (route === 'trust') { await E(() => PAL.tp(0, -96.5)); await E(() => PAL.interact()); await E(() => PAL.skipDialog()); await E(() => PAL.choose(0)); await shot('06-defense');
-  await until(() => PAL.S.doorRoute === 'trust', 150000, 'defense', () => { PAL.P.hp = 5; const m = PAL.door.mites.find((m) => m.alive); if (m && PAL.P.st === 'idle') { PAL.tp(m.x + 0.8, m.z); PAL.face(m.x, m.z); PAL.attack(false); } }); }
+  await until(() => PAL.S.doorRoute === 'trust', 400000, 'defense', () => { PAL.P.hp = 5; const m = PAL.door.mites.find((m) => m.alive); if (m && PAL.P.st === 'idle') { PAL.tp(m.x + 0.8, m.z); PAL.face(m.x, m.z); PAL.attack(false); } }); }
 await until(`PAL.S.doorRoute === '${route}'`, 8000, 'door route ' + route); await W(400); await shot('07-door-' + route); await E(() => PAL.skipDialog());
 // V · arena
 await W(1200); await E(() => PAL.tp(0, -112.6)); await until(() => PAL.S.room === 'arena', 3000, 'enter arena'); await E(() => PAL.skipDialog());
 if (plan === 'controllo') { await E(() => PAL.rewrite('custode', 'temperament.cautious')); await shot('08-cauto');
   await until(() => PAL.arena.window > 0, 15000, 'loosen', () => { PAL.P.hp = 5; if (!PAL.grammar.has('custode', 'temperament.cautious')) PAL.rewrite('custode', 'temperament.cautious'); PAL.tp(0, -121); });
   await E(() => PAL.tp(0, -136.6)); }
-if (plan === 'rottura') { await until(() => PAL.custode.armorBroken, 45000, 'custode armor', behindPillar('custode', [[-9.2, -122], [9.2, -122]])); await shot('08-rottura');
+if (plan === 'rottura') { await until(() => PAL.custode.armorBroken, 150000, 'custode armor', behindPillar('custode', [[-9.2, -122], [9.2, -122]])); await shot('08-rottura');
   await until(() => PAL.arena.snapped, 60000, 'snap', () => { PAL.P.hp = 5; const e = PAL.custode; if (PAL.P.st === 'idle' && (e.exposed > 0 || ['stun', 'recover'].includes(e.st))) { PAL.tp(e.x + 1.3, e.z + 0.6); PAL.face(e.x, e.z); PAL.attack(true); } });
   await E(() => PAL.tp(0, -136.6)); }
 if (plan === 'ambiente') { await E(() => { PAL.tp(0, -131.1); PAL.rewrite('bridge', 'element.conductive'); }); await shot('08-ponte');

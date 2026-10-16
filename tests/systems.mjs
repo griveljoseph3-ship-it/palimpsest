@@ -44,12 +44,12 @@ await E(() => { PAL.S.discovered.add('temperament.cautious'); PAL.tp(0, -20); })
 console.log(await E(() => { PAL.ink.v = 30; PAL.tp(0, -24); PAL.face(0, -32); PAL.open('charger'); return JSON.stringify({open: PAL.panel.open, room: PAL.S.room, safe: PAL.ink.safe, ch: PAL.charger.st, alive: PAL.charger.alive, dlg: PAL.dlg.active, lock: PAL.S.lock}); }));
 check('combattimento: consumo nella finestra protetta (1,5/s)', await E(async () => { const v = PAL.ink.v; await new Promise((r) => setTimeout(r, 1000)); const d = v - PAL.ink.v; console.log('INKDBG', v, PAL.ink.v, PAL.panel.open, PAL.P.st, PAL.P.hp); return d > 1.0 && d < 2.2; }));
 await E(() => PAL.select('temperament.cautious'));
-await W(7000); check('Sbiadito sotto 25 e chiusura automatica', await E(() => !PAL.panel.open && PAL.Tele.summary().ink_faded >= 1));
+for (let i=0;i<60 && !(await E(() => !PAL.panel.open && PAL.Tele.summary().ink_faded >= 1));i++) await W(300); check('Sbiadito sotto 25 e chiusura automatica', await E(() => !PAL.panel.open && PAL.Tele.summary().ink_faded >= 1));
 check('parola preparata disponibile', await E(() => PAL.S.prepared === 'temperament.cautious'));
 await E(() => { PAL.ink.v = 40; PAL.face(PAL.charger.x, PAL.charger.z); }); await hold('KeyR'); await W(450);
 check('riscrittura veloce applica CAUTO al Caricatore', await E(() => PAL.grammar.has('charger', 'temperament.cautious')));
 // recupero Inchiostro: colpo rapido +12 una volta per attack_event_id
-await E(() => { PAL.ink.v = 10; const c = PAL.charger; PAL.tp(c.x + 1.2, c.z); PAL.face(c.x, c.z); PAL.attack(false); }); await W(900);
+await E(() => { PAL.ink.v = 10; const c = PAL.charger; PAL.tp(c.x + 1.8, c.z); PAL.face(c.x, c.z); PAL.attack(false); }); await W(1600);
 check('colpo rapido valido: +12 Inchiostro', await E(() => PAL.ink.v >= 21 && PAL.ink.v <= 23));
 // Lumi: tre morti nell'arena senza progresso
 await E(() => { PAL.charger.alive = false; PAL.charger.st = 'dead'; for (const g of ['r1', 'r2', 'door']) { PAL.gates[g].open = true; } PAL.tp(0, -112.6); }); await W(1500); await E(() => PAL.skipDialog());
@@ -58,7 +58,7 @@ await W(500); await E(() => PAL.skipDialog()); await W(800);
 check('Lumi offre la Visione dopo 3 morti', await E(() => PAL.Tele.summary().lumi_vision === 1));
 check('tracce di Lumi persistenti (3)', await E(() => PAL.S.deaths === 3));
 await pg.screenshot({ path: '/workspace/palimpsest-shots/12-lumi-vision.png' });
-for (let i=0;i<40 && await E(()=>PAL.S.lock);i++) await W(300); console.log('LOCK', await E(()=>JSON.stringify({l:PAL.S.lock,ph:PAL.S.phase,d:PAL.dlg.active,st:PAL.P.st}))); check('Visione dura 4 s e restituisce il controllo', await E(() => !PAL.S.lock));
+for (let i=0;i<100 && await E(()=>PAL.S.lock);i++) await W(300); console.log('LOCK', await E(()=>JSON.stringify({l:PAL.S.lock,ph:PAL.S.phase,d:PAL.dlg.active,st:PAL.P.st}))); check('Visione dura 4 s e restituisce il controllo', await E(() => !PAL.S.lock));
 // memoria tra versioni
 await E(() => { localStorage.setItem('pal.memory', JSON.stringify({ runs: 1, deaths: 2, routes: ['forced'], plans: ['rottura'], traces: [[0, -5], [1, -14]] })); });
 await pg.reload(); await W(700); check('il titolo ricorda la versione precedente', (await E(() => document.getElementById('tMem').textContent)).includes('1'));

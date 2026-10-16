@@ -1,5 +1,5 @@
 // S2 · Input: controller (Gamepad API) e touch col pollice primari; tastiera/mouse secondari.
-const BTN = ['attack', 'heavy', 'dodge', 'interact', 'rewrite', 'quick', 'reset', 'recompose', 'pause', 'left', 'right', 'up', 'down', 'confirm', 'back'];
+const BTN = ['attack', 'heavy', 'dodge', 'interact', 'rewrite', 'quick', 'reset', 'recompose', 'erase', 'pause', 'left', 'right', 'up', 'down', 'confirm', 'back'];
 export class Input {
   constructor(el) {
     this.move = { x: 0, y: 0 }; this.down = {}; this.prev = {}; this.virt = {}; this.virtMove = null; this.mode = 'touch';
@@ -37,7 +37,7 @@ export class Input {
     if (k.has('KeyA') || k.has('ArrowLeft')) mx -= 1; if (k.has('KeyD') || k.has('ArrowRight')) mx += 1;
     if (k.has('KeyW') || k.has('ArrowUp')) my -= 1; if (k.has('KeyS') || k.has('ArrowDown')) my += 1;
     d.attack = k.has('KeyJ') || this.mouseBtn.attack; d.heavy = k.has('KeyK') || this.mouseBtn.heavy; d.dodge = k.has('Space') || k.has('ShiftLeft');
-    d.interact = k.has('KeyE'); d.rewrite = k.has('KeyQ') || k.has('Tab'); d.quick = k.has('KeyR'); d.reset = k.has('KeyT'); d.recompose = k.has('KeyY');
+    d.interact = k.has('KeyE'); d.rewrite = k.has('KeyQ') || k.has('Tab'); d.quick = k.has('KeyR'); d.reset = k.has('KeyT'); d.recompose = k.has('KeyY'); d.erase = k.has('KeyG');
     d.pause = k.has('Escape') || k.has('KeyP'); d.left = k.has('ArrowLeft') || k.has('KeyA'); d.right = k.has('ArrowRight') || k.has('KeyD');
     d.up = k.has('ArrowUp') || k.has('KeyW'); d.down = k.has('ArrowDown') || k.has('KeyS'); d.confirm = k.has('Enter') || k.has('KeyE') || k.has('KeyJ'); d.back = k.has('Escape') || k.has('KeyQ') || k.has('Backspace');
     const g = this.pad();
@@ -46,7 +46,7 @@ export class Input {
       if (Math.hypot(ax, ay) > 0.2) { mx = ax; my = ay; this.mode = 'pad'; }
       const any = g.buttons.some((x) => x.pressed); if (any) this.mode = 'pad';
       d.attack ||= b(2); d.heavy ||= b(3); d.dodge ||= b(1) || b(7); d.interact ||= b(0); d.rewrite ||= b(5); d.quick ||= b(4);
-      d.reset ||= b(8); d.recompose ||= b(11); d.pause ||= b(9); d.left ||= b(14) || ax < -0.6; d.right ||= b(15) || ax > 0.6; d.up ||= b(12); d.down ||= b(13);
+      d.reset ||= b(8); d.erase ||= b(6); d.recompose ||= b(11); d.pause ||= b(9); d.left ||= b(14) || ax < -0.6; d.right ||= b(15) || ax > 0.6; d.up ||= b(12); d.down ||= b(13);
       d.confirm ||= b(0); d.back ||= b(1) || b(5);
     }
     if (Math.hypot(this.touchMove.x, this.touchMove.y) > 0.05) { mx = this.touchMove.x; my = this.touchMove.y; }

@@ -55,3 +55,11 @@ export const ENTITY_DEFS = {
   dam:        { name: 'Cuore della Diga', supports: ['state.fragile', 'element.conductive'], durations: { 'state.fragile': 8, 'element.conductive': 8 } },
   bridge:     { name: 'Ponte conduttivo', supports: ['element.conductive'], durations: { 'element.conductive': 12 } },
 };
+// v1.5 · Capitolo 1 ridisegnato: parole sull'ambiente
+SLOTS.shape = { baseline: 'shape.plain', values: ['shape.plain', 'shape.bridge'] };
+SLOTS.light = { baseline: 'light.lit', values: ['light.lit', 'light.dark'] };
+EFFECTS['shape.bridge'] = { slot: 'shape', word: 'PONTE', sound: 'heavy', preview: 'Il vuoto diventa un ponte di righe: si può attraversare' };
+EFFECTS['light.dark'] = { slot: 'light', word: 'BUIO', sound: 'breath', preview: 'La lampada si spegne: le macchie vicine non ti vedono più' };
+ENTITY_DEFS.mzbridge = { name: 'Fenditura d\'inchiostro', supports: ['shape.bridge'], durations: { 'shape.bridge': null }, safe: true };
+ENTITY_DEFS.mzplate = { name: 'Piastra del filo', supports: ['element.conductive'], durations: { 'element.conductive': null }, safe: true };
+ENTITY_DEFS.mzlamp = { name: 'Lampada sentinella', supports: ['light.dark'], durations: { 'light.dark': 20 }, safe: true };

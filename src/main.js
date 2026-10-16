@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.7.1';
-import { EFFECTS } from './data.js?v=1.7.1';
-import { Grammar } from './resolver.js?v=1.7.1';
-import { Ink, INK } from './ink.js?v=1.7.1';
-import { Input } from './input.js?v=1.7.1';
-import { Sfx } from './audio.js?v=1.7.1';
-import { Tele } from './telemetry.js?v=1.7.1';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.7.1';
-import * as W from './world.js?v=1.7.1';
-import * as ST from './story.js?v=1.7.1';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.7.1';
+import * as THREE from '../vendor/three.module.js?v=1.7.2';
+import { EFFECTS } from './data.js?v=1.7.2';
+import { Grammar } from './resolver.js?v=1.7.2';
+import { Ink, INK } from './ink.js?v=1.7.2';
+import { Input } from './input.js?v=1.7.2';
+import { Sfx } from './audio.js?v=1.7.2';
+import { Tele } from './telemetry.js?v=1.7.2';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.7.2';
+import * as W from './world.js?v=1.7.2';
+import * as ST from './story.js?v=1.7.2';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.7.2';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -1230,6 +1230,7 @@ function buildOpening() { if (OP.built) return; OP.built = true; const R = OP.R;
   const ch = new THREE.Mesh(new THREE.PlaneGeometry(R.w - 0.4, 3.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x07050a })); ch.position.set(R.cx, 0.02, R.cz); scene.add(ch);
   const gtx = (() => { const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const g = c.getContext('2d'); g.fillStyle = 'rgba(243,234,214,.85)'; g.font = 'italic 54px Georgia'; g.fillText('Tra le due sponde rimase soltanto ______', 30, 150); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
   const gw = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: gtx, transparent: true, depthWrite: false })); gw.position.set(R.cx, 0.04, R.cz); scene.add(gw); OP.gapWords = gw;
+  for (let i = 0; i < 22; i++) for (const sd of [-1, 1]) { const t = inked(new THREE.ConeGeometry(0.22, 0.6 + Math.random() * 0.5, 3), { color: 0xefe5cf, outline: false }); t.rotation.x = sd * Math.PI / 2; t.position.set(R.cx - 7.6 + i * 0.72, 0.01, R.cz + sd * 1.75); scene.add(t); }
   OP.bridge = addEnt('opbridge', 'opbridge', new THREE.Group(), R.cx, R.cz); OP.bridge.mesh.userData.height = 0.5;
   for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(3, 0.14, 0.4), { color: 0xd8cbb0, ow: 0.02 }); pl.position.set(R.cx, -3, R.cz - 1.7 + i * 0.42); pl.visible = false; scene.add(pl); OP.planks.push(pl); }
   for (const [x, z, k] of [[-5, 14, 'lamp'], [5, 6, 'candle'], [-5, -6, 'lamp'], [5, -14, 'lamp'], [0, -19, 'candle']]) { const m = k === 'lamp' ? W.makeLamp() : W.makeCandle(0.6); m.position.set(R.cx + x, 0, R.cz + z); scene.add(m); storyLights.push({ m, x: R.cx + x, y: m.userData.ly, z: R.cz + z, r: k === 'lamp' ? 6 : 3.6, col: k === 'lamp' ? [1.3, 0.95, 0.55] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: k }); }
@@ -1241,6 +1242,8 @@ function startOpening() {
 }
 function opUpdate(dt) {
   if (!OP.stage) return; OP.t += dt; const R = OP.R;
+  if (frame % 4 === 0) particles.emit(R.cx + rnd(-7, 7), 7, P.z + rnd(-8, 6), rnd(-0.3, 0.3), -0.9, rnd(-0.2, 0.2), 5, rnd(0.12, 0.25), 0.94, 0.9, 0.82, 0);
+  if (OP.chasm && frame % 6 === 0) particles.emit(R.cx + rnd(-7.5, 7.5), 0.1, R.cz + (Math.random() < 0.5 ? -1.7 : 1.7), 0, -1.5, 0, 1.2, 0.08, 0.05, 0.03, 0.03, 3);
   if (OP.stage === 'tilt') { const k = clamp((OP.t - 1.2) / 2.6, 0, 1); OP.leaf.rotation.x = -0.32 * Math.sin(k * Math.PI * 0.5) * (k < 1 ? 1 : 1);
     if (OP.t > 1.6) { const sk = clamp((OP.t - 1.6) / 2.4, 0, 1); P.z = lerp(R.cz + 19, R.cz + 2.6, sk * sk); P.x = R.cx + Math.sin(OP.t * 3) * 0.4 * (1 - sk); P.face = Math.PI; if (frame % 3 === 0) particles.emit(P.x, 0.2, P.z, rnd(-1, 1), 0.6, 1, 0.6, 0.15, 0.85, 0.78, 0.62, 3); }
     if (OP.t > 4.2) { OP.stage = 'gap'; OP.t = 0; S.lock = false; S.shake = 0.5; sfx.play('tear'); S.discovered.add('shape.bridge'); opSub('Tra le due sponde rimase soltanto ______.'); hint(input.mode === 'touch' ? 'Tocca ✎ RISCRIVI e poi la parola PONTE' : input.mode === 'pad' ? 'Premi RB e scegli PONTE' : 'Premi Q e scegli PONTE'); $('tRewrite').classList.add('pulse'); } }
@@ -1304,6 +1307,10 @@ function endingPage() { const el = $('endPage'); el.classList.remove('hidden'); 
     g.fillStyle = '#8a2416'; g.fillRect(392, 370, 116, 22); g.fillRect(470, 380, 22, 120);
     g.lineWidth = 9; g.beginPath(); g.moveTo(560, 520); g.lineTo(700, 400); g.stroke(); g.fillStyle = '#d8a63a'; g.beginPath(); g.moveTo(700, 400); g.lineTo(728, 382); g.lineTo(712, 410); g.fill();
     for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(310 + i * 35, 830 + (i % 3) * 14, 6 + (i % 2) * 4, 0, 6.3); g.fill(); } });
+  g.save(); g.strokeStyle = 'rgba(22,16,12,.35)'; g.lineWidth = 1.2; for (let i = 0; i < 70; i++) { g.beginPath(); g.moveTo(250 + i * 6, 860); g.lineTo(230 + i * 6, 900); g.stroke(); } g.restore();
+  g.save(); g.strokeStyle = 'rgba(22,16,12,.5)'; g.lineWidth = 1.5; for (let i = 0; i < 28; i++) { g.beginPath(); g.moveTo(330 + i * 9, 420 + (i % 3) * 30); g.lineTo(310 + i * 9, 800); g.stroke(); } g.restore();
+  g.save(); g.font = 'italic 26px Georgia'; g.fillStyle = 'rgba(40,28,20,.55)'; g.fillText('fig. 1 — il viaggiatore, come doveva essere', 250, 980); g.restore();
+  let drip = 0; const dripT = setInterval(() => { drip++; g.fillStyle = '#16100c'; g.beginPath(); g.ellipse(712, 412 + drip * 4, 4, 6, 0, 0, 6.3); g.fill(); if (drip > 30) clearInterval(dripT); }, 90);
   const q = 'A questo punto, il viaggiatore avrebbe dovuto posare la penna.'; let i = 0; $('endQ').innerHTML = ''; sfx.play('page');
   const tick = setInterval(() => { i++; $('endQ').innerHTML = q.slice(0, i - 6) + '<span class="wet">' + q.slice(Math.max(0, i - 6), i) + '</span>'; if (i >= q.length + 6) clearInterval(tick); }, 70);
   const done = () => { el.removeEventListener('pointerdown', done); clearInterval(tick); el.classList.add('hidden'); finish(); }; setTimeout(() => el.addEventListener('pointerdown', done), FAST ? 50 : 2500); if (FAST) setTimeout(done, 1500); window.__endDone = done; }

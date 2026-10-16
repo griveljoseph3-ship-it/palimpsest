@@ -1,6 +1,6 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js';
+import * as THREE from '../vendor/three.module.js?v=1.3.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.3.0';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 12, d: 10, safe: true, title: 'I · La tavola' },
@@ -10,6 +10,7 @@ export const ROOMS = [
   { id: 'arena', cx: 0, cz: -62, w: 16, d: 14, safe: false, title: 'V · Il Custode della Fenditura' },
   { id: 'end', cx: 0, cz: -80, w: 12, d: 10, safe: true, title: 'VI · Conseguenza' },
   { id: 'archive', cx: 40, cz: -28, w: 16, d: 14, safe: false, chain: 'arch', title: 'III½ · Archivio sommerso' },
+  { id: 'crypt', cx: -40, cz: -28, w: 12, d: 9, safe: false, chain: 'crypt', title: 'III⅓ · La cripta delle prove' },
   { id: 'c2a', cx: 100, cz: 0, w: 14, d: 10, safe: true, chain: 'c2', title: 'II·1 · La riva' },
   { id: 'c2b', cx: 100, cz: -15, w: 16, d: 12, safe: false, chain: 'c2', title: 'II·2 · La chiusa' },
   { id: 'c2c', cx: 100, cz: -31, w: 14, d: 12, safe: true, chain: 'c2', title: 'II·3 · La pila dei libri' },
@@ -327,6 +328,8 @@ const NOTES = [
   [105, -64.5, -0.2, [['perdonami', 120, 260, 48, -0.05, 1]], [['hand', 260, 400, 1.2]]],
 ];
 const WALL_NOTES = [[-5.82, 0.5, Math.PI / 2, 'non cancellare'], [5.82, -2, -Math.PI / 2, 'E. ama il fiume'], [-6.82, -14, Math.PI / 2, 'vigile vigile vigile'], [5.82, -28, -Math.PI / 2, '4 secondi'], [-7.82, -42, Math.PI / 2, 'giudica tu'], [7.82, -60, -Math.PI / 2, 'NON APRIRE'], [92.82, -15, Math.PI / 2, 'peso = colpa?'], [106.82, -31, -Math.PI / 2, 'troppi libri'], [32.82, -26, Math.PI / 2, 'archivio']];
+export function sketchFloor(scene, lines, sketches, w, x, z, rot = 0, op = 0.85) { return floorNote(scene, noteTex(lines, sketches), w, x, z, rot, op); }
+export function sketchWall(scene, text, x, z, side, y = 0.8, w = 0.9) { return wallNote(scene, noteTex([[text, 40, 270, 46, -0.08, true]], [], { paper: true }), x, z, side, y, w); }
 export const LIGHTS = [
   // [tipo, x, z]
   ['candle', -5.2, -4.2], ['candle', 5.2, 4.2], ['jar', 2.2, -4.4], ['lamp', -6.2, -19.4], ['lamp', 6.2, -9.0], ['candle', 5.3, -32.3], ['jar', -3.2, -30.8],

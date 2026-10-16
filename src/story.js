@@ -23,7 +23,7 @@ export const HINTS = {
   pillar: 'Fallo caricare contro un pilastro',
   core: 'Il nucleo è esposto: colpiscilo!',
   press: 'La pressa batte ogni 4 secondi. Un impulso esiste già: dagli una strada',
-  door: 'La porta giudica. Tre strade: forzare il relè, portare la prova, oppure affidarti a Elara',
+  door: 'La porta giudica. Tre strade: forzare il relè, portare la prova (ma dov\'è?), oppure affidarti a Elara',
   arena: 'Interrompi il legame tra il Custode e il nucleo, poi tocca il sigillo',
   seal: 'Il legame si è allentato: tocca il sigillo!',
 };

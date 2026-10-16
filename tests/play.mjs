@@ -30,7 +30,7 @@ await E(() => PAL.rewrite('plate', 'element.conductive')); await shot('05-plate'
 // IV · porta di Elara
 await E(() => PAL.tp(0, -39.5)); await until(() => PAL.S.room === 'door', 3000, 'enter door'); await E(() => PAL.skipDialog());
 if (route === 'forced') { await E(() => PAL.rewrite('relay', 'state.fragile')); await E(() => { PAL.tp(2.7, -47.7); PAL.face(2.7, -49.2); PAL.attack(true); }); }
-if (route === 'evidence') { await E(() => PAL.tp(-6.5, -40.3)); await E(() => PAL.interact()); await E(() => PAL.skipDialog()); await E(() => PAL.tp(-1.9, -48.4)); await E(() => PAL.interact()); await E(() => PAL.rewrite('evplate', 'element.conductive')); }
+if (route === 'evidence') { await E(() => { PAL.door.hasDoc = true; }); await E(() => PAL.tp(-1.9, -48.4)); await E(() => PAL.interact()); await E(() => PAL.rewrite('evplate', 'element.conductive')); }
 if (route === 'trust') { await E(() => PAL.tp(0, -47.6)); await E(() => PAL.interact()); await E(() => PAL.skipDialog()); await E(() => PAL.choose(0)); await shot('06-defense');
   await until(() => PAL.S.doorRoute === 'trust', 60000, 'defense', () => { PAL.P.hp = 5; const m = PAL.door.mites.find((m) => m.alive); if (m && PAL.P.st === 'idle') { PAL.tp(m.x + 0.8, m.z); PAL.face(m.x, m.z); PAL.attack(false); } }); }
 await until(`PAL.S.doorRoute === '${route}'`, 8000, 'door route ' + route); await W(400); await shot('07-door-' + route); await E(() => PAL.skipDialog());

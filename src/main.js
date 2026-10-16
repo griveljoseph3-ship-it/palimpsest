@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js';
-import { EFFECTS } from './data.js';
-import { Grammar } from './resolver.js';
-import { Ink, INK } from './ink.js';
-import { Input } from './input.js';
-import { Sfx } from './audio.js';
-import { Tele } from './telemetry.js';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js';
-import * as W from './world.js';
-import * as ST from './story.js';
-import { Film, FILM_LEN, SHOTS } from './film.js';
+import * as THREE from '../vendor/three.module.js?v=1.3.0';
+import { EFFECTS } from './data.js?v=1.3.0';
+import { Grammar } from './resolver.js?v=1.3.0';
+import { Ink, INK } from './ink.js?v=1.3.0';
+import { Input } from './input.js?v=1.3.0';
+import { Sfx } from './audio.js?v=1.3.0';
+import { Tele } from './telemetry.js?v=1.3.0';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.3.0';
+import * as W from './world.js?v=1.3.0';
+import * as ST from './story.js?v=1.3.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.3.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -85,7 +85,7 @@ const SAVE_KEY = 'pal_save_v1';
 const ROOM_ORDER = ['intro', 'charger', 'conduct', 'door', 'arena'];
 const C2_ORDER = ['c2a', 'c2b', 'c2c', 'c2d'];
 function saveGame() { if (S.phase !== 'play' || S.done) return; if (C2_ORDER.includes(S.room)) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ chapter: 2, room: S.room, discovered: [...S.discovered], secrets: [...S.secrets], c2: { crate: C2.crateDone, raft: C2.raftUp, rileg: C2.rilegSpawned && !rileg.alive, pile: C2.pileDown }, t: Date.now() })); } catch (e) {} return; }
-  const room = S.room === 'archive' ? 'conduct' : S.room; if (!ROOM_ORDER.includes(room)) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify({ chapter: 1, archive: AR.done, gateArch: gates.arch.open, shelf: !!shelf.broken, room, discovered: [...S.discovered], doorRoute: S.doorRoute, secrets: [...S.secrets], trap: trap.open, well: !!wellEnt.broken, t: Date.now() })); } catch (e) {} }
+  const room = S.room === 'archive' || S.room === 'crypt' ? 'conduct' : S.room; if (!ROOM_ORDER.includes(room)) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify({ chapter: 1, archive: AR.done, gateArch: gates.arch.open, shelf: !!shelf.broken, room, discovered: [...S.discovered], doorRoute: S.doorRoute, secrets: [...S.secrets], trap: trap.open, well: !!wellEnt.broken, hasDoc: door.hasDoc, crypt: CR.hatchOpen, t: Date.now() })); } catch (e) {} }
 function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; } }
 function restoreSave(sv) {
   if (sv.chapter === 2) { for (const w of sv.discovered || []) S.discovered.add(w); for (const s of sv.secrets || []) S.secrets.add(s); S.chapter = 2; const i = C2_ORDER.indexOf(sv.room);
@@ -98,7 +98,7 @@ function restoreSave(sv) {
   if (idx >= 2) { charger.alive = false; charger.st = 'dead'; charger.mesh.visible = false; openGate('r1'); }
   if (idx >= 3) openGate('r2');
   if (idx >= 4 && sv.doorRoute) setRoute(sv.doorRoute);
-  if (sv.trap) { trap.open = true; trapHole.visible = true; } if (sv.well) { wellEnt.broken = true; grammar.get('well').broken = true; for (const m of decor.well.meshes) m.visible = false; }
+  if (sv.hasDoc) door.hasDoc = true; if (sv.crypt) { CR.hatchOpen = true; crHatch.visible = true; } if (sv.trap) { trap.open = true; trapHole.visible = true; } if (sv.well) { wellEnt.broken = true; grammar.get('well').broken = true; for (const m of decor.well.meshes) m.visible = false; }
   const r = W.ROOMS[idx]; P.x = r.cx; P.z = r.cz + r.d / 2 - 1.2; P.spawn = { x: P.x, z: P.z };
 }
 const gates = {};
@@ -118,11 +118,27 @@ function waterMesh(x0, z0, x1, z1) { const m = new THREE.Mesh(new THREE.PlaneGeo
   fragmentShader: 'uniform float uTime; varying vec2 vU; void main(){ float w=sin(vU.x*40.+uTime*2.)*.5+sin(vU.y*25.-uTime*1.3)*.5; vec3 c=mix(vec3(.08,.12,.16),vec3(.2,.32,.38),w*.5+.5); gl_FragColor=vec4(c,.92); }' }));
   m.position.set((x0 + x1) / 2, 0.02, (z0 + z1) / 2); scene.add(m); return m; }
 const swarm = [];
-function spawnMite(x, z) { const m = W.makeMite(); scene.add(m); m.position.set(x, 0.3, z); const o = { mesh: m, x, z, alive: true, r: 0.3, room: roomAt(x, z) && roomAt(x, z).id }; swarm.push(o); particles.burst(x, 0.3, z, 12, 3); return o; }
+function spawnMite(x, z, brute) { const m = makeMiteV(brute); scene.add(m); m.position.set(x, 0.3, z); const o = { mesh: m, x, z, alive: true, r: brute ? 0.4 : 0.3, hp: brute ? 2 : 1, brute, room: roomAt(x, z) && roomAt(x, z).id }; swarm.push(o); particles.burst(x, 0.3, z, 12, 3); return o; }
+function makeMiteV(brute) { const m = W.makeMite(); if (brute) m.scale.setScalar(1.45); return m; }
+// macchie più furbe: aggirano i muri, non si accatastano, scattano quando sono vicine (con preavviso)
+function mitePursue(m, tx, tz, dt, group) { let dx = tx - m.x, dz = tz - m.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+  let sx = 0, sz = 0; for (const o of group) { if (o === m || !o.alive) continue; const ox = m.x - o.x, oz = m.z - o.z, d = Math.hypot(ox, oz); if (d < 0.9 && d > 1e-3) { sx += ox / d * (0.9 - d); sz += oz / d * (0.9 - d); } }
+  m.lt = (m.lt ?? (1 + Math.random() * 2)) - dt; let sp = m.brute ? 1.9 : 2.7;
+  if (m.lunge > 0) { m.lunge -= dt; sp = 7.5; dx = m.ldx; dz = m.ldz; } else if (m.tell > 0) { m.tell -= dt; sp = 0.3; if (m.tell <= 0) { m.lunge = 0.28; m.ldx = dx; m.ldz = dz; } }
+  else if (l < 3 && m.lt <= 0 && !m.brute) { m.tell = 0.35; m.lt = 2.2 + Math.random() * 1.5; sfx.play('voice', 0.12); }
+  const ox = m.x, oz = m.z; m.x += (dx * sp + sx * 3) * dt; m.z += (dz * sp + sz * 3) * dt; const hit = collide(m, m.r, true);
+  if (hit && m.lunge <= 0) { const moved = Math.hypot(m.x - ox, m.z - oz); if (moved < sp * dt * 0.4) { m.side = m.side || (Math.random() < 0.5 ? 1 : -1); m.x += -dz * m.side * sp * dt; m.z += dx * m.side * sp * dt; collide(m, m.r, false); } }
+  m.mesh.position.set(m.x, 0.3 + (m.tell > 0 ? 0.35 : Math.abs(Math.sin(now * 8 + m.x)) * 0.2), m.z); m.mesh.rotation.y = Math.atan2(dx, dz); }
+// fiale d'inchiostro: l'unica cura, rara
+const vials = [];
+function spawnVial(x, z, fixed) { const g = W.makeInkJar(); g.scale.setScalar(1.3); g.position.set(x, 0, z); scene.add(g); vials.push({ x, z, m: g, alive: true, fixed }); }
+function vialsUpdate() { for (const v of vials) { if (!v.alive) continue; v.m.position.y = 0.1 + Math.sin(now * 3 + v.x) * 0.08; v.m.rotation.y += 0.02;
+  if (Math.hypot(P.x - v.x, P.z - v.z) < 0.9 && P.hp < P.max && P.st !== 'dead') { v.alive = false; scene.remove(v.m); P.hp = Math.min(P.max, P.hp + 1); renderHP(); sfx.play('seal'); particles.burst(v.x, 0.5, v.z, 18, 3, [0.3, 0.7, 1], 0.15); toastSmall('Fiala d\'inchiostro: +20'); } } }
+function miteDrop(m) { if (Math.random() < (m.brute ? 0.3 : 0.1)) spawnVial(m.x, m.z); }
 function swarmUpdate(dt) {
-  for (const m of swarm) { if (!m.alive) continue; if (m.room !== S.room) continue; const dx = P.x - m.x, dz = P.z - m.z, l = Math.hypot(dx, dz) || 1; const sp = 2.1;
-    m.x += dx / l * sp * dt; m.z += dz / l * sp * dt; m.mesh.position.set(m.x, 0.3 + Math.abs(Math.sin(now * 8 + m.x)) * 0.2, m.z);
-    if (l < 0.75) { damagePlayer(1, m, 'sw' + m.x.toFixed(1)); m.x -= dx / l * 1.2; m.z -= dz / l * 1.2; } }
+  for (const m of swarm) { if (!m.alive) continue; if (m.room !== S.room) continue; if (S.lock) continue; mitePursue(m, P.x, P.z, dt, swarm);
+    const dx = P.x - m.x, dz = P.z - m.z, l = Math.hypot(dx, dz) || 1;
+    if (l < 0.75) { if (damagePlayer(1, m, 'sw' + (m.id || (m.id = Math.random())))) { m.x -= dx / l * 1.2; m.z -= dz / l * 1.2; collide(m, m.r, false); } } }
 }
 const aliveIn = (room) => swarm.filter((m) => m.alive && m.room === room).length;
 
@@ -143,9 +159,40 @@ function archiveUpdate() {
   if (AR.wave1 && !AR.wave2 && gates.arch.open && P.z < -30) { AR.wave2 = true; for (const [x, z] of [[33, -33], [47, -31], [35, -34.5], [46, -34.5]]) spawnMite(x, z); }
   if (S.encounter === 'archive' && aliveIn('archive') === 0 && (AR.wave2 || !gates.arch.open)) { endEncounter('archive'); }
 }
-function ringBell() { sfx.play('pulse'); particles.burst(34, 1.3, -26, 14, 3, [1, 0.85, 0.4], 0.15); if (grammar.has('apipe', 'element.conductive')) { const w = wireFx(34, -26, 40, -29.5); openGate('arch'); toast('L\'IMPULSO PASSA: LO SCAFFALE SI APRE'); journal('Hai portato il suono della campana attraverso il tubo.'); }
+function ringBell() { bellRung(); sfx.play('pulse'); particles.burst(34, 1.3, -26, 14, 3, [1, 0.85, 0.4], 0.15); if (grammar.has('apipe', 'element.conductive')) { const w = wireFx(34, -26, 40, -29.5); openGate('arch'); toast('L\'IMPULSO PASSA: LO SCAFFALE SI APRE'); journal('Hai portato il suono della campana attraverso il tubo.'); }
   else { toastSmall('Il suono muore nel tubo isolante…'); hint('Il tubo dell\'archivio accetta una parola che conosci'); } }
 function wireFx(x0, z0, x1, z1) { for (let i = 0; i <= 10; i++) { const t = i / 10; setTimeout(() => particles.emit(lerp(x0, x1, t), 0.4, lerp(z0, z1, t), 0, 1, 0, 0.5, 0.25, 0.25, 0.75, 1, 3), i * 40); } }
+
+// ---------- La cripta delle prove: la prova per Elara è nascosta qui (catena di botole) ----------
+const CR = { rings: [], hatchOpen: false, solved: false, wrong: {}, docOut: false, guard: false };
+const crHatch = mk(new THREE.CylinderGeometry(0.6, 0.6, 0.06, 14), 0x241c16); crHatch.position.set(33.4, 0.035, -35.2); crHatch.visible = false; scene.add(crHatch);
+W.sketchFloor(scene, [['~tre volte~', 150, 430, 30, -0.1]], [], 1.6, 34.6, -24.4, 0.4, 0.5); // indizio vicino alla campana
+W.sketchWall(scene, 'NON GUARDARE · NON CHIUDERE · TENDI LA MANO', -40, -32.3, 0, 1.0, 1.4);
+const CR_H = { eye: { x: -43.5, z: -29.5 }, lock: { x: -40, z: -29.5 }, hand: { x: -36.5, z: -29.5 } };
+for (const [k, h] of Object.entries(CR_H)) { const m = mk(new THREE.CylinderGeometry(0.55, 0.55, 0.06, 14), 0x2b221b); m.position.set(h.x, 0.035, h.z); scene.add(m); h.m = m; W.sketchFloor(scene, [], [[k, 256, 256, 1.6]], 1.5, h.x, h.z + 1.5, 0, 0.9); }
+const crDoc = W.makeDoc(); crDoc.position.set(-36.5, -0.4, -30.6); crDoc.visible = false; scene.add(crDoc);
+const crLadder = mk(new THREE.BoxGeometry(1, 2.2, 0.2), 0x6b5a46, { y0: 0, y1: 2.2 }); crLadder.position.set(-40, 1.1, -23.8); scene.add(crLadder);
+function bellRung() { if (!gates.arch.open || CR.hatchOpen) return; const t = S.time; CR.rings = CR.rings.filter((x) => t - x < 6); CR.rings.push(t);
+  if (CR.rings.length >= 3) { CR.hatchOpen = true; crHatch.visible = true; sfx.play('break'); S.shake = 0.3; particles.burst(33.4, 0.3, -35.2, 20, 3, [0.4, 0.3, 0.2], 0.2); say([['lumi', 'Tre rintocchi… qualcosa si è aperto, laggiù nell\'angolo buio.']]); } }
+function cryptInteractables(L) {
+  if (S.room === 'archive' && CR.hatchOpen) L.push({ x: 33.4, z: -35.2, r: 1.1, label: 'scendi', fn: () => { sfx.play('page'); P.x = -40; P.z = -25.2; P.face = Math.PI; } });
+  if (S.room === 'crypt') { L.push({ x: -40, z: -24.4, r: 1.3, label: 'risali', fn: () => { sfx.play('page'); P.x = 33.4; P.z = -34; } });
+    if (!CR.solved) for (const [k, h] of Object.entries(CR_H)) if (!CR.wrong[k]) L.push({ x: h.x, z: h.z, r: 1.0, label: 'apri', fn: () => cryptHatch(k) });
+    if (CR.solved && !door.hasDoc) L.push({ x: -36.5, z: -30.6, r: 1.4, label: 'prendi', fn: () => { door.hasDoc = true; crDoc.visible = false; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'evidence' });
+      say([['narr', 'Una testimonianza piegata in quattro. In fondo, una firma che non è quella del relè.'], ['lumi', 'Portala a Elara. E corri: la cripta si è accorta di noi.']]); journal('Hai trovato la prova nella cripta, sotto la mano.'); saveGame();
+      if (!CR.guard) { CR.guard = true; S.encounter = 'crypt'; sfx.tension(true); for (const [x, z] of [[-44, -26], [-36, -26], [-44, -31.5], [-36, -31.5], [-40, -27]]) spawnMite(x, z); } } }); }
+}
+function cryptHatch(k) { const h = CR_H[k];
+  if (k === 'hand') { CR.solved = true; sfx.play('seal'); h.m.visible = false; crDoc.visible = true; crDoc.position.y = 0; particles.burst(h.x, 0.5, h.z, 24, 3, [1, 0.85, 0.4], 0.2); toastSmall('Sotto la mano, un foglio asciutto'); }
+  else { CR.wrong[k] = true; h.m.visible = false; sfx.play('hurt'); S.shake = 0.5; P.inv = 0; damagePlayer(1, h, 'crh' + k); for (let i = 0; i < 3; i++) spawnMite(h.x + rnd(-1, 1), h.z + 1.6); toastSmall(k === 'eye' ? 'L\'occhio si apre. E guarda te.' : 'La serratura scatta. Su di te.'); }
+}
+for (const [x, z] of [[-4.6, -31.6], [46.5, -22.6], [-44.5, -25], [6.8, -48.6], [7, -67.8]]) spawnVial(x, z, true);
+const XW = { chT: 0, chN: 0, arT: 6 };
+function extraWaves(dt) {
+  if (S.room === 'charger' && S.encounter === 'charger' && charger.alive && !S.lock) { XW.chT += dt; if (XW.chN === 0 && XW.chT > 4) { XW.chN = 1; spawnMite(-5.5, -18.5); spawnMite(5.5, -18.5); } if (XW.chN === 1 && charger.armorBroken) { XW.chN = 2; spawnMite(-5.5, -10); spawnMite(5.5, -10, true); } }
+  if (S.room === 'arena' && S.encounter === 'arena' && custode.alive && custode.st !== 'dead' && !S.lock && !S.victory) { XW.arT -= dt; if (XW.arT <= 0 && aliveIn('arena') < 4) { XW.arT = arena.snapped ? 6 : 9; const a = Math.random() * 6.28; spawnMite(Math.cos(a) * 6, -62 + Math.sin(a) * 5, Math.random() < 0.35); sfx.play('voice', 0.25); } }
+}
+function cryptUpdate() { if (S.encounter === 'crypt' && aliveIn('crypt') === 0) { endEncounter('crypt'); } }
 
 // ---------- Capitolo 2 ----------
 const C2 = { crateDone: false, raftUp: false, rilegSpawned: false, pileDown: false, boss: null, done: false, intro: false };
@@ -243,7 +290,7 @@ function bossC2Update(dt) {
   const v = dweights.filter((w) => !w.broken).length * 2 + (B.phase === 2 ? Math.max(0, damHeart.hp) : 8); $('bossBar').classList.toggle('hidden', S.roomT < 2.6); $('bossBar').querySelector('.bname').textContent = B.phase === 1 ? 'LA DIGA RILEGATA · ANCORE' : 'LA DIGA RILEGATA · CUORE'; setBar($('bossBar').querySelector('.hbar'), v / 14);
 }
 function ch2Update(dt) {
-  archiveUpdate(); swarmUpdate(dt); rilegUpdate(dt); bossC2Update(dt);
+  archiveUpdate(); cryptUpdate(); vialsUpdate(); swarmUpdate(dt); extraWaves(dt); rilegUpdate(dt); bossC2Update(dt);
   if (!C2.crateDone && grammar.has('crate', 'weight.heavy')) { C2.crateDone = true; crate.mesh.position.y = 0.6; plateC2.position.y = 0.0; openGate('c2g1'); sfx.play('heavy'); S.shake = 0.4; toast('LA PIASTRA CEDE'); journal('Hai reso PESANTE la cassa: la piastra ha ceduto.'); }
   if (grammar.has('crate', 'weight.light')) crate.mesh.position.y = 0.75 + 0.3 + Math.sin(now * 2) * 0.08;
   const up = grammar.has('raft', 'weight.light'); if (up && !C2.raftUp) { C2.raftUp = true; unsolidRaft(true); sfx.play('page'); toast('LA ZATTERA RIAFFIORA'); if (!C2.rilegSpawned) { C2.rilegSpawned = true; rileg.alive = true; rileg.mesh.visible = true; rileg.x = 106; rileg.z = -10.5; S.encounter = 'rileg'; ink.encounterEnd(); sfx.tension(true); say([['narr', 'Dal fondo del canale sale una figura fatta di fili e colla.'], ['custode', 'Ciò che è affondato resta affondato.'], ['lumi', 'Il Rilegatore. Ricuce tutto quello che apri.']]); hint('Il Rilegatore vuole ricucire la zattera: CAUTO lo tiene lontano, PESANTE lo rallenta, FRAGILE + colpo forte spezza i fili'); } if (!rileg.alive) openGate('c2g2'); }
@@ -255,7 +302,7 @@ function ch2Update(dt) {
   if (stone2.floated && stone2.mesh.position.y < 6) stone2.mesh.position.y += dt * 1.5;
   if (!C2.pileDown && grammar.has('pile', 'state.fragile') && grammar.has('pile', 'weight.heavy')) collapsePile('combo');
   if (C2.pileFall > 0) { C2.pileFall -= dt; pile.mesh.children.forEach((b) => { const f = b.userData.fall; if (!f) return; f.vy -= 12 * dt; b.position.x += f.vx * dt; b.position.z += f.vz * dt; b.position.y = Math.max(0.18, b.position.y + f.vy * dt); b.rotation.z += f.r * dt; }); }
-  if (S.room === 'c2e' && !C2.done && !S.lock) { C2.done = true; S.lock = true; say(ST.C2_END, { done: () => { S.lock = false; finishChapter2(); } }); }
+  if (S.room === 'c2e' && P.z < -69.5 && Math.abs(P.x - X) < 2.6 && !C2.done && !S.lock) { C2.done = true; S.lock = true; say(ST.C2_END, { done: () => { S.lock = false; finishChapter2(); } }); }
 }
 function startChapter2() {
   S.chapter = 2; for (const w of ['state.fragile', 'temperament.cautious', 'element.conductive']) S.discovered.add(w);
@@ -283,7 +330,8 @@ const relay = addEnt('relay', 'relay', W.makeRelay(), 2.7, -49.2); setComp(relay
 const relayBoxMats = matsOf(relay.mesh.userData.box);
 const evplate = addEnt('evplate', 'evplate', W.makePlate(1.2, 1.2, 0x8c6438), -3.3, -47.6);
 const reader = W.makeReader(); reader.position.set(-1.9, 0.55, -49.4); scene.add(reader); circles.push({ x: -1.9, z: -49.4, r: 0.4 });
-const docM = W.makeDoc(); docM.position.set(-6.5, 0, -39.3); scene.add(docM);
+W.sketchWall(scene, 'LA PROVA? AFFOGATA CON LE VERSIONI SCARTATE', -7.7, -39.3, Math.PI / 2, 0.9, 1.1); W.sketchFloor(scene, [['dove la campana tace…', 60, 120, 30, -0.05]], [['lock', 256, 330, 0.8]], 1.8, -6.3, -40.5, 0.3, 0.6);
+const docM = W.makeDoc(); docM.position.set(-6.5, 0, -39.3); scene.add(docM); docM.visible = false;
 const wireD = W.makeWire([[2.7, -48.8], [2.7, -47.6], [-2.6, -47.6]]); const wireE = W.makeWire([[-3.3, -48.3], [-2.2, -49.1]]); scene.add(wireD, wireE);
 const door = { hasDoc: false, docPlaced: false, relayT: 0, defense: null, mites: [], open: null };
 // V · arena
@@ -314,8 +362,8 @@ const shadows = {}; for (const id of ['charger', 'custode']) { const s = W.makeS
 
 // ---------- IA (Caricatore e Custode) ----------
 function initAI(e, cfg) { Object.assign(e, { st: 'idle', t: 0, cd: 1.5, vx: 0, vz: 0, face: 0, dir: { x: 0, z: 1 }, armorHP: cfg.armor, armorMax: cfg.armor, armorBroken: false, exposed: 0, atkId: 0, hitPlayer: false, cfg, home: { x: e.x, z: e.z }, push: null, foldStun: false, brokenBy: null }); }
-initAI(charger, { speed: 2.6, charge: 11, windup: 0.8, chargeT: 1.0, recover: 1.3, armor: 6, r: 0.85, swipeR: 1.9, dmgCharge: 1, dmgSwipe: 1 });
-initAI(custode, { speed: 2.4, charge: 12, windup: 0.9, chargeT: 1.1, recover: 1.4, armor: 14, r: 0.95, swipeR: 2.3, dmgCharge: 2, dmgSwipe: 1 });
+initAI(charger, { speed: 3.1, charge: 12.5, windup: 0.6, chargeT: 1.0, recover: 0.95, armor: 8, r: 0.85, swipeR: 2.0, dmgCharge: 2, dmgSwipe: 1 });
+initAI(custode, { speed: 2.9, charge: 14, windup: 0.65, chargeT: 1.1, recover: 1.05, armor: 20, r: 0.95, swipeR: 2.5, dmgCharge: 2, dmgSwipe: 2 });
 setComp(charger, charger.mesh.userData.armor); setComp(custode, custode.mesh.userData.armor);
 let attackCounter = 0;
 function enemyAttack(e) { e.atkId = 'ea' + (++attackCounter); e.hitPlayer = false; }
@@ -323,7 +371,7 @@ function damagePlayer(n, from, attackId) {
   if (P.st === 'dead' || S.lock) return false;
   if (P.inv > 0) { if (attackId && P.st === 'dodge') { const g = ink.dodge(attackId); if (g) { Tele.log('dodge_verified', { attackId }); popInk('+' + g); slowmo(0.25); } } return false; }
   if (opts.easy && n > 1) n = 1;
-  P.hp -= n; P.inv = 0.9; P.st = 'hurt'; P.t = 0.25; sfx.play('hurt'); S.shake = 0.5; S.hitstop = 0.08; input.rumble(0.6, 0.9, 180);
+  P.hp -= n; P.inv = 0.6; P.st = 'hurt'; P.t = 0.25; sfx.play('hurt'); S.shake = 0.5; S.hitstop = 0.08; input.rumble(0.6, 0.9, 180);
   if (from) { const dx = P.x - from.x, dz = P.z - from.z, l = Math.hypot(dx, dz) || 1; P.vx = dx / l * 9; P.vz = dz / l * 9; }
   particles.burst(P.x, 1, P.z, 14, 4); renderHP(); S.shake = 0.8; dmgAt(P.x, 1.8, P.z, '-' + n * 20, 'player'); const hu = $('hurt'); hu.classList.remove('on'); void hu.offsetWidth; hu.classList.add('on'); try { navigator.vibrate && navigator.vibrate(140); } catch (e) {}
   if (P.hp <= 0) die(); return true;
@@ -354,7 +402,7 @@ function aiUpdate(e, dt) {
         const tx = P.x - dx / d * 3.5, tz = P.z - dz / d * 3.5; mvx = tx - e.x; mvz = tz - e.z; sp = c.speed * 1.5;
         if (Math.hypot(mvx, mvz) < 0.3) { mvx = mvz = 0; }
         if (d < 1.4 && e.cd <= 0) { e.st = 'swipeWU'; e.t = 0.55; e.cd = 1.6; }
-      } else if (d < c.swipeR && e.cd <= 0) { e.st = 'swipeWU'; e.t = 0.5; e.cd = 1.4; }
+      } else if (d < c.swipeR && e.cd <= 0) { e.st = 'swipeWU'; e.t = 0.4; e.cd = 1.0; }
       else if (d > 4 && d < 11 && e.cd <= 0) { e.st = 'windup'; e.t = c.windup; e.dir = { x: dx / d, z: dz / d }; sfx.play('warn'); ring(e.x + e.dir.x * 2, e.z + e.dir.z * 2, 0.6, c.windup, 0xd04020); }
       else if (!e.boss && d < 5.5) { mvx = -dx / d + (-dz / d) * 0.8; mvz = -dz / d + (dx / d) * 0.8; sp = c.speed * 0.8; } // il Caricatore prende la rincorsa
       else { mvx = dx; mvz = dz;
@@ -375,7 +423,7 @@ function aiUpdate(e, dt) {
     case 'recover': case 'stun': if (e.t <= 0) { e.st = 'idle'; e.cd = cautious ? 2.5 : 0.8 + Math.random(); e.foldStun = false; } break;
     case 'swipeWU': e.face = Math.atan2(dx, dz); if (e.t <= 0) { e.st = 'swipe'; e.t = 0.18; enemyAttack(e); sfx.play('swing', 0.6); } break;
     case 'swipe': if (!e.hitPlayer && d < c.swipeR + 0.3) { const a = Math.abs(angDiff(Math.atan2(dx, dz), e.face)); if (a < 1.3) { e.hitPlayer = true; damagePlayer(c.dmgSwipe, e, e.atkId); } }
-      if (e.t <= 0) { e.st = 'recover'; e.t = 0.6; } break;
+      if (e.t <= 0) { if (!e.combo && Math.random() < (e.boss ? 0.75 : 0.55)) { e.combo = true; e.st = 'swipeWU'; e.t = 0.28; ring(e.x + Math.sin(e.face) * 1.2, e.z + Math.cos(e.face) * 1.2, 0.5, 0.28, 0xd04020); } else { e.combo = false; e.st = 'recover'; e.t = e.boss ? 0.45 : 0.55; } } break;
   }
   const ml = Math.hypot(mvx, mvz); if (ml > 0.05) { e.vx = lerp(e.vx, mvx / ml * sp, 0.15); e.vz = lerp(e.vz, mvz / ml * sp, 0.15); } else if (e.st !== 'charge') { e.vx *= 0.8; e.vz *= 0.8; }
   if (e.st !== 'charge') { e.x += e.vx * dt; e.z += e.vz * dt; collide(e, c.r, false); }
@@ -439,7 +487,7 @@ function doHit(heavy) {
     else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); toastSmall('La corazza è integra: attendi un varco'); dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.3, e.z, 'PARATO', 'block'); }
     const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; if (e.st !== 'charge') { e.vx += dx / l * (heavy ? 4 : 1.5); e.vz += dz / l * (heavy ? 4 : 1.5); }
   }
-  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range, arc + 0.3)) { m.alive = false; any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g) popInk('+' + g); }
+  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range, arc + 0.3)) { if (!heavy && m.hp > 1) { m.hp--; any = true; sfx.play('hit'); const kx = m.x - P.x, kz = m.z - P.z, kl = Math.hypot(kx, kz) || 1; m.x += kx / kl * 1.2; m.z += kz / kl * 1.2; collide(m, m.r, false); particles.burst(m.x, 0.4, m.z, 8, 3); continue; } m.alive = false; miteDrop(m); any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g) popInk('+' + g); }
   if (!board.broken && dist(P, board) < 2.4 && heavy) { if (grammar.has('board', 'state.fragile')) breakBoard(); else { sfx.play('deny'); toastSmall('La tavola è integra. Il libro dice: integra.'); } any = true; }
   if (!relay.broken && dist(P, relay) < 2.2 && heavy && !S.doorRoute && !door.defense) { if (grammar.has('relay', 'state.fragile')) forceRelay(); else { sfx.play('deny'); toastSmall('Il supporto del relè regge'); } any = true; }
   if (heavy && trySecretsOnHeavy()) any = true;
@@ -458,12 +506,12 @@ function interactables() {
   if (S.room === 'intro' && !board.broken && !S.discovered.has('state.fragile')) L.push({ x: 0, z: -4.4, r: 2.6, label: 'guarda', fn: () => { S.discovered.add('state.fragile'); const g = ink.interact(); Tele.log('interact', { what: 'board', gain: g }); sfx.play('page');
     say([['narr', 'Una goccia ha morso la tavola. Sotto la parola INTEGRA si vede un\'altra parola, più vecchia.'], ['narr', 'FRAGILE.']], { done: () => hint(ST.HINTS.firstRewrite) }); journal('Hai trovato la parola FRAGILE sotto INTEGRA.'); } });
   for (const [id, sp] of Object.entries(secretPages)) L.push({ x: sp.x, z: sp.z, r: 2.1, label: 'leggi', fn: () => foundSecret(id, ST.SECRET_TEXT[id]) });
-  if (S.room === 'door' && !door.hasDoc && !S.doorRoute) L.push({ x: -6.5, z: -39.3, r: 1.6, label: 'prendi', fn: () => { door.hasDoc = true; docM.userData.paper.visible = false; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'evidence' });
+  if (false) L.push({ x: -6.5, z: -39.3, r: 1.6, label: 'prendi', fn: () => { door.hasDoc = true; docM.userData.paper.visible = false; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'evidence' });
     say([['narr', 'Una testimonianza piegata in quattro. In fondo, una firma che non è quella del relè.']]); journal('Hai preso la prova dal corridoio.'); } });
   if (S.room === 'door' && door.hasDoc && !door.docPlaced && !S.doorRoute) L.push({ x: -1.9, z: -49.4, r: 1.7, label: 'inserisci', fn: () => { door.docPlaced = true; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'reader' }); hint('La prova è nel lettore. Il relè pulsa già: dai alla piastra una strada'); } });
   if (S.room === 'door' && !S.doorRoute && !door.defense) L.push({ x: 0, z: -48.9, r: 2.0, label: 'parla', fn: talkElara });
   if (S.room === 'arena' && (arena.snapped || arena.window > 0) && !S.victory) L.push({ x: 0, z: -68.2, r: 1.8, label: 'tocca', fn: touchSeal });
-  ch2Interactables(L);
+  cryptInteractables(L); ch2Interactables(L);
   return L;
 }
 function nearestInteract() { let b = null, bd = 1e9; for (const it of interactables()) { const d = Math.hypot(P.x - it.x, P.z - it.z); if (d < it.r && d < bd) { bd = d; b = it; } } return b; }
@@ -472,9 +520,9 @@ function talkElara() {
   const L = ST.elaraDoor(mem).slice(); L.push(['elara', 'Se vuoi passare senza strappare niente, difendimi mentre riscrivo la mia riga. Trenta secondi.']);
   say(L, { choices: [['Affidati a Elara', () => startDefense()], ['Non ora', () => {}]] });
 }
-function startDefense() { door.defense = { t: 30, spawn: 1 }; S.encounter = 'defense'; ink.encounterEnd(); Tele.log('encounter_start', { id: 'defense' }); toast('DIFENDI ELARA · 30'); sfx.tension(true); $('inkWrap').classList.remove('safe'); }
+function startDefense() { door.defense = { t: 40, spawn: 1 }; S.encounter = 'defense'; ink.encounterEnd(); Tele.log('encounter_start', { id: 'defense' }); toast('DIFENDI ELARA · 40'); sfx.tension(true); $('inkWrap').classList.remove('safe'); }
 function touchSeal() {
-  if (S.victory) return; S.victory = true; if (!S.plan) S.plan = arena.windowPlan || 'controllo';
+  if (S.victory) return; S.victory = true; for (const m of swarm) if (m.alive && m.room === 'arena') { m.alive = false; scene.remove(m.mesh); particles.burst(m.x, 0.3, m.z, 10, 3); } if (!S.plan) S.plan = arena.windowPlan || 'controllo';
   Tele.log('arena_plan', { plan: S.plan, final: true }); sfx.play('seal'); S.flash = 0.8; endEncounter('arena'); journal('Il Custode è caduto con il piano: ' + ST.PLAN_TEXT[S.plan] + '.');
   custode.st = 'dead'; custode.dying = 0; tether.visible = false; closePanel(); setTimeout(() => goEnd(), FAST ? 300 : 1800);
 }
@@ -598,7 +646,7 @@ function recompose() {
   if (!zoneSafe() || (S.room === 'door' && S.doorRoute)) { sfx.play('deny'); toastSmall('Qui non si può ricomporre'); return; }
   const z = S.room; const ex = grammar.recompose(z); if (!ex) { sfx.play('deny'); toastSmall('Niente da ricomporre'); return; }
   if (z === 'intro' && board.broken) { board.broken = false; board.mesh.visible = true; gates.board.open = false; world.walls.push(gates.board.box); if (dist(P, board) < 1) P.z = -3.5; }
-  if (z === 'door') { door.hasDoc = ex.hasDoc; door.docPlaced = ex.docPlaced; docM.userData.paper.visible = !door.hasDoc; }
+  if (z === 'door') { door.hasDoc = ex.hasDoc; door.docPlaced = ex.docPlaced;  }
   sfx.play('page'); S.flash = 0.3; toastSmall('Prova ricomposta'); Tele.log('recompose', { zone: z });
 }
 function showWordFloat(e, word) { const d = document.createElement('div'); d.className = 'bubble'; d.textContent = word; d.style.pointerEvents = 'none'; document.body.appendChild(d);
@@ -676,7 +724,7 @@ function respawn() {
   for (const e of [charger, custode]) if (e.alive && e.st !== 'dead' && ((S.room === 'charger' && e === charger) || (S.room === 'arena' && e === custode))) { grammar.resetPhrase(e.id); e.x = e.home.x; e.z = e.home.z; e.st = 'idle'; e.cd = 2; e.push = null; e.foldStun = false; }
   ink.encounterEnd(); arena.window = 0; arena.t = 0;
   if (S.room === 'arena') { say(ST.custodeLines(S.arenaDeaths, mem)); if (S.arenaDeaths >= 3 && !S.lumiShown) lumiVision(); }
-  if (S.room === 'door' && door.defense) door.defense.t = Math.min(30, door.defense.t + 5);
+  if (S.room === 'door' && door.defense) door.defense.t = Math.min(40, door.defense.t + 8);
 }
 function lumiVision() {
   S.lumiShown = true; const plan = ['rottura', 'controllo', 'ambiente'].find((p) => !S.attempted.has(p)) || 'rottura';
@@ -788,7 +836,7 @@ function goalText() {
     case 'c2b': return !S.discovered.has('weight.light') ? 'Obiettivo: leggi il leggio annegato' : !C2.raftUp ? 'Obiettivo: fai riaffiorare la zattera (LEGGERO) per attraversare il canale' : rileg.alive ? 'Obiettivo: ferma il Rilegatore prima che ricucia la zattera' : 'Obiettivo: attraversa il canale verso nord';
     case 'c2c': return !C2.pileDown ? 'Obiettivo: abbatti la pila di libri (una combinazione la fa crollare da sola)' : 'Obiettivo: prosegui verso la diga';
     case 'c2d': return C2.boss && C2.boss.done ? 'Obiettivo: attraversa la diga rotta' : (C2.boss && C2.boss.phase === 2) ? 'Obiettivo: rendi il cuore FRAGILE o CONDUTTIVO e colpiscilo' : 'Obiettivo: fai cadere i 3 pesi sulle ancore (PESANTE)';
-    case 'c2e': return 'Obiettivo: ascolta Elara';
+    case 'c2e': return 'Obiettivo: raggiungi Elara in fondo alla stanza';
   } return '';
 }
 function phase2Update(dt) {
@@ -926,9 +974,9 @@ function step(sdt) {
 }
 function defenseUpdate(dt) {
   const D = door.defense; if (!D || S.doorRoute) return; D.t -= dt; D.spawn -= dt;
-  if (D.spawn <= 0) { D.spawn = 2.2; const pts = [[-7, -39], [7, -39], [-7, -48.5], [7, -46]]; const [x, z] = pts[Math.floor(Math.random() * 4)]; const m = W.makeMite(); scene.add(m); m.position.set(x, 0.3, z); door.mites.push({ mesh: m, x, z, alive: true, r: 0.3, st: 'idle' }); sfx.play('voice', 0.2); }
-  for (const m of door.mites) { if (!m.alive) continue; const dx = 0 - m.x, dz = -49 - m.z, l = Math.hypot(dx, dz); m.x += dx / l * 1.6 * dt; m.z += dz / l * 1.6 * dt; m.mesh.position.set(m.x, 0.3 + Math.abs(Math.sin(now * 8 + m.x)) * 0.2, m.z);
-    if (l < 1) { m.alive = false; scene.remove(m.mesh); D.t = Math.min(30, D.t + 3); traces.add(m.x, m.z, 0.9, 0, now); toastSmall('Una macchia raggiunge Elara: +3 s'); elara.userData.st.eyes = 210; elara.userData.redraw(); }
+  if (D.spawn <= 0) { D.spawn = 1.0 + D.t / 40 * 0.8; D.n = (D.n || 0) + 1; const pts = [[-7, -39], [7, -39], [-7, -48.5], [7, -46]]; const [x, z] = pts[Math.floor(Math.random() * 4)]; const m = W.makeMite(); scene.add(m); m.position.set(x, 0.3, z); const brute = D.n % 5 === 0; if (brute) m.scale.setScalar(1.45); door.mites.push({ mesh: m, x, z, alive: true, r: brute ? 0.4 : 0.3, hp: brute ? 2 : 1, brute, hunter: D.n % 3 === 0, st: 'idle' }); sfx.play('voice', 0.2); }
+  for (const m of door.mites) { if (!m.alive) continue; const l = Math.hypot(0 - m.x, -49 - m.z); if (m.hunter && Math.hypot(P.x - m.x, P.z - m.z) < 6) mitePursue(m, P.x, P.z, dt, door.mites); else mitePursue(m, 0, -49, dt * 0.75, door.mites);
+    if (l < 1) { m.alive = false; scene.remove(m.mesh); D.t = Math.min(40, D.t + 4); traces.add(m.x, m.z, 0.9, 0, now); toastSmall('Una macchia raggiunge Elara: +4 s'); elara.userData.st.eyes = 210; elara.userData.redraw(); }
     else if (Math.hypot(P.x - m.x, P.z - m.z) < 0.7) damagePlayer(1, m, 'mite' + m.x.toFixed(2)); }
   $('room').textContent = 'Difendi Elara · ' + Math.ceil(Math.max(0, D.t));
   if (D.t <= 0) { for (const m of door.mites) if (m.alive) { m.alive = false; scene.remove(m.mesh); particles.burst(m.x, 0.3, m.z, 10, 3); } door.defense = null; endEncounter('defense'); $('room').textContent = W.ROOMS[3].title;
@@ -1007,7 +1055,7 @@ function loop() {
 
 // ---------- avvio + agganci di test ----------
 resize(); bindUI(); P.mesh.position.set(P.x, 0, P.z); requestAnimationFrame(loop);
-window.PAL = { tut, TUT, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

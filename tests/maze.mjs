@@ -25,6 +25,8 @@ await E(() => { const c = PAL.MZS.crystal; PAL.tp(c.x, c.z + 2); PAL.face(c.x, c
 check('cristallo: FRAGILE+CONDUTTIVO (Pennino d\'acciaio)', await until(() => { PAL.P.hp = 6; return PAL.MZS.found.has('crystal'); }, 5000)); await E(() => PAL.skipDialog()); await S('7-crystal');
 await E(() => { const [a, b] = [PAL.MZ.lamps[2], PAL.MZ.lamps[6]]; PAL.tp(a.x, a.z + 1.5); PAL.face(a.x, a.z); PAL.rewrite(a.id, 'light.dark'); PAL.tp(b.x, b.z + 1.5); PAL.face(b.x, b.z); PAL.rewrite(b.id, 'light.dark'); PAL.tp(PAL.MZS.darkAt.x, PAL.MZS.darkAt.z + 1); });
 check('scritta nel buio con due BUIO', await until(() => { PAL.P.hp = 6; return PAL.MZS.found.has('dark'); }, 10000)); await W(300); await S('8-dark'); await E(() => PAL.skipDialog());
+await E(() => { PAL.S.discovered.add('weight.heavy'); const st = PAL.ENT.mzstack; PAL.P.hp = 5; PAL.tp(st.x, st.z + 2.2); PAL.face(st.x, st.z); PAL.rewrite('mzstack', 'state.fragile'); PAL.rewrite('mzstack', 'weight.heavy'); });
+check('pila di registri: FRAGILE+PESANTE la fa crollare (pagina 4)', await until(() => { PAL.P.hp = 5; return PAL.ENT.mzstack.broken && PAL.MZS.found.has('stack'); }, 6000)); await E(() => PAL.skipDialog());
 // fenditura → PONTE
 const [cx, cz] = await E(() => [PAL.MZ.bridgeEnt.x, PAL.MZ.bridgeEnt.z]);
 await E(([x, z]) => { PAL.P.hp = 5; PAL.tp(x, z + 3.5); PAL.face(x, z); }, [cx, cz]); await W(300);

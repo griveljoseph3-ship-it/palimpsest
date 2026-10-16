@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=1.3.1';
+import * as THREE from '../vendor/three.module.js?v=1.4.0';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
@@ -45,7 +45,13 @@ export function inkMaster(opts = {}) {
     },
     vertexColors: true,
     vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
-      void main(){ vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(modelMatrix)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
+      void main(){ 
+#ifdef USE_INSTANCING
+ mat4 mm=modelMatrix*instanceMatrix;
+#else
+ mat4 mm=modelMatrix;
+#endif
+ vec4 w=mm*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
     fragmentShader: `uniform vec4 uPL[8]; uniform vec3 uPC[8]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
       void main(){

@@ -1,23 +1,26 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=1.3.1';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.3.1';
+import * as THREE from '../vendor/three.module.js?v=1.4.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.4.0';
 
 export const ROOMS = [
-  { id: 'intro', cx: 0, cz: 0, w: 12, d: 10, safe: true, title: 'I · La tavola' },
-  { id: 'charger', cx: 0, cz: -14, w: 14, d: 12, safe: false, title: 'II · Il Caricatore' },
-  { id: 'conduct', cx: 0, cz: -28, w: 12, d: 10, safe: true, title: 'III · La pressa' },
-  { id: 'door', cx: 0, cz: -44, w: 16, d: 12, safe: true, title: 'IV · La porta che giudica' },
-  { id: 'arena', cx: 0, cz: -62, w: 16, d: 14, safe: false, title: 'V · Il Custode della Fenditura' },
-  { id: 'end', cx: 0, cz: -80, w: 12, d: 10, safe: true, title: 'VI · Conseguenza' },
-  { id: 'archive', cx: 40, cz: -28, w: 16, d: 14, safe: false, chain: 'arch', title: 'III½ · Archivio sommerso' },
-  { id: 'crypt', cx: -40, cz: -28, w: 12, d: 9, safe: false, chain: 'crypt', title: 'III⅓ · La cripta delle prove' },
+  { id: 'intro', cx: 0, cz: 0, w: 24, d: 20, safe: true, title: 'I · La tavola' },
+  { id: 'charger', cx: 0, cz: -28, w: 28, d: 24, safe: false, title: 'II · Il Caricatore' },
+  { id: 'conduct', cx: 0, cz: -56, w: 24, d: 20, safe: true, title: 'III · La pressa' },
+  { id: 'door', cx: 0, cz: -88, w: 32, d: 24, safe: true, title: 'IV · La porta che giudica' },
+  { id: 'arena', cx: 0, cz: -124, w: 32, d: 28, safe: false, title: 'V · Il Custode della Fenditura' },
+  { id: 'end', cx: 0, cz: -160, w: 24, d: 20, safe: true, title: 'VI · Conseguenza' },
+  { id: 'archive', cx: 40, cz: -28, w: 32, d: 28, safe: false, chain: 'arch', title: 'III½ · Archivio sommerso' },
+  { id: 'crypt', cx: -40, cz: -28, w: 24, d: 18, safe: false, chain: 'crypt', title: 'III⅓ · La cripta delle prove' },
   { id: 'c2a', cx: 100, cz: 0, w: 14, d: 10, safe: true, chain: 'c2', title: 'II·1 · La riva' },
   { id: 'c2b', cx: 100, cz: -15, w: 16, d: 12, safe: false, chain: 'c2', title: 'II·2 · La chiusa' },
   { id: 'c2c', cx: 100, cz: -31, w: 14, d: 12, safe: true, chain: 'c2', title: 'II·3 · La pila dei libri' },
   { id: 'c2d', cx: 100, cz: -49, w: 18, d: 16, safe: false, chain: 'c2', title: 'II·4 · La Diga Rilegata' },
   { id: 'c2e', cx: 100, cz: -67, w: 12, d: 10, safe: true, chain: 'c2', title: 'II·5 · Acqua ferma' },
 ];
-export const GAP = 2.4;
+export const GAP = 2.8;
+// Scala condivisa delle stanze (v1.4): ogni coordinata di design del Capitolo 1 passa da qui.
+export const RS = 2;
+export function F(x, z) { if (x >= 85) return [x, z]; if (x >= 25 && x <= 60) return [40 + (x - 40) * RS, -28 + (z + 28) * RS]; if (x <= -25 && x >= -60) return [-40 + (x + 40) * RS, -28 + (z + 28) * RS]; return [x * RS, z * RS]; }
 
 function textCanvas(lines, w, h, opts = {}) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
@@ -70,12 +73,12 @@ export function buildWorld(scene, paper) {
   const wt = new THREE.CanvasTexture(wc);
   ROOMS.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.d).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: wt, transparent: true, depthWrite: false })); m.position.set(r.cx, 0.008, r.cz); g.add(m); });
   const dt = new THREE.CanvasTexture(dc); dt.wrapS = dt.wrapT = THREE.RepeatWrapping; dt.repeat.set(6, 20); dt.colorSpace = THREE.SRGBColorSpace;
-  const desk = new THREE.Mesh(new THREE.PlaneGeometry(80, 140).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: dt, color: 0x9a8a7a })); desk.position.set(0, -0.6, -40); g.add(desk);
-  const under = new THREE.Mesh(new THREE.BoxGeometry(18.5, 0.58, 96), new THREE.MeshBasicMaterial({ color: 0x5e5244 })); under.position.set(0, -0.3, -40); g.add(under);
-  const desk2 = desk.clone(); desk2.position.set(100, -0.6, -35); g.add(desk2); const desk3 = desk.clone(); desk3.position.set(40, -0.6.toFixed ? -0.6 : -0.6, -28); desk3.scale.set(0.4, 1, 0.2); g.add(desk3);
-  const under2 = new THREE.Mesh(new THREE.BoxGeometry(20.5, 0.58, 82), under.material); under2.position.set(100, -0.3, -34); g.add(under2); const under3 = new THREE.Mesh(new THREE.BoxGeometry(17, 0.58, 15), under.material); under3.position.set(40, -0.3, -28); g.add(under3); // spessore delle pagine
+  const desk = new THREE.Mesh(new THREE.PlaneGeometry(130, 240).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: dt, color: 0x9a8a7a })); desk.position.set(0, -0.6, -80); g.add(desk);
+  const under = new THREE.Mesh(new THREE.BoxGeometry(34.5, 0.58, 186), new THREE.MeshBasicMaterial({ color: 0x5e5244 })); under.position.set(0, -0.3, -77); g.add(under);
+  const desk2 = desk.clone(); desk2.position.set(100, -0.6, -35); desk2.scale.set(0.5, 1, 0.6); g.add(desk2); const desk3 = desk.clone(); desk3.position.set(40, -0.6.toFixed ? -0.6 : -0.6, -28); desk3.scale.set(0.5, 1, 0.3); g.add(desk3);
+  const under2 = new THREE.Mesh(new THREE.BoxGeometry(20.5, 0.58, 82), under.material); under2.position.set(100, -0.3, -34); g.add(under2); const under3 = new THREE.Mesh(new THREE.BoxGeometry(33, 0.58, 29), under.material); under3.position.set(40, -0.3, -28); g.add(under3); const under4 = new THREE.Mesh(new THREE.BoxGeometry(25, 0.58, 19), under.material); under4.position.set(-40, -0.3, -28); g.add(under4); const desk4 = desk3.clone(); desk4.position.x = -40; g.add(desk4); // spessore delle pagine
   // corridoio della prova nella stanza di Elara
-  addWall(-5, -38.2, -5, -46.2, 0.6);
+  addWall(-10, -76.4, -10, -92.4, 0.6);
   // fogli che pendono e rilegatura: dettagli d'atmosfera
   const scraps = new THREE.Group(); g.add(scraps);
   for (let i = 0; i < 26; i++) { const r = ROOMS[i % ROOMS.length]; const side = i % 2 ? 1 : -1;
@@ -240,7 +243,7 @@ export function makeShadow() { const c = document.createElement('canvas'); c.wid
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); m.position.y = 0.015; return m; }
 
 // ---- decorazioni: capolettera, penna gigante, calamaio, crepe dell'arena ----
-function decal(scene, tex, w, h, x, z, rot = 0, opacity = 1) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity })); m.rotation.y = rot; m.position.set(x, 0.01, z); scene.add(m); return m; }
+function decal(scene, tex, w, h, x, z, rot = 0, opacity = 1) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity })); m.rotation.y = rot; [x, z] = F(x, z); m.position.set(x, 0.01, z); scene.add(m); return m; }
 export function buildDecor(scene) {
   const out = {};
   // capolettera miniato: la prima lettera della storia
@@ -255,13 +258,13 @@ export function buildDecor(scene) {
   const vane = inked(new THREE.PlaneGeometry(0.9, 2.6, 1, 6), { color: 0xf1e8d4, ow: 0.02 }); vane.material.side = THREE.DoubleSide; vane.position.set(0.35, 0.9, 0); vane.rotation.z = -0.15; quill.add(vane);
   quill.position.set(0.3, 4.6, -4.75); quill.rotation.z = 0.12; quill.visible = false; out.quill = quill;
   // calamaio
-  const well = inked(new THREE.CylinderGeometry(0.55, 0.7, 0.8, 12), { color: 0x1a1410, shift: 0x3a1a40 }); well.position.set(4.2, 0.4, -3.2); scene.add(well);
-  const lip = inked(new THREE.TorusGeometry(0.35, 0.08, 6, 14), { color: 0x2b221b }); lip.rotation.x = Math.PI / 2; lip.position.set(4.2, 0.82, -3.2); scene.add(lip); out.well = { x: 4.2, z: -3.2, r: 0.75, meshes: [well, lip] };
-  for (let i = 0; i < 5; i++) { const ball = inked(new THREE.IcosahedronGeometry(0.22 + Math.random() * 0.12, 1), { color: 0xeee4cf, ow: 0.02 }); ball.position.set(-4.6 + Math.random() * 1.6, 0.2, -3.5 + Math.random() * 2.5); ball.rotation.set(Math.random() * 3, Math.random() * 3, 0); scene.add(ball); }
+  const well = inked(new THREE.CylinderGeometry(0.55, 0.7, 0.8, 12), { color: 0x1a1410, shift: 0x3a1a40 }); well.position.set(...[F(4.2, -3.2)].map(([a, b]) => [a, 0.4, b])[0]); scene.add(well);
+  const lip = inked(new THREE.TorusGeometry(0.35, 0.08, 6, 14), { color: 0x2b221b }); lip.rotation.x = Math.PI / 2; lip.position.set(well.position.x, 0.82, well.position.z); scene.add(lip); out.well = { x: well.position.x, z: well.position.z, r: 0.75, meshes: [well, lip] };
+  for (let i = 0; i < 5; i++) { const ball = inked(new THREE.IcosahedronGeometry(0.22 + Math.random() * 0.12, 1), { color: 0xeee4cf, ow: 0.02 }); { const [bx, bz] = F(-4.6 + Math.random() * 1.6, -3.5 + Math.random() * 2.5); ball.position.set(bx, 0.2, bz); } ball.rotation.set(Math.random() * 3, Math.random() * 3, 0); scene.add(ball); }
   // crepe d'inchiostro che partono dal nucleo dell'arena
   const k = document.createElement('canvas'); k.width = k.height = 512; const kg = k.getContext('2d'); kg.strokeStyle = 'rgba(20,12,8,.8)'; kg.lineCap = 'round';
   for (let i = 0; i < 11; i++) { let x = 256, y = 256, a = i / 11 * Math.PI * 2 + Math.random() * 0.3; kg.lineWidth = 5; kg.beginPath(); kg.moveTo(x, y); for (let s = 0; s < 14; s++) { a += (Math.random() - 0.5) * 0.7; x += Math.cos(a) * 16; y += Math.sin(a) * 16; kg.lineTo(x, y); kg.lineWidth = Math.max(1, 5 - s * 0.35); } kg.stroke(); }
-  decal(scene, new THREE.CanvasTexture(k), 9, 9, 0, -62, 0, 0.75);
+  decal(scene, new THREE.CanvasTexture(k), 14, 14, 0, -62, 0, 0.75);
   // segni di cancellatura sul pavimento della porta: "COLPEVOLE" riscritto mille volte
   const d = document.createElement('canvas'); d.width = 1024; d.height = 256; const dg = d.getContext('2d'); dg.font = 'bold 54px Georgia'; dg.fillStyle = 'rgba(138,26,16,.35)';
   for (let i = 0; i < 9; i++) { dg.save(); dg.translate(60 + i * 110, 130 + Math.sin(i) * 40); dg.rotate((Math.random() - 0.5) * 0.5); dg.fillText('COLPEVOLE', -60, 0); dg.strokeStyle = 'rgba(20,12,8,.6)'; dg.lineWidth = 4; dg.beginPath(); dg.moveTo(-70, -16); dg.lineTo(260, -10); dg.stroke(); dg.restore(); }
@@ -291,8 +294,8 @@ function noteTex(lines, sketches, opts = {}) {
   for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(Math.random() * 512, Math.random() * 512, 2 + Math.random() * 7, 0, 6.3); g.fill(); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
-function floorNote(scene, tex, w, x, z, rot, op = 0.55) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: op })); m.rotation.y = rot; m.position.set(x, 0.011, z); scene.add(m); return m; }
-function wallNote(scene, tex, x, z, side, y = 0.75, w = 0.9) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w), inkMaster({ color: 0xf1e8d4, texBlend: 0.3 })); m.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true }); m.position.set(x, y, z); m.rotation.y = side; m.rotation.z = (Math.random() - 0.5) * 0.15; scene.add(m); return m; }
+function floorNote(scene, tex, w, x, z, rot, op = 0.55) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: op })); m.rotation.y = rot; [x, z] = F(x, z); m.position.set(x, 0.011, z); scene.add(m); return m; }
+function wallNote(scene, tex, x, z, side, y = 0.75, w = 0.9) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w), inkMaster({ color: 0xf1e8d4, texBlend: 0.3 })); m.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true }); { [x, z] = F(x, z); const r = ROOMS.find((q) => Math.abs(x - q.cx) <= q.w / 2 + 0.5 && Math.abs(z - q.cz) <= q.d / 2 + 0.5); if (r && x < 85) x = r.cx + Math.sign(x - r.cx) * (r.w / 2 - 0.18); } m.position.set(x, y, z); m.rotation.y = side; m.rotation.z = (Math.random() - 0.5) * 0.15; scene.add(m); return m; }
 // fonti di luce visibili
 const glowTex = (() => { const [c, g] = inkCanvas(64, 64); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 function glowSprite(color, size) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); s.scale.setScalar(size); return s; }
@@ -311,6 +314,19 @@ export function makeInkJar() { const g = new THREE.Group(); const jar = inked(ne
   const glow = glowSprite(0x3fc1ff, 0.9); glow.position.y = 0.4; g.add(glow); g.userData = { flame: ink, glow, ly: 0.45 }; return g; }
 // note per stanza: [x, z, rot, linee, schizzi]
 const NOTES = [
+  [-4.4, 3.4, -0.3, [['prima riga:', 40, 90, 34], ['«C\'era una ragazza', 40, 140, 34], ['che non sapeva nuotare»', 40, 190, 34]], [['girl', 380, 360, 0.7]]],
+  [4.6, 2.6, 0.4, [['~bugiarda~', 60, 100, 44, 0, 1], ['testimone', 60, 170, 40]], []],
+  [-5, -10.5, 0.2, [['lo scrissi VIGILE', 30, 90, 34], ['perché io non lo ero', 30, 140, 34]], [['beetle', 330, 330, 1.6]]],
+  [5.2, -18.6, -0.3, [['ogni carica', 40, 90, 34], ['è una mia paura', 40, 140, 34]], []],
+  [4.6, -24.6, 0.3, [['il rame', 60, 90, 36], ['porta la voce', 60, 140, 36], ['più lontano di me', 60, 190, 36]], []],
+  [-5.6, -31.6, -0.2, [['4 secondi:', 40, 100, 40, 0, 1], ['il tempo di un respiro', 40, 160, 34]], []],
+  [5.6, -39.4, -0.4, [['Elara aveva 16 anni', 30, 90, 34], ['io 40.', 30, 140, 34], ['Chi doveva salvare chi?', 30, 200, 34]], [['hand', 380, 360, 1.2]]],
+  [-1.5, -43.5, 0.1, [['~mi dispiace~', 80, 120, 44]], []],
+  [5.8, -58.2, 0.3, [['IL CUSTODE', 40, 90, 40, 0, 1], ['sono io, quando', 40, 150, 34], ['non voglio ricordare', 40, 200, 34]], [['eye', 370, 360, 1.6]]],
+  [-6, -66.2, -0.3, [['la piega del ponte', 30, 90, 34], ['l\'ho disegnata storta', 30, 140, 34], ['apposta', 30, 190, 34]], []],
+  [3.6, -80.8, 0.2, [['fine?', 140, 160, 60, 0, 1]], []],
+  [44.5, -23.5, -0.3, [['qui affogo', 40, 90, 34], ['le versioni sbagliate', 40, 140, 34]], [['river', 40, 260, 420]]],
+  [-43, -25, 0.2, [['le prove', 60, 100, 38], ['non si bruciano.', 60, 150, 38], ['si nascondono.', 60, 200, 38, 0, 1]], [['lock', 380, 360, 1.1]]],
   [-3.8, -1.6, 0.2, [['La tavola doveva reggere.', 30, 80, 38], ['Doveva.', 60, 130, 44, 0, 1], ['Elara, 7 anni', 300, 470, 30, -0.1]], [['girl', 380, 280, 1.1]]],
   [3.4, 2.6, -0.4, [['~integra', 40, 120, 40], ['(non è vero)', 60, 180, 32]], [['hand', 330, 330, 1.4]]],
   [-4.2, -10.5, 0.5, [['Il Caricatore ha gli occhi', 20, 70, 32], ['di mio padre. Sempre vigile.', 20, 115, 32]], [['beetle', 260, 330, 2]]],
@@ -330,8 +346,41 @@ const NOTES = [
 const WALL_NOTES = [[-5.82, 0.5, Math.PI / 2, 'non cancellare'], [5.82, -2, -Math.PI / 2, 'E. ama il fiume'], [-6.82, -14, Math.PI / 2, 'vigile vigile vigile'], [5.82, -28, -Math.PI / 2, '4 secondi'], [-7.82, -42, Math.PI / 2, 'giudica tu'], [7.82, -60, -Math.PI / 2, 'NON APRIRE'], [92.82, -15, Math.PI / 2, 'peso = colpa?'], [106.82, -31, -Math.PI / 2, 'troppi libri'], [32.82, -26, Math.PI / 2, 'archivio']];
 export function sketchFloor(scene, lines, sketches, w, x, z, rot = 0, op = 0.85) { return floorNote(scene, noteTex(lines, sketches), w, x, z, rot, op); }
 export function sketchWall(scene, text, x, z, side, y = 0.8, w = 0.9) { return wallNote(scene, noteTex([[text, 40, 270, 46, -0.08, true]], [], { paper: true }), x, z, side, y, w); }
+
+// v1.4 · oggetti di scena nelle stanze grandi: pile di libri, fogli appallottolati, rotoli, calamai (instanced: pochi draw call)
+export function buildProps(scene) {
+  let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  const slots = { book0: [], book1: [], book2: [], ball: [], scroll: [], sheet: [], pool: [] }; const solids = [];
+  for (const r of ROOMS) { if (r.chain === 'c2') continue;
+    const n = Math.round((r.w + r.d) * 0.55);
+    for (let k = 0; k < n; k++) { const side = Math.floor(rnd() * 4); const t = rnd() * 0.84 + 0.08; let x, z;
+      if (side < 2) { x = r.cx - r.w / 2 + t * r.w; z = side === 0 ? r.cz - r.d / 2 + 0.75 : r.cz + r.d / 2 - 0.75; if (Math.abs(x - r.cx) < GAP / 2 + 1.6) continue; }
+      else { z = r.cz - r.d / 2 + t * r.d; x = side === 2 ? r.cx - r.w / 2 + 0.75 : r.cx + r.w / 2 - 0.75; }
+      const kind = rnd();
+      if (kind < 0.45) { const h = 2 + Math.floor(rnd() * 5); let y = 0; for (let i = 0; i < h; i++) { const th = 0.12 + rnd() * 0.08; slots['book' + Math.floor(rnd() * 3)].push([x + (rnd() - 0.5) * 0.12, y + th / 2, z + (rnd() - 0.5) * 0.12, rnd() * 3, 0.55 + rnd() * 0.25, th, 0.4 + rnd() * 0.15]); y += th; } if (h > 3) solids.push({ x, z, r: 0.45 }); }
+      else if (kind < 0.7) { for (let i = 0; i < 3; i++) { const s = 0.16 + rnd() * 0.12; slots.ball.push([x + (rnd() - 0.5) * 1.1, s * 0.8, z + (rnd() - 0.5) * 1.1, rnd() * 3, s, s, s]); } }
+      else if (kind < 0.85) { slots.scroll.push([x, 0.1, z, rnd() * 3, 1, 1, 1]); slots.scroll.push([x + 0.3, 0.1, z + 0.2, rnd() * 3, 0.8, 1, 0.8]); }
+      else { for (let i = 0; i < 4; i++) slots.sheet.push([x + (rnd() - 0.5) * 2, 0.012 + i * 0.002, z + (rnd() - 0.5) * 2, rnd() * 6.28, 1, 1, 1]); } }
+    // interno: fogli sparsi, cartacce e pozze d'inchiostro (piatti, non bloccano il passo)
+    const ni = Math.round(r.w * r.d / 16);
+    for (let k = 0; k < ni; k++) { const x = r.cx + (rnd() - 0.5) * (r.w - 2), z = r.cz + (rnd() - 0.5) * (r.d - 2); if (Math.abs(x - r.cx) < 1.6) continue; const kind = rnd();
+      if (kind < 0.55) { const c = 2 + Math.floor(rnd() * 4); for (let i = 0; i < c; i++) slots.sheet.push([x + (rnd() - 0.5) * 1.6, 0.012 + i * 0.002, z + (rnd() - 0.5) * 1.6, rnd() * 6.28, 1, 1, 1]); }
+      else if (kind < 0.8) { slots.ball.push([x, 0.15, z, rnd() * 3, 0.18, 0.18, 0.18]); slots.ball.push([x + 0.4, 0.12, z - 0.2, rnd() * 3, 0.14, 0.14, 0.14]); }
+      else { const sz = 0.4 + rnd() * 0.8; slots.pool.push([x, 0.008, z, rnd() * 6.28, sz, 1, sz * (0.6 + rnd() * 0.5)]); } } }
+  const geos = { book0: new THREE.BoxGeometry(1, 1, 1), book1: new THREE.BoxGeometry(1, 1, 1), book2: new THREE.BoxGeometry(1, 1, 1), ball: new THREE.IcosahedronGeometry(1, 1), scroll: new THREE.CylinderGeometry(0.09, 0.09, 0.7, 8).rotateZ(Math.PI / 2), sheet: new THREE.PlaneGeometry(0.42, 0.56).rotateX(-Math.PI / 2), pool: new THREE.CircleGeometry(0.5, 14).rotateX(-Math.PI / 2) };
+  const cols = { book0: 0x8a2416, book1: 0x2b4a5a, book2: 0x5a3a22, ball: 0xeee4cf, scroll: 0xe2d6b8, sheet: 0xf3ead6, pool: 0x5a4636 };
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  for (const k of Object.keys(slots)) { const L = slots[k]; if (!L.length) continue; withMask(geos[k], k === 'sheet' || k === 'pool' ? 0 : 0.6);
+    const mesh = new THREE.InstancedMesh(geos[k], inkMaster({ color: cols[k], y0: 0, y1: 1 }), L.length);
+    L.forEach(([x, y, z, ry, sx, sy, sz], i) => { e.set(0, ry, 0); q.setFromEuler(e); m4.compose(v.set(x, y, z), q, sc.set(sx, sy, sz)); mesh.setMatrixAt(i, m4); });
+    mesh.instanceMatrix.needsUpdate = true; mesh.frustumCulled = false; scene.add(mesh); }
+  return solids;
+}
 export const LIGHTS = [
-  // [tipo, x, z]
+  // [tipo, x, z]  (v1.4: più luci per le stanze grandi)
+  ['lamp', -5.4, 3.8], ['candle', 5.3, -1.5], ['candle', -5.7, -9.8], ['jar', 6.3, -18.6], ['jar', 0, -9.2], ['lamp', 5.3, -24], ['candle', -5.3, -24.2],
+  ['candle', -7.2, -43.4], ['jar', 7.3, -43.6], ['candle', 0, -38.6], ['candle', -7.3, -63.6], ['candle', 7.3, -63.6], ['lamp', 0, -55.8], ['jar', -5.3, -75.8], ['jar', 5.3, -75.8],
+  ['lamp', 40, -22.6], ['jar', -44.2, -24], ['jar', -35.8, -24], ['candle', -44.2, -31.8], ['candle', -35.8, -31.8],
   ['candle', -5.2, -4.2], ['candle', 5.2, 4.2], ['jar', 2.2, -4.4], ['lamp', -6.2, -19.4], ['lamp', 6.2, -9.0], ['candle', 5.3, -32.3], ['jar', -3.2, -30.8],
   ['lamp', -7.2, -38.6], ['lamp', 7.2, -38.6], ['candle', -3.6, -49.4], ['candle', 3.8, -49.4], ['lamp', -7.2, -68.4], ['lamp', 7.2, -68.4], ['jar', -7.2, -56], ['jar', 7.2, -56],
   ['candle', -4.8, -84.2], ['candle', 4.8, -84.2], ['jar', 33, -22], ['candle', 47, -22], ['jar', 47, -34.5], ['candle', 33, -34.5],
@@ -340,7 +389,7 @@ export const LIGHTS = [
 export function buildStory(scene) {
   for (const [x, z, r, lines, sk] of NOTES) floorNote(scene, noteTex(lines, sk), 3.2, x, z, r, 0.85);
   for (const [x, z, side, t] of WALL_NOTES) wallNote(scene, noteTex([[t, 40, 270, 52, -0.1, t === t.toUpperCase()]], [], { paper: true }), x, z, side, 0.78, 0.75);
-  const out = []; for (const [k, x, z] of LIGHTS) { const m = k === 'candle' ? makeCandle(0.4 + Math.random() * 0.4) : k === 'lamp' ? makeLamp() : makeInkJar(); m.position.set(x, 0, z); scene.add(m);
+  const out = []; for (let [k, x, z] of LIGHTS) { [x, z] = F(x, z); const m = k === 'candle' ? makeCandle(0.4 + Math.random() * 0.4) : k === 'lamp' ? makeLamp() : makeInkJar(); m.position.set(x, 0, z); scene.add(m);
     const col = k === 'jar' ? [0.25, 0.75, 1.2] : k === 'lamp' ? [1.3, 0.95, 0.55] : [1.2, 0.7, 0.3]; out.push({ m, x, y: m.userData.ly, z, r: k === 'lamp' ? 4.6 : k === 'jar' ? 2.8 : 3.4, col, ph: Math.random() * 10, kind: k }); }
   return out;
 }

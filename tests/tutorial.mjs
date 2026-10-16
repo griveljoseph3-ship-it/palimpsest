@@ -18,7 +18,7 @@ check('tutorial attivo al passo move', (await step()) === 'move' && await E(() =
 await pg.screenshot({ path: '/workspace/palimpsest-shots/15-tut-move.png' });
 await touch('touchStart', [[250, 750]]); await W(60); await touch('touchMove', [[250, 670]]); await W(1800); await touch('touchEnd', []);
 check('move → look', (await step()) === 'look');
-await E(() => { PAL.P.x = 0; PAL.P.z = -2.8; PAL.P.face = Math.PI; }); await W(500); await tapSel('#tInteract'); await W(800);
+await E(() => { PAL.P.x = 0; PAL.P.z = -8.2; PAL.P.face = Math.PI; }); await W(500); await tapSel('#tInteract'); await W(800);
 await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000); await W(400);
 check('look → open', (await step()) === 'open');
 await tapSel('#tRewrite'); await W(700); check('open → pick (menu aperto)', (await step()) === 'pick' && await E(() => PAL.panel.open));
@@ -32,7 +32,7 @@ console.log(await E(() => [PAL.tut.i, PAL.tut.t, PAL.panel.open, PAL.S.lock, PAL
 check('ink → heavy', (await step()) === 'heavy');
 await tapSel('#tHeavy'); await W(2500); if ((await step()) === 'heavy') { await tapSel('#tHeavy'); await W(2500); }
 check('heavy rompe la tavola → quick', (await step()) === 'quick');
-await E(() => { PAL.P.x = 0; PAL.P.z = -13; }); await W(1500); await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000);
+await E(() => { PAL.P.x = 0; PAL.P.z = -26; }); await W(1500); await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000);
 await E(() => { const c = PAL.charger; PAL.P.x = c.x; PAL.P.z = c.z + 3; PAL.P.face = Math.PI; PAL.ink.v = 100; }); await W(300);
 check('card quick visibile nella stanza del Caricatore', await E(() => !document.getElementById('tut').classList.contains('hidden')) && (await step()) === 'quick');
 await tapSel('#tQuick'); await W(900); check('↻ riscrittura rapida → inkfight', (await step()) === 'inkfight');

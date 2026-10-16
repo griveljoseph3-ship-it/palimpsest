@@ -16,7 +16,7 @@ await E(() => { PAL.P.x = PAL.wellEnt.x - 1.6; PAL.P.z = PAL.wellEnt.z; PAL.P.fa
 check('calamaio accetta FRAGILE', await E(() => PAL.grammar.has('well', 'state.fragile')));
 await E(() => PAL.heavyHit()); await W(300); await E(() => PAL.interact()); await W(300); await E(() => PAL.skipDialog());
 console.log(await E(() => [PAL.wellEnt.broken, [...PAL.S.secrets], PAL.dlg.active, PAL.S.room])); check('pagina nascosta 2 trovata (calamaio rotto)', await E(() => PAL.wellEnt.broken && PAL.S.secrets.has('c1_well')));
-await E(() => PAL.tp(0, -12)); await W(1500); await E(() => PAL.skipDialog()); await W(300);
+await E(() => PAL.tp(0, -24)); await W(1500); await E(() => PAL.skipDialog()); await W(300);
 check('salvataggio automatico in stanza II', await E(() => JSON.parse(localStorage.getItem('pal_save_v1')).room === 'charger'));
 await pg.reload(); await W(1000);
 check('Continua visibile con titolo stanza', await E(() => !document.getElementById('bContinue').classList.contains('hidden') && /Caricatore/.test(document.getElementById('bContinue').textContent)));

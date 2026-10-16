@@ -10,13 +10,13 @@ check('colpo al giocatore: barra 80%, flash rosso, numero', await E(() => docume
 console.log(await E(() => [PAL.P.hp, document.querySelector('#phpBar .fill').style.width, document.getElementById('phpBar').offsetWidth, getComputedStyle(document.querySelector('#phpBar .trail')).width, getComputedStyle(document.querySelector('#phpBar .fill')).width, document.querySelector('#phpBar .trail').style.transition])); check('scia bianca resta più lunga per un attimo', await (async () => { for (let k = 0; k < 10; k++) { if (await E(() => parseFloat(getComputedStyle(document.querySelector('#phpBar .trail')).width) > parseFloat(getComputedStyle(document.querySelector('#phpBar .fill')).width) + 5)) return true; await W(80); } return false; })() || await E(() => parseFloat(getComputedStyle(document.querySelector('#phpBar .trail')).width) > parseFloat(getComputedStyle(document.querySelector('#phpBar .fill')).width) + 5));
 await pg.screenshot({ path: '/workspace/palimpsest-shots/19-player-hit.png' });
 await W(1200); check('scia si accorcia fino alla vita', await E(() => Math.abs(parseFloat(getComputedStyle(document.querySelector('#phpBar .trail')).width) - parseFloat(getComputedStyle(document.querySelector('#phpBar .fill')).width)) < 3));
-await E(() => { PAL.P.hp = 5; PAL.tp(0, -12); }); await W(1500); await E(() => PAL.skipDialog()); await W(500);
+await E(() => { PAL.P.hp = 5; PAL.tp(0, -24); }); await W(1500); await E(() => PAL.skipDialog()); await W(500);
 check('barra sopra il Caricatore', await E(() => [...document.querySelectorAll('.ebar')].some((x) => x.style.display === 'block')));
 await E(() => { const c = PAL.charger; c.st = 'stun'; c.t = 3; PAL.P.x = c.x; PAL.P.z = c.z + 1.6; PAL.P.face = Math.PI; PAL.P.hp = 5; PAL.P.inv = 99; PAL.P.st = 'idle'; }); await W(100);
 const hp0 = await E(() => PAL.charger.armorHP); await E(() => PAL.heavyHit()); await W(150);
 check('colpo forte: numero danno + flash bianco sul nemico', await E(() => !!document.querySelector('.dn:not(.player)') && PAL.charger.hitT > 0) && (await E(() => PAL.charger.armorHP)) < hp0);
 await pg.screenshot({ path: '/workspace/palimpsest-shots/20-enemy-hit.png' });
-await E(() => { PAL.P.hp = 5; PAL.P.inv = 99; PAL.tp(0, -57.5); }); await W(1500); await E(() => PAL.skipDialog()); await W(5000);
+await E(() => { PAL.P.hp = 5; PAL.P.inv = 99; PAL.tp(0, -115); }); await W(1500); await E(() => PAL.skipDialog()); for (let k = 0; k < 40 && await E(() => PAL.S.roomT < 3.2); k++) await W(500);
 check('barra boss grande del Custode in arena', await E(() => !document.getElementById('bossBar').classList.contains('hidden') && document.getElementById('bossBar').getBoundingClientRect().width > 400));
 await pg.screenshot({ path: '/workspace/palimpsest-shots/21-boss-bar.png' });
 console.log('ERRORS', errs); if (bad || errs.length) process.exitCode = 1; await b.close();

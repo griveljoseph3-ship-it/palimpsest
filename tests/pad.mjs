@@ -9,7 +9,7 @@ const E = (f, a) => pg.evaluate(f, a); const W = (ms) => pg.waitForTimeout(ms); 
 await pg.goto('http://localhost:8941/?fast'); await W(700); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog()); await W(300);
 const z0 = await E(() => PAL.P.z); await E(() => { __pad.axes[1] = -1; }); await W(1200); await E(() => { __pad.axes[1] = 0; }); check('stick sinistro muove', (await E(() => PAL.P.z)) < z0 - 1);
 check('modalità controller rilevata', await E(() => PAL.input.mode === 'pad'));
-await E(() => { PAL.tp(0, -3.4); PAL.face(0, -5); __press(0); }); await W(500); await E(() => PAL.skipDialog()); check('A interagisce', await E(() => PAL.S.discovered.has('state.fragile')));
+await E(() => { PAL.tp(0, -6.8); PAL.face(0, -5); __press(0); }); await W(500); await E(() => PAL.skipDialog()); check('A interagisce', await E(() => PAL.S.discovered.has('state.fragile')));
 await E(() => __press(5)); await W(500); check('RB apre le parole', await E(() => PAL.panel.open));
 await E(() => __press(0)); await W(500); check('A conferma', await E(() => PAL.grammar.has('board', 'state.fragile')));
 await E(() => { PAL.face(0, -5); __press(3); }); await W(1300); check('Y colpo forte rompe', await E(() => PAL.ENT.board.broken));

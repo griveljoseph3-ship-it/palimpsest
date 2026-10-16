@@ -65,3 +65,5 @@ ENTITY_DEFS.mzplate = { name: 'Piastra del filo', supports: ['element.conductive
 ENTITY_DEFS.mzlamp = { name: 'Lampada sentinella', supports: ['light.dark'], durations: { 'light.dark': 20 }, safe: true };
 ENTITY_DEFS.opbridge = { name: 'Le due sponde', supports: ['shape.bridge'], durations: { 'shape.bridge': null }, safe: true };
 ENTITY_DEFS.mzstack = { name: 'Pila di registri', supports: ['state.fragile', 'weight.heavy'], durations: { 'state.fragile': null, 'weight.heavy': null }, safe: true };
+ENTITY_DEFS.mzreliq = { name: 'Reliquiario di carta', supports: ['state.fragile'], durations: { 'state.fragile': null }, safe: true };
+ENTITY_DEFS.mzcrystal = { name: 'Cristallo d\'inchiostro', supports: ['state.fragile', 'element.conductive'], durations: { 'state.fragile': null, 'element.conductive': null }, safe: true };

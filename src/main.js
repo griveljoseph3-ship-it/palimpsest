@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.7.0';
-import { EFFECTS } from './data.js?v=1.7.0';
-import { Grammar } from './resolver.js?v=1.7.0';
-import { Ink, INK } from './ink.js?v=1.7.0';
-import { Input } from './input.js?v=1.7.0';
-import { Sfx } from './audio.js?v=1.7.0';
-import { Tele } from './telemetry.js?v=1.7.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.7.0';
-import * as W from './world.js?v=1.7.0';
-import * as ST from './story.js?v=1.7.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.7.0';
+import * as THREE from '../vendor/three.module.js?v=1.7.1';
+import { EFFECTS } from './data.js?v=1.7.1';
+import { Grammar } from './resolver.js?v=1.7.1';
+import { Ink, INK } from './ink.js?v=1.7.1';
+import { Input } from './input.js?v=1.7.1';
+import { Sfx } from './audio.js?v=1.7.1';
+import { Tele } from './telemetry.js?v=1.7.1';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.7.1';
+import * as W from './world.js?v=1.7.1';
+import * as ST from './story.js?v=1.7.1';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.7.1';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -1160,7 +1160,7 @@ function buildMaze() {
   for (let i = 0; i < 26; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 2)) + 1; if (cz2 >= N - 2 && Math.abs(cx2 - 5) < 2) cz2 = 4; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; if (i % 4 === 0) { o.scribe = true; const q = W.makeDoc(); q.scale.setScalar(0.5); q.position.y = 0.2; o.mesh.add(q); } }
   for (const [cx2, cz2] of [[0, 10], [10, 6], [0, 3], [10, 0]]) { const [x, z] = mzCell(cx2, cz2); spawnVial(x, z, true); }
   // pagine della guida (Ilde) lungo il percorso
-  MZ.notes = [[5, 9, 'enter'], [3, 6, 'buio'], [5, 2, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 2, 0, z); MZ.group.add(n); return { x: x - 2, z, id }; }); buildMazeExtras(r);
+  MZ.notes = [[5, 9, 'enter'], [3, 6, 'buio'], [5, 2, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 2, 0, z); MZ.group.add(n); return { x: x - 2, z, id }; }); buildMazeExtras(r); buildMazeRich();
 }
 function inkMasterLike(color) { const m = world.wallMat.clone(); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) } }; return m; }
 function mazeActivate(on) { if (MZ.active === on) return; MZ.active = on; MZ.group.visible = on;
@@ -1189,7 +1189,7 @@ function mazeInteractables(L) {
   if (MZ.stairsT >= 1) { const s = MZ.steps[0]; L.push({ x: s.position.x, z: s.position.z - 1, r: 2.4, label: 'sali', fn: exitMaze }); }
 }
 function readGuide(id) { MZ.guide.add(id); ink.interact(); sfx.play('page');
-  if (id === 'enter') say([['ilde', 'Ogni macchia che cancelli lascia gocce d\'inchiostro. Con le gocce riscrivi il tuo Pennino: tocca ✦ in alto.'], ['ilde', 'Il Pennino d\'oro ti darà il GOMMINO. Fidati, servirà contro il Custode.']]);
+  if (id === 'enter') say([['ilde', 'Ci sono quattro pagine nascoste qui sotto: un reliquiario, un cristallo, una scritta che vive solo al buio, e una pila che una parola sola non smuove.'], ['ilde', 'Ogni macchia che cancelli lascia gocce d\'inchiostro. Con le gocce riscrivi il tuo Pennino: tocca ✦ in alto.'], ['ilde', 'Il Pennino d\'oro ti darà il GOMMINO. Fidati, servirà contro il Custode.']]);
   if (id === 'buio') { S.discovered.add('light.dark'); say([['ilde', 'Le lampade sentinella sono vanitose: se scrivi BUIO, si spengono per un po\'.'], ['ilde', 'Al buio le macchie non ti vedono. Riscrivi la lampada come fai con gli oggetti.']]); journal('Hai trovato la parola BUIO.'); }
   if (id === 'ponte') { S.discovered.add('shape.bridge'); say([['ilde', 'Davanti alla piastra la pagina è strappata: un vuoto d\'inchiostro.'], ['ilde', 'Ma un vuoto, per il libro, è solo un ponte non ancora scritto. Scrivi PONTE.']]); journal('Hai trovato la parola PONTE.'); } }
 function mazeUpdate(dt) {
@@ -1340,7 +1340,7 @@ const INTRO_SWAY = [];
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
-  opUpdate(dt); curseUpdate(dt); custodePhases(dt); zoneUpdate();
+  opUpdate(dt); curseUpdate(dt); custodePhases(dt); zoneUpdate(); mazeRichUpdate(dt);
   if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
   if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
   if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
@@ -1359,7 +1359,41 @@ function zoneNeighbors(id) { const r = W.ROOMS.find((q) => q.id === id); if (!r)
   return out.filter(Boolean); }
 function zoneUpdate() { const id = S.room || 'intro'; if (ZONE.active === id) return; ZONE.active = id; camera.layers.disableAll(); camera.layers.enable(0); for (const r of zoneNeighbors(id)) camera.layers.enable(W.ROOMS.indexOf(r) + 1); }
 
-window.PAL = { ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+
+// ================= v1.7 · labirinto più ricco: reliquiario, cristallo (FRAGILE+CONDUTTIVO), scrittura nel buio, pagine del labirinto =================
+const MZS = { found: new Set(), items: [] };
+const MZ_LORE = {
+  reliq: ['«Ilde scriveva i muri di notte. Diceva che un labirinto è solo una frase che non vuole finire.»'],
+  crystal: ['«Il Custode non è nato cattivo. Era una correzione: qualcuno lo scrisse per fermare chi cambiava le storie.»'],
+  dark: ['Nel buio, sul muro, compare una scritta che la luce nascondeva:', '«Il viaggiatore è già passato di qui. Più di una volta.»'],
+  stack: ['Sotto i registri crollati, un foglio piegato: «Elara non ha mai toccato il relè. Ma qualcuno voleva un colpevole.»'],
+};
+function mazePage(id, x, z) { if (MZS.found.has(id)) return; MZS.found.add(id); sfx.play('seal'); S.flash = 0.3; gainDrops(5); toast('✦ PAGINA DEL LABIRINTO ' + MZS.found.size + '/4'); say(MZ_LORE[id].map((t) => ['narr', t])); journal('Pagina del labirinto: ' + MZ_LORE[id].join(' ')); particles.burst(x, 1, z, 30, 4, [1, 0.85, 0.5], 0.2); Tele.log('maze_page', { id }); }
+function buildMazeRich() {
+  const [rx, rz] = mzCell(1, 7); const rel = inked(new THREE.BoxGeometry(1.2, 1.4, 1.2), { color: 0xd8cbb0, shift: 0x8a2416, y0: 0, y1: 1.4 }); rel.position.y = 0.7;
+  MZS.reliq = addEnt('mzreliq', 'mzreliq', rel, rx, rz); MZS.reliq.mesh.userData.height = 1.6; MZ.group.add(MZS.reliq.mesh); MZ.walls.push(MZS.reliqBox = { minX: rx - 0.6, maxX: rx + 0.6, minZ: rz - 0.6, maxZ: rz + 0.6 });
+  const [cx, cz] = mzCell(8, 9); const cr = inked(new THREE.OctahedronGeometry(0.8, 0), { color: 0x2a4a6a, shift: 0x3fc1ff, y0: 0, y1: 2 }); cr.position.y = 1.2;
+  MZS.crystal = addEnt('mzcrystal', 'mzcrystal', cr, cx, cz); MZS.crystal.mesh.userData.height = 2; MZ.group.add(MZS.crystal.mesh); MZ.walls.push(MZS.crystalBox = { minX: cx - 0.7, maxX: cx + 0.7, minZ: cz - 0.7, maxZ: cz + 0.7 });
+  const cpad = inked(new THREE.CylinderGeometry(1.1, 1.3, 0.25, 8), { color: 0x3a2a20, ow: 0.02 }); cpad.position.set(cx, 0.12, cz); MZ.group.add(cpad);
+  // scritta nel buio fra due lampade sentinella
+  const a = MZ.lamps[2], b = MZ.lamps[6]; MZS.darkAt = { x: (a.x + b.x) / 2, z: (a.z + b.z) / 2 };
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const g = c.getContext('2d'); g.fillStyle = 'rgba(140,220,255,.95)'; g.font = 'italic 70px Georgia'; g.fillText('il viaggiatore è già passato di qui', 20, 150);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; MZS.darkText = new THREE.Mesh(new THREE.PlaneGeometry(8, 2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  MZS.darkText.position.set(MZS.darkAt.x, 0.03, MZS.darkAt.z); MZ.group.add(MZS.darkText);
+  // dettagli: tubi d'inchiostro che gocciolano, fogli che volano
+  for (let i = 0; i < 12; i++) { const [x, z] = mzCell((i * 7) % MZ.N, (i * 5 + 2) % MZ.N); const pipe = inked(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 8), { color: 0x2b221b, ow: 0.015 }); pipe.position.set(x + 3.3, 1.3, z + 3.3); MZ.group.add(pipe); MZS.items.push({ x: x + 3.3, z: z + 3.3, ph: i }); }
+}
+function mazeRichUpdate(dt) { if (!MZ.active || !MZS.reliq) return;
+  if (!MZS.reliq.broken && grammar.has('mzreliq', 'state.fragile') && P.st === 'heavy' && P.hitDone && dist(P, MZS.reliq) < 2.6) { MZS.reliq.broken = true; MZS.reliq.mesh.visible = false; world.walls = world.walls.filter((w) => w !== MZS.reliqBox); sfx.play('break'); S.shake = 0.6; particles.burst(MZS.reliq.x, 0.8, MZS.reliq.z, 30, 5, [0.85, 0.78, 0.62], 0.2); mazePage('reliq', MZS.reliq.x, MZS.reliq.z); }
+  if (!MZS.crystal.broken && grammar.has('mzcrystal', 'state.fragile') && grammar.has('mzcrystal', 'element.conductive')) { MZS.crystal.broken = true; MZS.crystal.mesh.visible = false; world.walls = world.walls.filter((w) => w !== MZS.crystalBox); sfx.play('glass'); sfx.play('electric'); S.flash = 0.5; particles.burst(MZS.crystal.x, 1.2, MZS.crystal.z, 50, 7, [0.3, 0.8, 1], 0.2); mazePage('crystal', MZS.crystal.x, MZS.crystal.z); }
+  else if (!MZS.crystal.broken) MZS.crystal.mesh.rotation.y += dt * 0.8;
+  const bothDark = grammar.has(MZ.lamps[2].id, 'light.dark') && grammar.has(MZ.lamps[6].id, 'light.dark'); MZS.darkText.material.opacity = lerp(MZS.darkText.material.opacity, bothDark ? 0.9 : 0, 0.05);
+  if (bothDark && MZS.darkText.material.opacity > 0.7 && Math.hypot(P.x - MZS.darkAt.x, P.z - MZS.darkAt.z) < 6) mazePage('dark', MZS.darkAt.x, MZS.darkAt.z);
+  if (MZ.stack && MZ.stack.broken && !MZS.found.has('stack')) mazePage('stack', MZ.stack.x, MZ.stack.z);
+  if (frame % 10 === 0) for (const it of MZS.items) if (Math.hypot(it.x - P.x, it.z - P.z) < 14) { particles.emit(it.x, 2.4, it.z, 0, -2.5, 0, 1, 0.08, 0.04, 0.03, 0.03, 3); if (Math.random() < 0.04) traces.add(it.x + rnd(-0.3, 0.3), it.z + rnd(-0.3, 0.3), 0.5, 0, now); }
+}
+
+window.PAL = { MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

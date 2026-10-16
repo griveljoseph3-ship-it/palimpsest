@@ -126,7 +126,7 @@ function damagePlayer(n, from, attackId) {
   if (opts.easy && n > 1) n = 1;
   P.hp -= n; P.inv = 0.9; P.st = 'hurt'; P.t = 0.25; sfx.play('hurt'); S.shake = 0.5; S.hitstop = 0.08; input.rumble(0.6, 0.9, 180);
   if (from) { const dx = P.x - from.x, dz = P.z - from.z, l = Math.hypot(dx, dz) || 1; P.vx = dx / l * 9; P.vz = dz / l * 9; }
-  particles.burst(P.x, 1, P.z, 14, 4); renderHP();
+  particles.burst(P.x, 1, P.z, 14, 4); renderHP(); S.shake = 0.8; dmgAt(P.x, 1.8, P.z, '-' + n * 20, 'player'); const hu = $('hurt'); hu.classList.remove('on'); void hu.offsetWidth; hu.classList.add('on'); try { navigator.vibrate && navigator.vibrate(140); } catch (e) {}
   if (P.hp <= 0) die(); return true;
 }
 function breakArmor(e, by) {
@@ -237,7 +237,7 @@ function doHit(heavy) {
     const vuln = e.st === 'stun' || e.st === 'recover' || e.st === 'windup' || e.st === 'swipeWU';
     if (vuln && !e.armorBroken) { e.armorHP -= heavy ? 3 : 1; sfx.play('hit'); S.hitstop = heavy ? 0.09 : 0.05; particles.burst(e.x, 1.2, e.z, 10, 4, [0.85, 0.78, 0.62], 0.15);
       if (e.armorHP <= 0) breakArmor(e, 'action'); }
-    else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); toastSmall('La corazza è integra: attendi un varco'); }
+    else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); toastSmall('La corazza è integra: attendi un varco'); dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.3, e.z, 'PARATO', 'block'); }
     const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; if (e.st !== 'charge') { e.vx += dx / l * (heavy ? 4 : 1.5); e.vz += dz / l * (heavy ? 4 : 1.5); }
   }
   for (const m of door.mites) if (m.alive && inArc(m, range, arc + 0.3)) { m.alive = false; any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g) popInk('+' + g); }
@@ -516,7 +516,8 @@ function dlgUpdate(dt) {
 $('dialog').addEventListener('pointerdown', () => { if (!$('dChoices')) dlgNext(); });
 
 // ---------- HUD ----------
-function renderHP() { $('hp').innerHTML = ''; for (let i = 0; i < P.max; i++) { const d = document.createElement('i'); if (i >= P.hp) d.className = 'off'; $('hp').appendChild(d); } }
+function setBar(el, f) { f = Math.max(0, Math.min(1, f)); if (el._f === f) return; const fi = el.querySelector('.fill'), tr = el.querySelector('.trail'); const down = el._f !== undefined && f < el._f; el._f = f; fi.style.width = (f * 100) + '%'; tr.style.transition = down ? 'width .55s ease-in .35s' : 'none'; tr.style.width = (f * 100) + '%'; if (down) { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); } }
+function renderHP() { setBar($('phpBar'), P.hp / P.max); $('phpNum').textContent = Math.max(0, P.hp * 20) + ' / ' + P.max * 20; $('hp').innerHTML = ''; for (let i = 0; i < P.max; i++) { const d = document.createElement('i'); if (i >= P.hp) d.className = 'off'; $('hp').appendChild(d); } }
 function renderPrepared() { const w = S.prepared || S.lastWord; $('prepared').classList.toggle('hidden', !w); if (w) { $('prepWord').textContent = EFFECTS[w].word; $('tQuickW').textContent = EFFECTS[w].word.slice(0, 7); $('prepared').firstChild.textContent = S.prepared ? 'preparata' : 'ultima'; } }
 let persistHint = '', tempHintT = 0;
 function hint(t) { persistHint = t; if (tempHintT <= 0) $('hint').textContent = t; }
@@ -547,6 +548,27 @@ function tutUpdate(dt) {
   if (!fin && st.back) { const b = st.back(); if (b >= 0) { tut.i = b; tut.t = 0; return; } }
   if (fin) { tut.i++; tut.t = 0; sfx.play('gain'); Tele.log('tutorial_step', { step: st.id }); if (tut.i === TUT.length) { mem.tutDone = true; ST.saveMem(mem); } }
 }
+// ---------- vita e danni leggibili ----------
+const _pv = new THREE.Vector3();
+function toScreen(x, y, z) { _pv.set(x, y, z).project(camera); return { x: (_pv.x * 0.5 + 0.5) * innerWidth, y: (-_pv.y * 0.5 + 0.5) * innerHeight, ok: _pv.z < 1 && Math.abs(_pv.x) < 1.1 && Math.abs(_pv.y) < 1.1 }; }
+function dmgAt(x, y, z, text, cls = '') { const p = toScreen(x, y, z); if (!p.ok) return; const d = document.createElement('div'); d.className = 'dn ' + cls; d.textContent = text; d.style.left = (p.x + rnd(-20, 20)) + 'px'; d.style.top = p.y + 'px'; $('dmg').appendChild(d); setTimeout(() => d.remove(), 950); }
+const CORE = { charger: 2, custode: 4 };
+function enemyHP(e) { const core = CORE[e.id]; const coreLeft = e.alive && e.st !== 'dead' && !(e.boss && arena.snapped) ? core : 0; return { v: Math.max(0, e.armorHP) * (e.armorBroken ? 0 : 1) + coreLeft, max: e.armorMax + core }; }
+const ebarEl = {};
+function healthUpdate(dt) {
+  for (const e of [charger, custode]) {
+    const h = enemyHP(e); if (e.lastHP === undefined) e.lastHP = h.v;
+    if (h.v < e.lastHP) { const d = (e.lastHP - h.v) * 10; dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.4, e.z, '-' + d, d >= 30 ? 'big' : ''); e.hitT = 0.16;
+      if (e.st !== 'charge' && e.alive) { const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; e.vx += dx / l * 5; e.vz += dz / l * 5; } }
+    e.lastHP = h.v;
+    if (e.hitT > 0) { e.hitT -= dt; setU(e.mats, 'uHit', Math.max(0, e.hitT / 0.16) * 0.85); if (e.hitT <= 0) setU(e.mats, 'uHit', 0); }
+    const inRoom = S.room === (e.boss ? 'arena' : 'charger') && S.phase === 'play' && !S.done;
+    if (e.boss) { const show = inRoom && !S.victory; $('bossBar').classList.toggle('hidden', !show); if (show) setBar($('bossBar').querySelector('.hbar'), h.v / h.max); continue; }
+    let el = ebarEl[e.id]; if (!el) { el = ebarEl[e.id] = document.createElement('div'); el.className = 'ebar'; el.innerHTML = '<div class="lbl">' + grammar.get(e.id).def.name + '</div><div class="hbar"><div class="trail"></div><div class="fill"></div></div>'; $('ebars').appendChild(el); }
+    const p = toScreen(e.x, (e.mesh.userData.height || 1.6) + 0.9, e.z); const vis = inRoom && e.alive && e.st !== 'dead' && p.ok;
+    el.style.display = vis ? 'block' : 'none'; if (vis) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; setBar(el.querySelector('.hbar'), h.v / h.max); }
+  }
+}
 function goalText() {
   switch (S.room) {
     case 'intro': return !S.discovered.has('state.fragile') ? 'Obiettivo: guarda la tavola lacerata' : !board.broken ? (grammar.has('board', 'state.fragile') ? 'Obiettivo: rompi la tavola con un colpo forte' : 'Obiettivo: scrivi FRAGILE sulla tavola (✎)') : 'Obiettivo: prosegui verso nord';
@@ -558,7 +580,7 @@ function goalText() {
   } return '';
 }
 function hudUpdate(dt) {
-  tutUpdate(dt);
+  tutUpdate(dt); healthUpdate(dt);
   if (frame % 10 === 0) { const g = goalText(); if ($('goal').textContent !== g) { $('goal').textContent = g; $('goal').classList.remove('flash'); void $('goal').offsetWidth; $('goal').classList.add('flash'); } }
   $('inkFill').style.width = ink.v + '%'; $('inkNum').textContent = Math.round(ink.v); $('inkWrap').classList.toggle('low', ink.v < 25 && !zoneSafe());
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
@@ -731,7 +753,7 @@ function loop() {
 
 // ---------- avvio + agganci di test ----------
 resize(); bindUI(); P.mesh.position.set(P.x, 0, P.z); requestAnimationFrame(loop);
-window.PAL = { tut, TUT, S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { tut, TUT, damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

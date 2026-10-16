@@ -10,7 +10,7 @@ await E(() => PAL.tp(0, -49)); await until(() => PAL.S.room === 'conduct', 4000)
 await E(() => PAL.rewrite('plate', 'element.conductive')); await W(1500); await E(() => PAL.skipDialog());
 check('cancello chiuso finché il labirinto non è fatto', await E(() => !PAL.gates.r2.open));
 check('la pagina si spiega', await until(() => PAL.MZ.entryOpen >= 1, 12000));
-await E(() => { PAL.tp(8.6, -49.5); }); await W(400); await S('1-page'); await E(() => PAL.enterMaze()); await W(400); await S('2-transition');
+await E(() => { PAL.tp(-8.8, -50.2); }); await W(400); await S('1-page'); await E(() => PAL.enterMaze()); await W(400); await S('2-transition');
 check('entrato nel labirinto', await until(() => PAL.S.room === 'maze' && PAL.MZ.active, 8000)); await W(1500); await E(() => PAL.skipDialog()); await W(600); await S('3-maze');
 check('muri del labirinto nelle collisioni', await E(() => PAL.MZ.walls.length > 80));
 check('macchie nel labirinto', await E(() => PAL.swarm.filter((m) => m.room === 'maze' && m.alive).length >= 20));
@@ -31,7 +31,13 @@ check('pila di registri: FRAGILE+PESANTE la fa crollare (pagina 4)', await until
 const [cx, cz] = await E(() => [PAL.MZ.bridgeEnt.x, PAL.MZ.bridgeEnt.z]);
 await E(([x, z]) => { PAL.P.hp = 5; PAL.tp(x, z + 3.5); PAL.face(x, z); }, [cx, cz]); await W(300);
 check('la fenditura blocca', await E(() => PAL.MZ.chasm && !PAL.MZ.bridged));
-await E(() => { PAL.S.discovered.add('shape.bridge'); }); check('PONTE si scrive', await E(() => PAL.rewrite('mzbridge', 'shape.bridge')));
+await E(() => { PAL.S.discovered.add('shape.bridge'); });
+check('film delle pagine concluso', await E(() => !PAL.MZ.film));
+check('il Copista sorveglia: PONTE negato', await E(() => PAL.MZ.boss && PAL.MZ.boss.alive && !PAL.rewrite('mzbridge', 'shape.bridge')));
+await E(() => { const b = PAL.MZ.boss; PAL.P.hp = 5; PAL.tp(b.x, b.z + 1.4); PAL.face(b.x, b.z); });
+check('il Copista viene colpito e muore', await until(() => { const b = PAL.MZ.boss; PAL.P.hp = 5; PAL.P.inv = 9; if (b.alive) { PAL.tp(b.x, b.z + 1.3); PAL.face(b.x, b.z); PAL.P.atkCd = 0; PAL.heavyHit(); } return !b.alive; }, 30000));
+await E(() => { PAL.skipDialog(); const be = PAL.MZ.bridgeEnt; PAL.P.hp = 5; PAL.tp(be.x, be.z + 3.5); PAL.face(be.x, be.z); }); await W(300);
+check('PONTE si scrive', await E(() => PAL.rewrite('mzbridge', 'shape.bridge')));
 check('il ponte si costruisce', await until(() => { PAL.P.hp = 5; return PAL.MZ.bridged; }, 15000)); await S('5-bridge');
 await E(([x, z]) => { PAL.tp(x, z - 3.6); }, [cx, cz]); await W(300);
 check('piastra CONDUTTIVO', await E(() => PAL.rewrite('mzplate', 'element.conductive')));

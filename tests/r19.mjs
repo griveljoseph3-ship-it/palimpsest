@@ -1,0 +1,12 @@
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, hasTouch: true })).newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
+const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); const S = (n) => pg.screenshot({ path: `/workspace/palimpsest-shots/r19-${n}.png` });
+await pg.goto('http://localhost:8941/'); await W(1500); await E(() => PAL.start()); await W(800); await E(() => PAL.skipDialog());
+await E(() => { PAL.tp(0, -54.3); PAL.MZ.entryOpen = 1; PAL.tp(-8.8, -49.6); }); await W(4000); await S('1-vortex');
+await E(() => PAL.enterMaze()); for (let t = 0; t < 80; t++) { await W(500); if (await E(() => PAL.MZ.film && PAL.MZ.film.t > 1.2)) break; } await S('2-film-a');
+for (let t = 0; t < 80; t++) { await W(500); if (await E(() => !PAL.MZ.film || PAL.MZ.film.t > 3.6)) break; } await S('3-film-b');
+for (let t = 0; t < 80; t++) { await W(500); if (await E(() => !PAL.MZ.film || PAL.MZ.film.t > 5.6)) break; } await S('4-film-c');
+for (let t = 0; t < 80; t++) { await W(500); if (await E(() => !PAL.MZ.film)) break; } await W(1500); await E(() => PAL.skipDialog()); await S('5-maze');
+await E(() => { const b = PAL.MZ.boss; PAL.P.inv = 99; PAL.tp(b.x, b.z + 4); PAL.face(b.x, b.z); }); await W(5000); await E(() => PAL.skipDialog()); await W(1500); await S('6-copista');
+console.log('ERR', errs); await b.close();

@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.8.0';
-import { EFFECTS } from './data.js?v=1.8.0';
-import { Grammar } from './resolver.js?v=1.8.0';
-import { Ink, INK } from './ink.js?v=1.8.0';
-import { Input } from './input.js?v=1.8.0';
-import { Sfx } from './audio.js?v=1.8.0';
-import { Tele } from './telemetry.js?v=1.8.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.8.0';
-import * as W from './world.js?v=1.8.0';
-import * as ST from './story.js?v=1.8.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.8.0';
+import * as THREE from '../vendor/three.module.js?v=1.9.0';
+import { EFFECTS } from './data.js?v=1.9.0';
+import { Grammar } from './resolver.js?v=1.9.0';
+import { Ink, INK } from './ink.js?v=1.9.0';
+import { Input } from './input.js?v=1.9.0';
+import { Sfx } from './audio.js?v=1.9.0';
+import { Tele } from './telemetry.js?v=1.9.0';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.9.0';
+import * as W from './world.js?v=1.9.0';
+import * as ST from './story.js?v=1.9.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.9.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -139,7 +139,7 @@ function vialsUpdate() { for (const v of vials) { if (!v.alive) continue; v.m.po
   if (Math.hypot(P.x - v.x, P.z - v.z) < 0.9 && P.hp < P.max && P.st !== 'dead') { v.alive = false; scene.remove(v.m); P.hp = Math.min(P.max, P.hp + 1); renderHP(); sfx.play('seal'); particles.burst(v.x, 0.5, v.z, 18, 3, [0.3, 0.7, 1], 0.15); toastSmall('Fiala d\'inchiostro: +20'); } } }
 function miteDrop(m) { gainDrops(m.brute ? 3 : 1); if (Math.random() < (m.brute ? 0.3 : 0.1)) spawnVial(m.x, m.z); }
 function swarmUpdate(dt) {
-  for (const m of swarm) { if (!m.alive) continue; if (m.room !== S.room) continue; if (S.lock) continue; if (m.aggroR && !mazeAggro(m)) { mazeWander(m, dt); continue; } mitePursue(m, P.x, P.z, dt, swarm);
+  for (const m of swarm) { if (!m.alive) continue; if (m.room !== S.room) continue; if (S.lock) continue; if (m.aggroR && !mazeAggro(m)) { mazeWander(m, dt); continue; } if (m.boss && copistaAct(m, dt)) continue; mitePursue(m, P.x, P.z, dt, swarm);
     const dx = P.x - m.x, dz = P.z - m.z, l = Math.hypot(dx, dz) || 1;
     if (l < 0.75) { if (damagePlayer(1, m, 'sw' + (m.id || (m.id = Math.random())))) { m.x -= dx / l * 1.2; m.z -= dz / l * 1.2; collide(m, m.r, false); } } }
 }
@@ -496,7 +496,8 @@ function doHit(heavy) {
     else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); toastSmall('La corazza è integra: attendi un varco'); dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.3, e.z, 'PARATO', 'block'); }
     const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; if (e.st !== 'charge') { e.vx += dx / l * (heavy ? 4 : 1.5); e.vz += dz / l * (heavy ? 4 : 1.5); }
   }
-  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range + 0.7 + (m.r || 0.3), arc + 0.7)) { if (!heavy && m.hp > 1) { m.hp--; any = true; sfx.play('hit'); const kx = m.x - P.x, kz = m.z - P.z, kl = Math.hypot(kx, kz) || 1; m.x += kx / kl * 1.2; m.z += kz / kl * 1.2; collide(m, m.r, false); particles.burst(m.x, 0.4, m.z, 8, 3); continue; } m.alive = false; miteDrop(m); any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); }
+  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range + 0.7 + (m.r || 0.3), arc + 0.7)) { if (m.boss) { const dmg = (heavy ? 4 : 1) * nibMul(); m.hp -= dmg; any = true; sfx.play('hit'); S.hitstop = 0.06; particles.burst(m.x, 0.9, m.z, 12, 4); dmgAt(m.x, 2.4, m.z, '-' + Math.round(dmg * 10), heavy ? 'big' : ''); m.hitT = 0.15; if (m.hp > 0) continue; }
+    if (!heavy && m.hp > 1) { m.hp--; any = true; sfx.play('hit'); const kx = m.x - P.x, kz = m.z - P.z, kl = Math.hypot(kx, kz) || 1; m.x += kx / kl * 1.2; m.z += kz / kl * 1.2; collide(m, m.r, false); particles.burst(m.x, 0.4, m.z, 8, 3); continue; } m.alive = false; miteDrop(m); any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); }
   if (!board.broken && dist(P, board) < 2.4 && heavy) { if (grammar.has('board', 'state.fragile')) breakBoard(); else { sfx.play('deny'); toastSmall('La tavola è integra. Il libro dice: integra.'); } any = true; }
   if (!relay.broken && dist(P, relay) < 2.2 && heavy && !S.doorRoute && !door.defense) { if (grammar.has('relay', 'state.fragile')) forceRelay(); else { sfx.play('deny'); toastSmall('Il supporto del relè regge'); } any = true; }
   if (heavy && trySecretsOnHeavy()) any = true;
@@ -629,6 +630,7 @@ function confirmWord() {
 function applyWord(e, w, via) {
   if (!PROG.skills.nib2 && grammar.active(e.id).some((a) => EFFECTS[a].slot !== EFFECTS[w].slot)) { sfx.play('deny'); toastSmall('Due parole insieme: serve il Pennino d\'acciaio (✦)'); return false; }
   if (e.boss && C3.shieldT > 0 && w === C3.shieldWord) { sfx.play('deny'); toastSmall('«Conosco quel tratto.» Il Custode ha già letto ' + EFFECTS[w].word + ': usa un\'altra parola o il gommino'); dmgAt(e.x, 3.4, e.z, 'IMMUNE', 'block'); return false; }
+  if (e.id === 'mzbridge' && MZ.boss && MZ.boss.alive) { sfx.play('deny'); toastSmall('Il Copista sorveglia il vuoto: prima sconfiggilo'); return false; }
   S.wordUse[w] = (S.wordUse[w] || 0) + 1;
   const chk = grammar.canApply(e.id, w); if (!chk.ok) { sfx.play('deny'); toastSmall(chk.reason); Tele.log('rewrite_denied', { target: e.id, eff: w, reason: chk.reason }); return false; }
   const safe = zoneSafe();
@@ -1045,7 +1047,7 @@ function visualUpdate(dt, rdt) {
   const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.12 : 0.96; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
   const cr = W.ROOMS.find((q) => q.id === S.room); const rcx = cr ? cr.cx : 0; let tx = rcx + (P.x - rcx) * 0.85, tz = P.z - 0.6; if (S.room === 'end') { tx = 0; tz = -161; } if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -124, 0.3); }
   camLook.lerp(tmpV.set(tx, 0.8, tz), 1 - Math.pow(0.004, rdt)); camPos.set(camLook.x, camLook.y + dy, camLook.z + dz);
-  camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3; camera.position.x += rnd(-sh, sh); camera.position.y += rnd(-sh, sh); camera.lookAt(camLook);
+  if (MZ.film) mazeFilmCamera(rdt); else camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3; camera.position.x += rnd(-sh, sh); camera.position.y += rnd(-sh, sh); if (!MZ.film) camera.lookAt(camLook);
   S.shake = Math.max(0, S.shake - rdt * 2.2); S.flash = Math.max(0, S.flash - rdt * 2); post.comp.uniforms.flash.value = opts.reduce ? 0 : S.flash * 0.5;
 }
 function loop() {
@@ -1111,7 +1113,7 @@ function useEraser() {
   toast(n ? 'GOMMINO · ' + n + ' NEMICI CANCELLATI AL 25%' : 'GOMMINO · NESSUNO DA CANCELLARE'); Tele.log('eraser', { n }); renderSkills();
 }
 // ---- labirinto ----
-const MZ = { built: false, active: false, R: W.ROOMS.find((r) => r.id === 'maze'), N: 11, C: 8, walls: [], group: new THREE.Group(), lamps: [], planks: [], steps: [], done: false, bridgeT: -1, stairsT: -1, hintT: 0, entryOpen: 0, guide: new Set() };
+const MZ = { built: false, active: false, R: W.ROOMS.find((r) => r.id === 'maze'), N: 17, C: 5.2, EX: 8, walls: [], group: new THREE.Group(), lamps: [], planks: [], steps: [], done: false, bridgeT: -1, stairsT: -1, hintT: 0, entryOpen: 0, guide: new Set() };
 scene.add(MZ.group); MZ.group.visible = false;
 const mzCell = (x, z) => [MZ.R.cx - MZ.R.w / 2 + (x + 0.5) * MZ.C, MZ.R.cz - MZ.R.d / 2 + (z + 0.5) * MZ.C];
 function mzRng(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
@@ -1120,11 +1122,12 @@ function buildMaze() {
   const E = [...Array(N * N)].map(() => ({ n: true, s: true, e: true, w: true })); const vis = new Array(N * N).fill(false);
   const D = { n: [0, -1, 's'], s: [0, 1, 'n'], e: [1, 0, 'w'], w: [-1, 0, 'e'] };
   const open = (x, z, k) => { const [dx, dz, o] = D[k]; E[z * N + x][k] = false; E[(z + dz) * N + x + dx][o] = false; };
-  const st = [[5, N - 1]]; vis[(N - 1) * N + 5] = true;
-  while (st.length) { const [cx, cz] = st[st.length - 1]; const nb = Object.keys(D).filter((k) => { const x = cx + D[k][0], z = cz + D[k][1]; return x >= 0 && z >= 0 && x < N && z < N && !vis[z * N + x] && !(x === 5 && z === 0); });
+  const EX = MZ.EX; const st = [[EX, N - 1]]; vis[(N - 1) * N + EX] = true;
+  while (st.length) { const [cx, cz] = st[st.length - 1]; const nb = Object.keys(D).filter((k) => { const x = cx + D[k][0], z = cz + D[k][1]; return x >= 0 && z >= 0 && x < N && z < N && !vis[z * N + x] && !(x === EX && z === 0); });
     if (!nb.length) { st.pop(); continue; } const k = nb[Math.floor(r() * nb.length)]; open(cx, cz, k); const nx = cx + D[k][0], nz = cz + D[k][1]; vis[nz * N + nx] = true; st.push([nx, nz]); }
-  for (let i = 0; i < 16; i++) { const x = 1 + Math.floor(r() * (N - 3)), z = 2 + Math.floor(r() * (N - 3)); open(x, z, r() < 0.5 ? 'e' : 's'); } // qualche anello: più strade, più agguati
-  open(5, 1, 'n'); // l'ultima cella (la piastra) si raggiunge solo dalla fenditura
+  for (let i = 0; i < 24; i++) { const x = 1 + Math.floor(r() * (N - 3)), z = 4 + Math.floor(r() * (N - 6)); open(x, z, r() < 0.5 ? 'e' : 's'); }
+  for (let z = 1; z <= 3; z++) for (let x = EX - 2; x <= EX + 2; x++) { if (x < EX + 2) open(x, z, 'e'); if (z < 3) open(x, z, 's'); } // radura del Copista // qualche anello: più strade, più agguati
+  open(EX, 1, 'n'); // l'ultima cella (la piastra) si raggiunge solo dalla fenditura
   // muri: un solo InstancedMesh (pochi draw call), collisioni registrate solo quando la zona è attiva
   const segs = [];
   for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const c = E[z * N + x];
@@ -1133,34 +1136,34 @@ function buildMaze() {
   const mat = world.wallMat; const im = new THREE.InstancedMesh(geo, mat, segs.length); const m4 = new THREE.Matrix4(); const H = 1.9;
   segs.forEach(([ax, az, bx, bz], i) => { const w = Math.abs(bx - ax) + 0.5, d = Math.abs(bz - az) + 0.5, h = H + ((i * 37) % 7) * 0.08; m4.makeScale(w, h, d); m4.setPosition((ax + bx) / 2, 0, (az + bz) / 2); im.setMatrixAt(i, m4);
     MZ.walls.push({ minX: Math.min(ax, bx) - 0.25, maxX: Math.max(ax, bx) + 0.25, minZ: Math.min(az, bz) - 0.25, maxZ: Math.max(az, bz) + 0.25 }); });
-  im.frustumCulled = false; MZ.group.add(im);
+  im.frustumCulled = false; MZ.group.add(im); MZ.wallIM = im; MZ.wallFinal = segs.map((_, i) => { const m = new THREE.Matrix4(); im.getMatrixAt(i, m); return m; });
   // creste di carta strappata sopra i muri (dettaglio, istanze)
   const cg = new THREE.ConeGeometry(0.18, 0.5, 3); cg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(cg.attributes.position.count * 3).fill(0.2), 3));
   const crest = new THREE.InstancedMesh(cg, inkMasterLike(0xefe5cf), segs.length * 3); let ci = 0;
   segs.forEach(([ax, az, bx, bz], i) => { for (let k = 0; k < 3; k++) { const t = (k + 0.5) / 3; m4.makeRotationY(r() * 3); m4.setPosition(ax + (bx - ax) * t, H + 0.2 + ((i * 37) % 7) * 0.08, az + (bz - az) * t); crest.setMatrixAt(ci++, m4); } });
-  crest.frustumCulled = false; MZ.group.add(crest);
+  crest.frustumCulled = false; MZ.group.add(crest); MZ.crest = crest;
   // scritte sul pavimento e frecce d'inchiostro che indicano il filo
   for (let i = 0; i < 18; i++) { const [x, z] = mzCell(Math.floor(r() * N), Math.floor(r() * N)); const t = W.sketchFloor ? null : null; const sp = new THREE.Mesh(new THREE.CircleGeometry(0.6 + r() * 1.2, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a120c, transparent: true, opacity: 0.35, depthWrite: false })); sp.position.set(x + (r() - 0.5) * 4, 0.012, z + (r() - 0.5) * 4); MZ.group.add(sp); }
   // il filo: cavo che corre dalla piastra finale verso la pressa (si accende alla fine)
-  const [px, pz] = mzCell(5, 0);
+  const [px, pz] = mzCell(MZ.EX, 0); MZ.wallSegs = segs;
   MZ.wire = W.makeWire([[px, pz + 1.2], [px, pz - 2.6], [px + 30, pz - 2.6]]); MZ.group.add(MZ.wire);
   // fenditura d'inchiostro davanti alla piastra + ponte da scrivere
-  const cz = z0 + C; MZ.chasm = { minX: px - C / 2, maxX: px + C / 2, minZ: cz - 1.7, maxZ: cz + 1.7 };
-  const chm = new THREE.Mesh(new THREE.PlaneGeometry(C - 0.4, 3.4).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: { uTime: INK_UNIFORMS.uTime }, vertexShader: 'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+  const cz = z0 + C; MZ.chasm = { minX: px - C / 2, maxX: px + C / 2, minZ: cz - 1.3, maxZ: cz + 1.3 };
+  const chm = new THREE.Mesh(new THREE.PlaneGeometry(C - 0.4, 2.6).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: { uTime: INK_UNIFORMS.uTime }, vertexShader: 'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
     fragmentShader: 'uniform float uTime; varying vec2 vU; void main(){ float w=sin(vU.x*30.+uTime*2.)*.5+.5; float e=smoothstep(0.,.18,vU.y)*smoothstep(1.,.82,vU.y); vec3 c=mix(vec3(.02,.015,.012),vec3(.35,.06,.04),w*.25*(1.-e)+(1.-e)*.3); gl_FragColor=vec4(c,1.); }' }));
   chm.position.set(px, 0.015, cz); MZ.group.add(chm);
   MZ.bridgeEnt = addEnt('mzbridge', 'mzbridge', new THREE.Group(), px, cz); MZ.bridgeEnt.mesh.userData.height = 0.6; MZ.group.add(MZ.bridgeEnt.mesh);
-  for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(2.4, 0.14, 0.38), { color: 0xd8cbb0, ow: 0.02 }); pl.position.set(px, -3, cz - 1.6 + i * 0.4); pl.visible = false; MZ.group.add(pl); MZ.planks.push(pl); }
+  for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(2.4, 0.14, 0.38), { color: 0xd8cbb0, ow: 0.02 }); pl.position.set(px, -3, cz - 1.25 + i * 0.31); pl.visible = false; MZ.group.add(pl); MZ.planks.push(pl); }
   MZ.plate = addEnt('mzplate', 'mzplate', W.makePlate(1.6, 1.6), px, pz); MZ.group.add(MZ.plate.mesh);
-  for (let i = 0; i < 7; i++) { const s = inked(new THREE.BoxGeometry(2.2, 0.3, 0.7), { color: 0xcbbd9e, ow: 0.02 }); s.position.set(px + 2.8, -1, pz - 0.2 - i * 0.55); s.visible = false; MZ.group.add(s); MZ.steps.push(s); }
+  for (let i = 0; i < 7; i++) { const s = inked(new THREE.BoxGeometry(2.2, 0.3, 0.7), { color: 0xcbbd9e, ow: 0.02 }); s.position.set(px - 1.9 + i * 0.6, -1, pz - 1.2); s.scale.set(0.27, 1, 2.2); s.visible = false; MZ.group.add(s); MZ.steps.push(s); }
   // lampade sentinella (BUIO le spegne): vicino a una lampada accesa le macchie ti vedono da lontano
-  for (const [cx2, cz2] of [[2, 8], [8, 7], [3, 4], [7, 3], [1, 1], [9, 1], [5, 5]]) { const [x, z] = mzCell(cx2, cz2); const lm = W.makeLamp(); lm.position.set(x + 2.6, 0, z + 2.6); MZ.group.add(lm);
-    const e = addEnt('mzlamp' + MZ.lamps.length, 'mzlamp', lm, x + 2.6, z + 2.6); e.mesh.userData.height = 2.2; const L = { m: lm, x: x + 2.6, y: lm.userData.ly, z: z + 2.6, r: 6, col: [1.3, 0.55, 0.35], base: [1.3, 0.55, 0.35], ph: r() * 10, kind: 'lamp' }; e.light = L; storyLights.push(L); MZ.lamps.push(e); }
+  for (const [cx2, cz2] of [[3, 13], [13, 11], [4, 7], [11, 6], [1, 2], [15, 2], [7, 8], [8, 14], [2, 10]]) { const [x, z] = mzCell(cx2, cz2); const o = C * 0.3; const lm = W.makeLamp(); lm.position.set(x + o, 0, z + o); MZ.group.add(lm);
+    const e = addEnt('mzlamp' + MZ.lamps.length, 'mzlamp', lm, x + o, z + o); e.mesh.userData.height = 2.2; const L = { m: lm, x: x + o, y: lm.userData.ly, z: z + o, r: 6, col: [1.3, 0.55, 0.35], base: [1.3, 0.55, 0.35], ph: r() * 10, kind: 'lamp' }; e.light = L; storyLights.push(L); MZ.lamps.push(e); }
   // macchie del labirinto (risvegliate dalla vicinanza o dalla luce)
-  for (let i = 0; i < 26; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 2)) + 1; if (cz2 >= N - 2 && Math.abs(cx2 - 5) < 2) cz2 = 4; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; if (i % 4 === 0) { o.scribe = true; const q = W.makeDoc(); q.scale.setScalar(0.5); q.position.y = 0.2; o.mesh.add(q); } }
-  for (const [cx2, cz2] of [[0, 10], [10, 6], [0, 3], [10, 0]]) { const [x, z] = mzCell(cx2, cz2); spawnVial(x, z, true); }
+  for (let i = 0; i < 34; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 5)) + 4; if (cz2 >= N - 2 && Math.abs(cx2 - MZ.EX) < 3) cz2 = 6; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; o.x = x; o.z = z; o.mesh.position.set(x, 0.3, z); if (i % 4 === 0) { o.scribe = true; const q = W.makeDoc(); q.scale.setScalar(0.5); q.position.y = 0.2; o.mesh.add(q); } }
+  for (const [cx2, cz2] of [[0, 15], [16, 9], [0, 5], [16, 0], [12, 4]]) { const [x, z] = mzCell(cx2, cz2); spawnVial(x, z, true); }
   // pagine della guida (Ilde) lungo il percorso
-  MZ.notes = [[5, 9, 'enter'], [3, 6, 'buio'], [5, 2, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 2, 0, z); MZ.group.add(n); return { x: x - 2, z, id }; }); buildMazeExtras(r); buildMazeRich();
+  MZ.notes = [[8, 15, 'enter'], [4, 11, 'buio'], [8, 4, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 1.4, 0, z); MZ.group.add(n); return { x: x - 1.4, z, id }; }); buildMazeExtras(r); buildMazeRich(); spawnCopista();
 }
 function inkMasterLike(color) { const m = world.wallMat.clone(); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) } }; return m; }
 function mazeActivate(on) { if (MZ.active === on) return; MZ.active = on; MZ.group.visible = on;
@@ -1170,20 +1173,20 @@ function mazeAggro(m) { const d = Math.hypot(P.x - m.x, P.z - m.z); let R = m.ag
   if (P.hidden) R = Math.min(R, 3); if (m.hunting && d < R * 1.6) return true; m.hunting = d < R; return m.hunting; }
 function mazeWander(m, dt) { m.wt = (m.wt || 0) - dt; if (m.wt <= 0) { m.wt = 1 + Math.random() * 2; const a = Math.random() * 6.28; m.wdx = Math.sin(a); m.wdz = Math.cos(a); if (Math.hypot(m.x - m.home.x, m.z - m.home.z) > 5) { m.wdx = m.home.x - m.x; m.wdz = m.home.z - m.z; const l = Math.hypot(m.wdx, m.wdz); m.wdx /= l; m.wdz /= l; } }
   m.x += m.wdx * 0.9 * dt; m.z += m.wdz * 0.9 * dt; collide(m, m.r, false); m.mesh.position.set(m.x, 0.3 + Math.abs(Math.sin(now * 3 + m.x)) * 0.08, m.z); m.mesh.rotation.y = Math.atan2(m.wdx, m.wdz); }
-function mazeHintPulse() { if (MZ.hintT > 0) return; MZ.hintT = 8; MZ.entryOpen = Math.max(MZ.entryOpen, 0.001); if (S.room === 'conduct') { toast('L\'IMPULSO SI PERDE SOTTO UNA PAGINA'); say([['ilde', 'Il filo non arriva al cancello. Scende sotto quella pagina piegata, nel labirinto.'], ['ilde', 'Segui il filo fino alla sua piastra. Poi l\'impulso avrà una strada.']]); journal('Il filo della pressa scende nel labirinto: va riacceso dall\'altra parte.'); } }
+function mazeHintPulse() { if (MZ.hintT > 0) return; MZ.hintT = 8; MZ.entryOpen = Math.max(MZ.entryOpen, 0.001); if (S.room === 'conduct') { toast('LA PRESSA SFONDA LA PAGINA'); say([['ilde', 'Il filo non arriva al cancello. La pressa ha sfondato il foglio: le pagine cadute girano in un vortice.'], ['ilde', 'Segui il filo fino alla sua piastra. Poi l\'impulso avrà una strada.']]); journal('Il filo della pressa scende nel labirinto: va riacceso dall\'altra parte.'); } }
 // pagina piegata nella stanza della pressa: si spiega e diventa l'ingresso
-const entryPage = new THREE.Group(); entryPage.position.set(8.6, 0.02, -50.5); scene.add(entryPage);
+const entryPage = new THREE.Group(); entryPage.position.set(-8.8, 0.02, -52.2); scene.add(entryPage);
 const entryHole = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0b0806 })); entryHole.scale.setScalar(0.01); entryPage.add(entryHole);
-const entryLeaf = new THREE.Group(); entryPage.add(entryLeaf); const leafM = inked(new THREE.BoxGeometry(2.8, 0.04, 2.8), { color: 0xefe5cf, ow: 0.02 }); leafM.position.x = 1.4; entryLeaf.position.x = -1.4; entryLeaf.add(leafM);
+const entryLeaf = new THREE.Group(); entryLeaf.visible = false; const entryWhirl = new THREE.Group(); entryPage.add(entryWhirl); for (let i = 0; i < 18; i++) { const pg = inked(new THREE.PlaneGeometry(0.8, 1.1), { color: 0xfaf3e2 }); pg.material.side = THREE.DoubleSide; pg.userData = { a: i / 18 * Math.PI * 2, r: 0.5 + (i % 6) * 0.3, h: (i % 5) * 0.35 }; entryWhirl.add(pg); } entryWhirl.scale.setScalar(0.01); entryPage.add(entryLeaf); const leafM = inked(new THREE.BoxGeometry(2.8, 0.04, 2.8), { color: 0xefe5cf, ow: 0.02 }); leafM.position.x = 1.4; entryLeaf.position.x = -1.4; entryLeaf.add(leafM);
 function zoneTransition(kind, text, mid) { // anima e nasconde il caricamento: pagina che si volta, scala che sale, ponte che si costruisce
   if (S.transit) return; S.transit = true; S.lock = true; const el = $('pageTurn'); $('ptText').textContent = text; el.className = kind; el.classList.remove('hidden'); sfx.play('page');
   setTimeout(() => { try { mid(); } catch (e) { console.error(e); } }, 700);
   setTimeout(() => { el.className = 'hidden'; S.lock = false; S.transit = false; }, 2250); }
-function enterMaze() { zoneTransition('turn', 'La pagina si apre verso il basso. Sotto c\'è un labirinto scritto a mano.', () => { buildMaze(); mazeActivate(true); const [x, z] = mzCell(5, MZ.N - 1); P.x = x; P.z = z + 2; P.face = Math.PI; camera.position.set(P.x, 15, P.z + 12); enterRoom(MZ.R); hint('');
-  if (!MZ.guide.has('in')) { MZ.guide.add('in'); setTimeout(() => say([['ilde', 'Sono Ilde. Ho scritto io queste pareti, tanto tempo fa. Ti guido io.'], ['ilde', 'Le macchie dormono finché non ti sentono. Vicino alle lampade accese ti vedono da lontano.'], ['ilde', 'In fondo, a nord, c\'è la piastra del filo. Scrivici CONDUTTIVO.']]), 900); } }); }
+function enterMaze() { zoneTransition('turn', 'Il vortice ti trascina giù, fra le pagine cadute.', () => { buildMaze(); mazeActivate(true); startMazeFilm(); const [x, z] = mzCell(MZ.EX, MZ.N - 1); P.x = x; P.z = z + 2; P.face = Math.PI; camera.position.set(P.x, 15, P.z + 12); enterRoom(MZ.R); hint('');
+  if (!MZ.guide.has('in')) { MZ.guide.add('in'); MZ.afterFilm = () => say([['ilde', 'Sono Ilde. Ho scritto io queste pareti, tanto tempo fa. Ti guido io.'], ['ilde', 'Le macchie dormono finché non ti sentono. Vicino alle lampade accese ti vedono da lontano.'], ['ilde', 'In fondo, a nord, c\'è la piastra del filo. Scrivici CONDUTTIVO.']]); } }); }
 function exitMaze() { zoneTransition('rise', 'La scala si scrive gradino dopo gradino e ti riporta alla pressa.', () => { mazeActivate(false); P.x = 0; P.z = -62.5; P.face = Math.PI; camera.position.set(0, 15, -50); enterRoom(W.ROOMS[2]); openGate('r2'); pulseWire(wireA); pulseWire(wireB); toast('IL CANCELLO SI APRE'); journal('Hai riacceso il filo nel labirinto: l\'impulso ora arriva al cancello.'); }); }
 function mazeInteractables(L) {
-  if (S.room === 'conduct' && MZ.entryOpen >= 1 && !PROG.mazeDone) L.push({ x: 8.6, z: -50.5, r: 2.2, label: 'scendi', fn: enterMaze });
+  if (S.room === 'conduct' && MZ.entryOpen >= 1 && !PROG.mazeDone) L.push({ x: -8.8, z: -52.2, r: 2.2, label: 'tuffati', fn: enterMaze });
   if (S.room !== 'maze') return;
   for (const n of MZ.notes) if (!MZ.guide.has(n.id)) L.push({ x: n.x, z: n.z, r: 1.8, label: 'leggi', fn: () => readGuide(n.id) });
   if (MZ.stairsT >= 1) { const s = MZ.steps[0]; L.push({ x: s.position.x, z: s.position.z - 1, r: 2.4, label: 'sali', fn: exitMaze }); }
@@ -1193,11 +1196,13 @@ function readGuide(id) { MZ.guide.add(id); ink.interact(); sfx.play('page');
   if (id === 'buio') { S.discovered.add('light.dark'); say([['ilde', 'Le lampade sentinella sono vanitose: se scrivi BUIO, si spengono per un po\'.'], ['ilde', 'Al buio le macchie non ti vedono. Riscrivi la lampada come fai con gli oggetti.']]); journal('Hai trovato la parola BUIO.'); }
   if (id === 'ponte') { S.discovered.add('shape.bridge'); say([['ilde', 'Davanti alla piastra la pagina è strappata: un vuoto d\'inchiostro.'], ['ilde', 'Ma un vuoto, per il libro, è solo un ponte non ancora scritto. Scrivi PONTE.']]); journal('Hai trovato la parola PONTE.'); } }
 function mazeUpdate(dt) {
+  entryWhirl.scale.setScalar(Math.max(0.01, MZ.entryOpen || 0)); if (entryWhirl.scale.x > 0.05) entryWhirl.children.forEach((pg) => { const u = pg.userData; const a = u.a + now * (1.6 - u.r * 0.5); pg.position.set(Math.cos(a) * u.r, 0.15 + u.h + Math.sin(now * 3 + u.a) * 0.1, Math.sin(a) * u.r); pg.rotation.set(0.6, -a, 0.3); });
+  mazeFilmUpdate(dt);
   if (ERASE.cd > 0) { ERASE.cd -= dt; if (ERASE.cd <= 0) renderSkills(); }
   if (input.pressed('erase') && S.phase === 'play' && !paused && !S.lock) useEraser();
   if (MZ.hintT > 0) MZ.hintT -= dt;
-  if (MZ.entryOpen > 0 && MZ.entryOpen < 1) { MZ.entryOpen = Math.min(1, MZ.entryOpen + dt * 0.5); const k = MZ.entryOpen; entryLeaf.rotation.z = -Math.PI * (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2); entryHole.scale.setScalar(Math.max(0.01, k));
-    if (frame % 3 === 0) particles.emit(8.6 + rnd(-1, 1), 0.3, -50.5 + rnd(-1, 1), 0, 1, 0, 1, 0.1, 0.05, 0.04, 0.03, 3); }
+  if (MZ.entryOpen > 0 && MZ.entryOpen < 1) { MZ.entryOpen = Math.min(1, MZ.entryOpen + dt * 0.5); const k = MZ.entryOpen; entryWhirl.scale.setScalar(Math.max(0.01, k)); S.shake = Math.max(S.shake, 0.25 * (1 - k)); entryLeaf.rotation.z = -Math.PI * (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2); entryHole.scale.setScalar(Math.max(0.01, k));
+    if (frame % 3 === 0) particles.emit(-8.8 + rnd(-1, 1), 0.3, -52.2 + rnd(-1, 1), 0, 1, 0, 1, 0.1, 0.05, 0.04, 0.03, 3); }
   if (S.room === 'conduct' && !PROG.mazeDone && grammar.has('plate', 'element.conductive') && MZ.entryOpen === 0) mazeHintPulse();
   entryPage.visible = !PROG.mazeDone;
   if (!MZ.built) return;
@@ -1318,13 +1323,13 @@ function endingPage() { const el = $('endPage'); el.classList.remove('hidden'); 
 function buildMazeExtras(r) {
   const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
   const books = new THREE.InstancedMesh(bg, inkMasterLike(0x8a5a3a), 220); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); const col = new THREE.Color();
-  for (let i = 0; i < 220; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const stack = i % 5; e.set(0, r() * 3, 0); q.setFromEuler(e); m4.compose(v.set(x + (r() < 0.5 ? -1 : 1) * (3.2 - r() * 0.4), stack * 0.18, z + (r() - 0.5) * 6), q, sc.set(0.6 + r() * 0.3, 0.17, 0.8 + r() * 0.2)); books.setMatrixAt(i, m4); books.setColorAt && books.setColorAt(i, col.setHSL(0.03 + r() * 0.08, 0.5, 0.3 + r() * 0.25)); }
+  for (let i = 0; i < 220; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const stack = i % 5; e.set(0, r() * 3, 0); q.setFromEuler(e); m4.compose(v.set(x + (r() < 0.5 ? -1 : 1) * (MZ.C * 0.38), stack * 0.18, z + (r() - 0.5) * MZ.C * 0.7), q, sc.set(0.6 + r() * 0.3, 0.17, 0.8 + r() * 0.2)); books.setMatrixAt(i, m4); books.setColorAt && books.setColorAt(i, col.setHSL(0.03 + r() * 0.08, 0.5, 0.3 + r() * 0.25)); }
   books.frustumCulled = false; MZ.group.add(books);
-  for (let i = 0; i < 30; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const p = inked(new THREE.PlaneGeometry(0.5, 0.65), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set(x + (r() - 0.5) * 6, 0.9 + r() * 0.6, z - 3.7); p.rotation.z = (r() - 0.5) * 0.5; MZ.group.add(p); }
-  const [sx, sz] = mzCell(9, 4); MZ.stack = addEnt('mzstack', 'mzstack', inked(new THREE.BoxGeometry(2.6, 2.4, 1.6), { color: 0x6b4a2a, shift: 0x8a2416, y0: 0, y1: 2.4 }), sx, sz - 2.2); MZ.stack.mesh.position.y = 1.2; MZ.stack.mesh.userData.height = 2.4; MZ.group.add(MZ.stack.mesh);
-  MZ.stackBox = { minX: sx - 1.3, maxX: sx + 1.3, minZ: sz - 3, maxZ: sz - 1.4 }; MZ.walls.push(MZ.stackBox);
-  MZ.notes.push({ x: sx - 2.5, z: sz + 1.5, id: 'pesante' }); { const n = W.makeDoc(); n.position.set(sx - 2.5, 0, sz + 1.5); MZ.group.add(n); }
-  const [cx, cz] = mzCell(10, 10); MZ.curseAt = addCursed('mz', cx, cz); MZ.group.attach(MZ.curseAt.m);
+  for (let i = 0; i < 30; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const p = inked(new THREE.PlaneGeometry(0.5, 0.65), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set(x + (r() - 0.5) * MZ.C * 0.7, 0.9 + r() * 0.6, z - MZ.C * 0.45); p.rotation.z = (r() - 0.5) * 0.5; MZ.group.add(p); }
+  const [sx, sz0] = mzCell(14, 7); const sz = sz0 + 2.2; MZ.stack = addEnt('mzstack', 'mzstack', inked(new THREE.BoxGeometry(MZ.C - 0.3, 2.4, 1.2), { color: 0x6b4a2a, shift: 0x8a2416, y0: 0, y1: 2.4 }), sx, sz - 2.2); MZ.stack.mesh.position.y = 1.2; MZ.stack.mesh.userData.height = 2.4; MZ.group.add(MZ.stack.mesh);
+  MZ.stackBox = { minX: sx - MZ.C / 2, maxX: sx + MZ.C / 2, minZ: sz - 2.8, maxZ: sz - 1.6 }; MZ.walls.push(MZ.stackBox);
+  MZ.notes.push({ x: sx - 1.5, z: sz + 0.6, id: 'pesante' }); { const n = W.makeDoc(); n.position.set(sx - 1.5, 0, sz + 0.6); MZ.group.add(n); }
+  const [cx, cz] = mzCell(16, 16); MZ.curseAt = addCursed('mz', cx, cz); MZ.group.attach(MZ.curseAt.m);
 }
 function v16Interactables(L) {
   for (const [id, c] of Object.entries(CURSED)) if (!c.taken && (id !== 'mz' || MZ.active)) L.push({ x: c.x, z: c.z, r: 1.8, label: 'leggi', fn: () => say([['narr', '✠ Una pagina maledetta. Le righe sono scritte al contrario e scottano.'], ['narr', 'Se la prendi, il tuo pennino morderà di più. Ma il libro se ne accorgerà, e ti renderà il capitolo più duro.']], { choices: [['Prendila', () => takeCurse(id)], ['Lasciala', () => {}]] }) });
@@ -1347,7 +1352,7 @@ const INTRO_SWAY = [];
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
-  opUpdate(dt); curseUpdate(dt); custodePhases(dt); zoneUpdate(); mazeRichUpdate(dt);
+  opUpdate(dt); curseUpdate(dt); custodePhases(dt); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
   if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
   if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
   if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
@@ -1391,9 +1396,9 @@ const MZ_LORE = {
 };
 function mazePage(id, x, z) { if (MZS.found.has(id)) return; MZS.found.add(id); sfx.play('seal'); S.flash = 0.3; gainDrops(5); toast('✦ PAGINA DEL LABIRINTO ' + MZS.found.size + '/4'); say(MZ_LORE[id].map((t) => ['narr', t])); journal('Pagina del labirinto: ' + MZ_LORE[id].join(' ')); particles.burst(x, 1, z, 30, 4, [1, 0.85, 0.5], 0.2); Tele.log('maze_page', { id }); }
 function buildMazeRich() {
-  const [rx, rz] = mzCell(1, 7); const rel = inked(new THREE.BoxGeometry(1.2, 1.4, 1.2), { color: 0xd8cbb0, shift: 0x8a2416, y0: 0, y1: 1.4 }); rel.position.y = 0.7;
+  const [rx, rz] = mzCell(1, 12); const rel = inked(new THREE.BoxGeometry(1.2, 1.4, 1.2), { color: 0xd8cbb0, shift: 0x8a2416, y0: 0, y1: 1.4 }); rel.position.y = 0.7;
   MZS.reliq = addEnt('mzreliq', 'mzreliq', rel, rx, rz); MZS.reliq.mesh.userData.height = 1.6; MZ.group.add(MZS.reliq.mesh); MZ.walls.push(MZS.reliqBox = { minX: rx - 0.6, maxX: rx + 0.6, minZ: rz - 0.6, maxZ: rz + 0.6 });
-  const [cx, cz] = mzCell(8, 9); const cr = inked(new THREE.OctahedronGeometry(0.8, 0), { color: 0x2a4a6a, shift: 0x3fc1ff, y0: 0, y1: 2 }); cr.position.y = 1.2;
+  const [cx, cz] = mzCell(12, 13); const cr = inked(new THREE.OctahedronGeometry(0.8, 0), { color: 0x2a4a6a, shift: 0x3fc1ff, y0: 0, y1: 2 }); cr.position.y = 1.2;
   MZS.crystal = addEnt('mzcrystal', 'mzcrystal', cr, cx, cz); MZS.crystal.mesh.userData.height = 2; MZ.group.add(MZS.crystal.mesh); MZ.walls.push(MZS.crystalBox = { minX: cx - 0.7, maxX: cx + 0.7, minZ: cz - 0.7, maxZ: cz + 0.7 });
   const cpad = inked(new THREE.CylinderGeometry(1.1, 1.3, 0.25, 8), { color: 0x3a2a20, ow: 0.02 }); cpad.position.set(cx, 0.12, cz); MZ.group.add(cpad);
   // scritta nel buio fra due lampade sentinella
@@ -1402,7 +1407,7 @@ function buildMazeRich() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; MZS.darkText = new THREE.Mesh(new THREE.PlaneGeometry(8, 2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
   MZS.darkText.position.set(MZS.darkAt.x, 0.03, MZS.darkAt.z); MZ.group.add(MZS.darkText);
   // dettagli: tubi d'inchiostro che gocciolano, fogli che volano
-  for (let i = 0; i < 12; i++) { const [x, z] = mzCell((i * 7) % MZ.N, (i * 5 + 2) % MZ.N); const pipe = inked(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 8), { color: 0x2b221b, ow: 0.015 }); pipe.position.set(x + 3.3, 1.3, z + 3.3); MZ.group.add(pipe); MZS.items.push({ x: x + 3.3, z: z + 3.3, ph: i }); }
+  for (let i = 0; i < 12; i++) { const [x, z] = mzCell((i * 7) % MZ.N, (i * 5 + 2) % MZ.N); const o = MZ.C * 0.42; const pipe = inked(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 8), { color: 0x2b221b, ow: 0.015 }); pipe.position.set(x + o, 1.3, z + o); MZ.group.add(pipe); MZS.items.push({ x: x + o, z: z + o, ph: i }); }
 }
 function mazeRichUpdate(dt) { if (!MZ.active || !MZS.reliq) return;
   if (!MZS.reliq.broken && grammar.has('mzreliq', 'state.fragile') && P.st === 'heavy' && P.hitDone && dist(P, MZS.reliq) < 2.6) { MZS.reliq.broken = true; MZS.reliq.mesh.visible = false; world.walls = world.walls.filter((w) => w !== MZS.reliqBox); sfx.play('break'); S.shake = 0.6; particles.burst(MZS.reliq.x, 0.8, MZS.reliq.z, 30, 5, [0.85, 0.78, 0.62], 0.2); mazePage('reliq', MZS.reliq.x, MZS.reliq.z); }
@@ -1413,6 +1418,36 @@ function mazeRichUpdate(dt) { if (!MZ.active || !MZS.reliq) return;
   if (MZ.stack && MZ.stack.broken && !MZS.found.has('stack')) mazePage('stack', MZ.stack.x, MZ.stack.z);
   if (frame % 10 === 0) for (const it of MZS.items) if (Math.hypot(it.x - P.x, it.z - P.z) < 14) { particles.emit(it.x, 2.4, it.z, 0, -2.5, 0, 1, 0.08, 0.04, 0.03, 0.03, 3); if (Math.random() < 0.04) traces.add(it.x + rnd(-0.3, 0.3), it.z + rnd(-0.3, 0.3), 0.5, 0, now); }
 }
+
+
+// ================= v1.8 · film in-engine: le pagine si compongono nel labirinto · mini-boss Il Copista =================
+const FILM_T = FAST ? 1.6 : 8;
+function startMazeFilm() { MZ.film = { t: 0, rnd: MZ.wallFinal.map(() => [Math.random(), Math.random(), Math.random(), Math.random()]) }; MZ.crest.visible = false; S.lock = true; dlg.skip && dlg.skip(); document.body.classList.add('filming'); opSub('Le pagine cadute si ricordano di essere state un labirinto.'); sfx.play('page'); }
+const _fm = { p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Vector3(), p0: new THREE.Vector3(), q0: new THREE.Quaternion(), s0: new THREE.Vector3(), e: new THREE.Euler(), m: new THREE.Matrix4() };
+function mazeFilmUpdate(dt) { const F = MZ.film; if (!F) return; F.t += dt; S.lock = true; const T = F.t / FILM_T * 8; const R = MZ.R, im = MZ.wallIM;
+  if (!F.s2 && T > 3) { F.s2 = 1; opSub('Ogni foglio si piega, si squadra, diventa un muro.'); sfx.play('heavy'); }
+  if (!F.s3 && T > 5.6) { F.s3 = 1; opSub('E il labirinto si richiude intorno a te.'); sfx.play('seal'); S.shake = 0.6; }
+  MZ.wallFinal.forEach((fm, i) => { const r = F.rnd[i]; fm.decompose(_fm.p, _fm.q, _fm.s); const d = Math.hypot(_fm.p.x - R.cx, _fm.p.z - R.cz) / 62; const k = clamp((T - 0.4 - d * 4.2 - r[3] * 0.6) / 1.3, 0, 1), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    _fm.p0.set(_fm.p.x + (r[0] - 0.5) * 50, 18 + r[1] * 30, _fm.p.z + (r[2] - 0.5) * 50); _fm.e.set(r[0] * 6, r[1] * 6, r[2] * 6); _fm.q0.setFromEuler(_fm.e); _fm.s0.set(1.3, 0.04, 1.7);
+    _fm.p0.lerp(_fm.p, e); _fm.q0.slerp(_fm.q, e); const sq = clamp(e * 1.4 - 0.4, 0, 1); _fm.s0.set(lerp(1.3, _fm.s.x, sq), lerp(0.04, _fm.s.y, sq), lerp(1.7, _fm.s.z, sq));
+    _fm.m.compose(_fm.p0, _fm.q0, _fm.s0); im.setMatrixAt(i, _fm.m); });
+  im.instanceMatrix.needsUpdate = true;
+  if (frame % 2 === 0) particles.emit(R.cx + rnd(-40, 40), rnd(10, 30), R.cz + rnd(-40, 40), 0, -3, 0, 2, 0.3, 0.94, 0.9, 0.82, 0);
+  if ((F.t > 1 && (input.pressed('attack') || input.pressed('interact'))) || F.t >= FILM_T) endMazeFilm(); }
+function mazeFilmCamera(rdt) { const F = MZ.film, R = MZ.R; const T = F.t / FILM_T * 8; const a = 0.5 + T * 0.18; const hi = tmpV.set(R.cx + Math.sin(a) * 40, 52 - T * 2, R.cz + Math.cos(a) * 40);
+  const b = clamp((T - 6.4) / 1.6, 0, 1); camera.position.copy(hi).lerp(camPos, b * b); camera.lookAt(lerp(R.cx, camLook.x, b), 0, lerp(R.cz, camLook.z, b)); }
+function endMazeFilm() { const im = MZ.wallIM; MZ.wallFinal.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true; MZ.crest.visible = true; MZ.film = null; S.lock = false; document.body.classList.remove('filming'); $('opSub').style.opacity = 0; camera.position.copy(camPos); if (MZ.afterFilm) { const f = MZ.afterFilm; MZ.afterFilm = null; setTimeout(f, 300); } }
+// Il Copista: guardiano della radura davanti al vuoto
+function spawnCopista() { const [x, z] = mzCell(MZ.EX, 2); const o = spawnMite(x, z, true); o.room = 'maze'; o.boss = true; o.hp = o.maxHp = 40; o.r = 0.95; o.aggroR = 8; o.home = { x, z }; o.mesh.scale.setScalar(3.1); o.summonT = 5; o.writeT = 8;
+  const q = W.makeDoc(); q.scale.setScalar(0.6); q.position.set(0, 0.3, -0.2); o.mesh.add(q); for (const sd of [-1, 1]) { const h = inked(new THREE.ConeGeometry(0.06, 0.4, 5), { color: 0xe8dcc0, outline: false }); h.position.set(sd * 0.15, 0.35, 0.1); h.rotation.z = sd * -0.5; o.mesh.add(h); }
+  MZ.boss = o; const bar = document.createElement('div'); bar.id = 'miniBar'; bar.innerHTML = '<div class="bname">IL COPISTA</div><div class="hbar"><i></i></div>'; bar.style.display = 'none'; document.body.appendChild(bar); }
+function copistaAct(m, dt) { if (!m.engaged) { m.engaged = true; say([['narr', 'Il Copista alza la testa dal suo registro. Ricopia tutto: anche te.']]); sfx.tension(true); }
+  m.summonT -= dt; m.writeT -= dt; if (m.hitT > 0) m.hitT -= dt;
+  if (m.summonT <= 0) { m.summonT = m.hp < m.maxHp / 2 ? 5 : 7.5; for (let i = 0; i < (m.hp < m.maxHp / 2 ? 3 : 2); i++) { const a = Math.random() * 6.28; const c = spawnMite(m.x + Math.sin(a) * 2, m.z + Math.cos(a) * 2, false); c.room = 'maze'; c.aggroR = 30; c.home = { x: c.x, z: c.z }; } particles.burst(m.x, 1, m.z, 20, 4); sfx.play('voice', 0.2); toastSmall('Il Copista ricopia le sue macchie'); }
+  if (m.writeT <= 0) { m.writeT = 11; if (!P.curse) curseStart('Il Copista'); }
+  return false; }
+function copistaUpdate() { const m = MZ.boss; const bar = $('miniBar'); if (!m || !bar) return; const show = m.alive && m.engaged && S.room === 'maze'; bar.style.display = show ? 'block' : 'none'; if (show) bar.querySelector('i').style.width = (Math.max(0, m.hp) / m.maxHp * 100) + '%';
+  if (!m.alive && !m.dead) { m.dead = true; sfx.play('break'); S.shake = 1; S.flash = 0.4; toast('IL COPISTA È CANCELLATO'); gainDrops(15); spawnVial(m.x, m.z, true); journal('Hai sconfitto il Copista: il vuoto davanti alla piastra si può scrivere.'); sfx.tension(false); hint('Ora scrivi PONTE sul vuoto'); } }
 
 window.PAL = { MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },

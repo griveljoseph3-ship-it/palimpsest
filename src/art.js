@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=1.3.0';
+import * as THREE from '../vendor/three.module.js?v=1.3.1';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
@@ -29,7 +29,7 @@ float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(
 float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vnoise(p);p*=2.03;a*=.5;}return s;}`;
 
-export const INK_UNIFORMS = { uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 },
+export const INK_UNIFORMS = { uPR: { value: 1 }, uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 },
   uPL: { value: Array.from({ length: 8 }, () => new THREE.Vector4(0, -99, 0, 1)) }, uPC: { value: Array.from({ length: 8 }, () => new THREE.Vector3()) } };
 
 export function inkMaster(opts = {}) {
@@ -46,7 +46,7 @@ export function inkMaster(opts = {}) {
     vertexColors: true,
     vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
       void main(){ vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(modelMatrix)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
-    fragmentShader: `uniform vec4 uPL[8]; uniform vec3 uPC[8]; uniform float uHit; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
+    fragmentShader: `uniform vec4 uPL[8]; uniform vec3 uPC[8]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
@@ -55,8 +55,8 @@ export function inkMaster(opts = {}) {
         vec3 base=mix(uColor, uColor*paper*1.25, TextureBlend);
         float wob=vnoise(vW.xz*2.+uTime*.15)*.12;
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
-        vec2 sp=gl_FragCoord.xy; float hatch=step(.5,fract((sp.x+sp.y)*.16+vnoise(sp*.02)*1.5));
-        float hatch2=step(.5,fract((sp.x-sp.y)*.16));
+        vec2 sp=gl_FragCoord.xy/uPR; float hv=(sp.x+sp.y)*.16+vnoise(sp*.02)*1.5; float hw=fwidth(hv)*.75+.02; float hatch=smoothstep(.5-hw,.5+hw,fract(hv))*smoothstep(1.,1.-hw,fract(hv));
+        float hv2=(sp.x-sp.y)*.16; float hatch2=smoothstep(.5-hw,.5+hw,fract(hv2))*smoothstep(1.,1.-hw,fract(hv2));
         float dark=1.-tone; float hm=mix(1.,.7,hatch*smoothstep(.35,.5,dark))*mix(1.,.78,hatch2*smoothstep(.7,.8,dark));
         float ao=mix(.68,1.,smoothstep(0.,.9,vW.y-uH.x+.05));
         vec3 shadowC=base*vec3(.33,.33,.43); vec3 litC=base*vec3(1.04,1.,.92); vec3 col=mix(shadowC,litC,tone)*hm*ao;
@@ -159,8 +159,8 @@ export class Particles {
 
 // Post-processing: bloom morbido, vignetta, grana di carta, sanguinamento d'inchiostro ai bordi.
 export class Post {
-  constructor(renderer) {
-    this.r = renderer; this.rt = new THREE.WebGLRenderTarget(4, 4, { samples: 0, type: THREE.HalfFloatType }); this.rtB = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }); this.rtC = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
+  constructor(renderer, samples = 4) {
+    this.r = renderer; this.bloom = true; this.rt = new THREE.WebGLRenderTarget(4, 4, { samples: renderer.capabilities.isWebGL2 ? samples : 0, type: THREE.HalfFloatType }); this.rtB = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }); this.rtC = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
     this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2)); this.scene = new THREE.Scene(); this.scene.add(quad); this.quad = quad;
     const vs = `varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`;
     this.blur = new THREE.ShaderMaterial({ uniforms: { t: { value: null }, dir: { value: new THREE.Vector2() }, thr: { value: 0.8 } }, vertexShader: vs,
@@ -177,20 +177,21 @@ export class Post {
           // bordi della pagina che si inchiostrano durante la lettura
           if(focus>.01){ float edge=smoothstep(.36,.75,r+fbm(uv*6.+time*.1)*.2)*focus; col=mix(col,vec3(.05,.035,.03),edge*.8); }
           col=mix(col,vec3(lum*.9+.1),sbiadito*.5);
-          col+=(h21(uv*res+fract(time)*100.)-.5)*.045;
+          col+=(vnoise(uv*res*.35)-.5)*.018;
           col=mix(col,vec3(.98,.95,.88),flash);
           gl_FragColor=vec4(col,1.);
           #include <colorspace_fragment>
         }` });
     this.enabled = true;
   }
+  setSamples(n) { this.rt.dispose(); this.rt.samples = n; }
   setSize(w, h) { this.rt.setSize(w, h); this.rtB.setSize(w >> 2, h >> 2); this.rtC.setSize(w >> 2, h >> 2); this.comp.uniforms.res.value.set(w, h); }
   render(scene, camera) {
     const r = this.r; if (!this.enabled) { r.setRenderTarget(null); r.render(scene, camera); return; }
     r.setRenderTarget(this.rt); r.render(scene, camera);
     const bw = this.rtB.width, bh = this.rtB.height;
-    this.quad.material = this.blur; this.blur.uniforms.t.value = this.rt.texture; this.blur.uniforms.dir.value.set(1.5 / bw, 0); this.blur.uniforms.thr.value = 0.92; r.setRenderTarget(this.rtB); r.render(this.scene, this.cam);
-    this.blur.uniforms.t.value = this.rtB.texture; this.blur.uniforms.dir.value.set(0, 1.5 / bh); this.blur.uniforms.thr.value = 0; r.setRenderTarget(this.rtC); r.render(this.scene, this.cam);
+    if (this.bloom) { this.quad.material = this.blur; this.blur.uniforms.t.value = this.rt.texture; this.blur.uniforms.dir.value.set(1.5 / bw, 0); this.blur.uniforms.thr.value = 0.92; r.setRenderTarget(this.rtB); r.render(this.scene, this.cam);
+    this.blur.uniforms.t.value = this.rtB.texture; this.blur.uniforms.dir.value.set(0, 1.5 / bh); this.blur.uniforms.thr.value = 0; r.setRenderTarget(this.rtC); r.render(this.scene, this.cam); } else { r.setRenderTarget(this.rtC); r.clear(); }
     this.quad.material = this.comp; this.comp.uniforms.t.value = this.rt.texture; this.comp.uniforms.b.value = this.rtC.texture; r.setRenderTarget(null); r.render(this.scene, this.cam);
   }
 }

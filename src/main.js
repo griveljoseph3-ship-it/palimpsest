@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.3.0';
-import { EFFECTS } from './data.js?v=1.3.0';
-import { Grammar } from './resolver.js?v=1.3.0';
-import { Ink, INK } from './ink.js?v=1.3.0';
-import { Input } from './input.js?v=1.3.0';
-import { Sfx } from './audio.js?v=1.3.0';
-import { Tele } from './telemetry.js?v=1.3.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.3.0';
-import * as W from './world.js?v=1.3.0';
-import * as ST from './story.js?v=1.3.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.3.0';
+import * as THREE from '../vendor/three.module.js?v=1.3.1';
+import { EFFECTS } from './data.js?v=1.3.1';
+import { Grammar } from './resolver.js?v=1.3.1';
+import { Ink, INK } from './ink.js?v=1.3.1';
+import { Input } from './input.js?v=1.3.1';
+import { Sfx } from './audio.js?v=1.3.1';
+import { Tele } from './telemetry.js?v=1.3.1';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.3.1';
+import * as W from './world.js?v=1.3.1';
+import * as ST from './story.js?v=1.3.1';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.3.1';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -25,14 +25,17 @@ const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.info.autoReset = false;
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-let pr = opts.q === 'low' ? 0.9 : opts.q === 'high' ? Math.min(devicePixelRatio, 2) : Math.min(devicePixelRatio, isTouch ? 1.25 : 1.5);
+if (!['alta', 'media'].includes(opts.q)) opts.q = 'alta'; // default: Alta (iPad Pro regge DPR 2 + MSAA)
+const QL = opts.q === 'alta' ? { pr: Math.min(devicePixelRatio, 2), floor: Math.min(devicePixelRatio, 1.5), samples: 4 } : { pr: Math.min(devicePixelRatio, 1.5), floor: Math.min(devicePixelRatio, 1.0), samples: 2 };
+if (navigator.webdriver && !Q.has('msaa')) QL.samples = 0; // test automatici su GPU software: niente MSAA
+let pr = QL.pr;
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a130e);
 const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 120);
-const post = new Post(renderer);
+const post = new Post(renderer, QL.samples);
 const paper = paperTexture(); INK_UNIFORMS.uPaper.value = paper;
 const world = W.buildWorld(scene, paper);
 const decor = W.buildDecor(scene); const storyLights = W.buildStory(scene); const traces = new Traces(scene); const particles = new Particles(scene);
-function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pr); renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w < h ? 46 : 34; camera.updateProjectionMatrix(); post.setSize(Math.floor(w * pr), Math.floor(h * pr)); particles.points.material.uniforms.uPR.value = pr; }
+function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pr); INK_UNIFORMS.uPR.value = pr; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w < h ? 46 : 34; camera.updateProjectionMatrix(); post.setSize(Math.floor(w * pr), Math.floor(h * pr)); particles.points.material.uniforms.uPR.value = pr; }
 addEventListener('resize', resize);
 
 // ---------- sistemi ----------
@@ -562,12 +565,13 @@ function buildBubbles() {
     b.className = 'bubble ' + (isR ? 'reset' : EFFECTS[w].slot) + (opts.panel ? ' side' : '') + (!isR && grammar.has(e.id, w) ? ' active' : '');
     b.textContent = isR ? 'ripristina' : EFFECTS[w].word; b.style.animationDelay = i * 0.06 + 's';
     if (opts.panel && !isR) b.textContent = { state: 'Stato · ', temperament: 'Temperamento · ', element: 'Elemento · ', weight: 'Peso · ' }[EFFECTS[w].slot] + EFFECTS[w].word;
-    b.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); ev.preventDefault(); if (!ink.canSelect()) return; if (panel.sel === i && panel.armed) confirmWord(); else { selectWord(i); panel.armed = true; } });
+    b.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); ev.preventDefault(); if (!ink.canSelect()) return; selectWord(i); confirmWord(); });
+    b.addEventListener('pointerenter', (ev) => { if (ev.pointerType === 'mouse' && ink.canSelect()) selectWord(i); }); b.addEventListener('focus', () => { if (ink.canSelect()) selectWord(i); });
     b.addEventListener('pointerenter', () => { if (input.mode === 'kb' && ink.canSelect() && panel.sel !== i) selectWord(i); });
     box.appendChild(b); panel.els.push(b); });
   $('words').classList.remove('hidden'); $('words').classList.toggle('sidePanel', !!opts.panel); $('wordTarget').textContent = grammar.get(e.id).def.name + (panel.cands.length > 1 ? '  ▲▼' : '');
   panel.sel = clamp(panel.sel, 0, panel.words.length - 1); selectWord(panel.sel, true);
-  $('wordHelp').textContent = input.mode === 'touch' ? 'tocca per vedere · tocca di nuovo per scrivere · ✎ per chiudere' : input.mode === 'pad' ? '◀ ▶ parola · ▲ ▼ bersaglio · A scrivi · B chiudi' : '◀ ▶ parola · ▲ ▼ bersaglio · Invio scrivi · Esc chiudi';
+  $('wordHelp').textContent = input.mode === 'touch' ? 'tocca una parola per scriverla · ✎ per chiudere' : input.mode === 'pad' ? '◀ ▶ parola · ▲ ▼ bersaglio · A scrivi · B chiudi' : '◀ ▶ parola · ▲ ▼ bersaglio · Invio scrivi · Esc chiudi';
 }
 const pv = { group: new THREE.Group(), lit: [] }; scene.add(pv.group);
 function selectWord(i, silent) {
@@ -780,7 +784,7 @@ const TUT = [
   { id: 'move', room: 'intro', pulse: '#stickBase', t: { touch: 'Trascina il pollice sinistro per muoverti', pad: 'Muoviti con lo stick sinistro', kb: 'Muoviti con W A S D' }, done: () => Math.hypot(P.x - tut.sx, P.z - tut.sz) > 1.5 },
   { id: 'look', room: 'intro', pulse: '#tInteract', t: { touch: 'Avvicinati alla tavola lacerata e tocca ◉ GUARDA', pad: 'Avvicinati alla tavola lacerata e premi A', kb: 'Avvicinati alla tavola lacerata e premi E' }, done: () => S.discovered.has('state.fragile') },
   { id: 'open', room: 'intro', pulse: '#tRewrite', t: { touch: 'Tocca ✎ RISCRIVI: le parole appaiono sopra il bersaglio più vicino (la tavola)', pad: 'Premi RB per RISCRIVERE: le parole appaiono sopra il bersaglio più vicino', kb: 'Premi Q per RISCRIVERE: le parole appaiono sopra il bersaglio più vicino' }, done: () => panel.open || grammar.has('board', 'state.fragile') },
-  { id: 'pick', room: 'intro', pulse: '.bubble', t: { touch: 'Tocca FRAGILE una volta: vedi l’anteprima. Toccala di nuovo: la scrivi sulla tavola', pad: '◀ ▶ scegli la parola (vedi l’anteprima) · A la scrive · ▲▼ cambia bersaglio', kb: '◀ ▶ scegli la parola (vedi l’anteprima) · Invio la scrive · ▲▼ cambia bersaglio' }, done: () => grammar.has('board', 'state.fragile'), back: () => !panel.open ? 2 : -1 },
+  { id: 'pick', room: 'intro', pulse: '.bubble', t: { touch: 'Tocca FRAGILE: la scrivi subito sulla tavola', pad: '◀ ▶ scegli la parola · A la scrive · ▲▼ cambia bersaglio', kb: '◀ ▶ scegli la parola · Invio la scrive · ▲▼ cambia bersaglio' }, done: () => grammar.has('board', 'state.fragile'), back: () => !panel.open ? 2 : -1 },
   { id: 'ink', room: 'intro', pulse: '#inkWrap', t: { all: 'La barra INCHIOSTRO in alto: il menu aperto e ogni parola la consumano. Qui sei in zona sicura, quindi è gratis' }, timer: 6 },
   { id: 'heavy', room: 'intro', pulse: '#tHeavy', t: { touch: 'Ora che è FRAGILE: colpo forte ⟰ e la tavola si rompe', pad: 'Ora che è FRAGILE: colpo forte con Y', kb: 'Ora che è FRAGILE: colpo forte con K' }, done: () => board.broken },
   { id: 'quick', room: 'charger', pulse: '#tQuick', t: { touch: 'Riscrittura rapida ↻: riscrive l’ultima parola sul bersaglio più vicino, senza aprire il menu. Provala sul Caricatore', pad: 'Riscrittura rapida con LB: riscrive l’ultima parola sul bersaglio più vicino. Provala sul Caricatore', kb: 'Riscrittura rapida con R: riscrive l’ultima parola sul bersaglio più vicino. Provala sul Caricatore' }, done: () => tut.quick || !charger.alive || charger.armorBroken },
@@ -922,7 +926,7 @@ function startGame() {
 function controlsCard() {
   const d = document.createElement('div'); d.id = 'controls';
   d.innerHTML = input.mode === 'pad' ? '<b>Stick</b> muovi · <b>A</b> guarda/conferma · <b>X</b> colpo · <b>Y</b> colpo forte · <b>B</b> schiva<br><b>RB</b> riscrivi · <b>LB</b> riapplica l\'ultima parola · <b>Select</b> ripristina frase'
-    : input.mode === 'touch' ? '<b>Trascina a sinistra</b> per muoverti · <b>◉</b> guarda quando appare<br><b>✎</b> riscrivi · tocca una parola per vederla, toccala di nuovo per scriverla' : '<b>WASD</b> muovi · <b>E</b> guarda · <b>J</b>/clic colpo · <b>K</b>/clic destro forte · <b>Spazio</b> schiva<br><b>Q</b> riscrivi · <b>R</b> riapplica · <b>T</b> ripristina · <b>Y</b> ricomponi';
+    : input.mode === 'touch' ? '<b>Trascina a sinistra</b> per muoverti · <b>◉</b> guarda quando appare<br><b>✎</b> riscrivi · tocca una parola per scriverla' : '<b>WASD</b> muovi · <b>E</b> guarda · <b>J</b>/clic colpo · <b>K</b>/clic destro forte · <b>Spazio</b> schiva<br><b>Q</b> riscrivi · <b>R</b> riapplica · <b>T</b> ripristina · <b>Y</b> ricomponi';
   document.body.appendChild(d); setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 900); }, FAST ? 300 : 6500);
 }
 function inkDrop() { if (!tut.on) controlsCard();
@@ -1050,7 +1054,8 @@ function loop() {
   } catch (err) { console.error(err); }
   renderer.info.reset(); post.render(scene, camera);
   fpsAcc += rdt; fpsN++; if (fpsAcc > 2) { const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps;
-    if (opts.q === 'auto' && S.phase === 'play') { if (fps < 50) { lowStreak++; if (lowStreak >= 2 && pr > 0.75) { pr = Math.max(0.75, pr - 0.15); resize(); lowStreak = 0; Tele.log('quality_drop', { pr }); } else if (lowStreak >= 3 && post.enabled && fps < 40) { post.enabled = false; lowStreak = 0; Tele.log('quality_drop', { post: false }); } } else lowStreak = 0; } }
+    if (S.phase === 'play') { if (fps < 48) { lowStreak++; if (lowStreak >= 2) { lowStreak = 0; // prima gli effetti, poi (poco) la risoluzione
+        if (post.bloom) { post.bloom = false; Tele.log('quality_drop', { bloom: false }); } else if (pr > QL.floor + 0.01) { pr = Math.max(QL.floor, pr - 0.25); resize(); Tele.log('quality_drop', { pr }); } else if (post.rt.samples > 0 && fps < 38) { post.setSamples(0); Tele.log('quality_drop', { msaa: 0 }); } } } else lowStreak = 0; } }
 }
 
 // ---------- avvio + agganci di test ----------

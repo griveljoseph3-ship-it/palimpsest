@@ -23,14 +23,20 @@ await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000); await W(
 check('look → open', (await step()) === 'open');
 await tapSel('#tRewrite'); await W(700); check('open → pick (menu aperto)', (await step()) === 'pick' && await E(() => PAL.panel.open));
 await pg.screenshot({ path: '/workspace/palimpsest-shots/16-tut-pick.png' });
-await tapSel('.bubble'); await W(400); check('primo tocco = anteprima, non scrive', await E(() => !PAL.grammar.has('board', 'state.fragile')));
-console.log(await E(() => [PAL.panel.open, PAL.panel.armed, PAL.panel.sel, PAL.ink.v, PAL.ink.canSelect(), document.querySelectorAll('.bubble').length])); await tapSel('.bubble'); await W(800); console.log(await E(() => [PAL.panel.open, PAL.panel.armed, PAL.grammar.has('board','state.fragile')])); check('secondo tocco scrive FRAGILE → ink', (await step()) === 'ink');
-await W(10000); check('ink → heavy', (await step()) === 'heavy');
+await tapSel('.bubble'); await W(800); check('un solo tocco scrive la parola', await E(() => PAL.grammar.has('board', 'state.fragile')));
+await until(() => PAL.TUT[PAL.tut.i] && PAL.TUT[PAL.tut.i].id === 'ink', 3000);
+check('dopo la scrittura → ink', (await step()) === 'ink');
+await E(() => { PAL.tut.t = 99; }); // timer ink: GPU software lenta nei test
+await until(() => PAL.TUT[PAL.tut.i] && PAL.TUT[PAL.tut.i].id === 'heavy', 4000);
+console.log(await E(() => [PAL.tut.i, PAL.tut.t, PAL.panel.open, PAL.S.lock, PAL.S.phase, window.__fps, PAL.S.room]));
+check('ink → heavy', (await step()) === 'heavy');
 await tapSel('#tHeavy'); await W(2500); if ((await step()) === 'heavy') { await tapSel('#tHeavy'); await W(2500); }
 check('heavy rompe la tavola → quick', (await step()) === 'quick');
 await E(() => { PAL.P.x = 0; PAL.P.z = -13; }); await W(1500); await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000);
 await E(() => { const c = PAL.charger; PAL.P.x = c.x; PAL.P.z = c.z + 3; PAL.P.face = Math.PI; PAL.ink.v = 100; }); await W(300);
 check('card quick visibile nella stanza del Caricatore', await E(() => !document.getElementById('tut').classList.contains('hidden')) && (await step()) === 'quick');
 await tapSel('#tQuick'); await W(900); check('↻ riscrittura rapida → inkfight', (await step()) === 'inkfight');
-await W(10000); check('tutorial completato e salvato', (await step()) === 'end' && await E(() => PAL.mem.tutDone === true));
+await E(() => { PAL.tut.t = 99; });
+await until(() => PAL.mem.tutDone === true, 4000);
+check('tutorial completato e salvato', (await step()) === 'end' && await E(() => PAL.mem.tutDone === true));
 console.log('ERRORS', errs); if (bad || errs.length) process.exitCode = 1; await b.close();

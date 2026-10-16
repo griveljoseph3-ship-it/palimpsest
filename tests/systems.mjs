@@ -31,8 +31,8 @@ await E(() => { PAL.input.mode = 'touch'; }); await W(200);
 check('controlli touch visibili', await E(() => !document.getElementById('touch').classList.contains('hidden')));
 await E(() => { PAL.tp(0, -3.4); PAL.face(0, -5); }); await pg.tap('#tRewrite'); await W(300);
 check('touch: ✎ apre il pannello', await E(() => PAL.panel.open));
-const bb = await pg.$('.bubble'); await bb.tap(); await W(200); await bb.tap().catch(() => {}); await W(400);
-check('touch: doppio tocco scrive', await E(() => !PAL.panel.open));
+const bb = await pg.$('.bubble'); await bb.tap(); await W(400);
+check('touch: un solo tocco scrive', await E(() => !PAL.panel.open && PAL.grammar.has('board', 'state.fragile')));
 await pg.tap('#tHeavy'); await W(1200); check('touch: colpo forte rompe la tavola', await E(() => PAL.ENT.board.broken));
 // stick virtuale
 const zA = await E(() => { PAL.tp(0, 2); return PAL.P.z; }); await pg.touchscreen.tap(200, 700); // reset stato

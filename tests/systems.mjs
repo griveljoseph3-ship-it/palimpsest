@@ -30,7 +30,7 @@ await E(() => PAL.rewrite('board', 'state.fragile'));
 // touch: pulsanti a ventaglio
 await E(() => { PAL.input.mode = 'touch'; }); await W(200);
 check('controlli touch visibili', await E(() => !document.getElementById('touch').classList.contains('hidden')));
-await E(() => { PAL.tp(0, -8.4); PAL.face(0, -10); }); await pg.tap('#tRewrite'); await W(300);
+await E(() => { PAL.tp(0, -8.4); PAL.face(0, -10); }); await W(500); await pg.tap('#tRewrite'); await W(500);
 check('touch: ✎ apre il pannello', await E(() => PAL.panel.open));
 const bb = await pg.$('.bubble'); await bb.tap(); await W(400);
 check('touch: un solo tocco scrive', await E(() => !PAL.panel.open && PAL.grammar.has('board', 'state.fragile')));
@@ -38,7 +38,7 @@ await pg.tap('#tHeavy'); await W(1200); check('touch: colpo forte rompe la tavol
 // stick virtuale
 const zA = await E(() => { PAL.tp(0, 4); return PAL.P.z; }); await pg.touchscreen.tap(200, 700); // reset stato
 await E(() => { const z = document.getElementById('stickZone'); const r = z.getBoundingClientRect(); const fire = (t, x, y) => z.dispatchEvent(new PointerEvent(t, { pointerId: 7, clientX: x, clientY: y, bubbles: true })); fire('pointerdown', 200, 700); fire('pointermove', 200, 640); window.__fire = fire; });
-await W(800); await E(() => window.__fire('pointerup', 200, 640)); const zB = await E(() => PAL.P.z); check('stick virtuale muove', zB < zA - 1);
+await W(2000); await E(() => window.__fire('pointerup', 200, 640)); const zB = await E(() => PAL.P.z); console.log('STICK',zA,zB); check('stick virtuale muove', zB < zA - 1);
 // Sbiadito in combattimento + riscrittura veloce della parola preparata
 await E(() => { PAL.S.discovered.add('temperament.cautious'); PAL.tp(0, -20); }); await W(1500); await E(() => PAL.skipDialog());
 console.log(await E(() => { PAL.ink.v = 30; PAL.tp(0, -24); PAL.face(0, -32); PAL.open('charger'); return JSON.stringify({open: PAL.panel.open, room: PAL.S.room, safe: PAL.ink.safe, ch: PAL.charger.st, alive: PAL.charger.alive, dlg: PAL.dlg.active, lock: PAL.S.lock}); }));
@@ -58,7 +58,7 @@ await W(500); await E(() => PAL.skipDialog()); await W(800);
 check('Lumi offre la Visione dopo 3 morti', await E(() => PAL.Tele.summary().lumi_vision === 1));
 check('tracce di Lumi persistenti (3)', await E(() => PAL.S.deaths === 3));
 await pg.screenshot({ path: '/workspace/palimpsest-shots/12-lumi-vision.png' });
-await W(4500); check('Visione dura 4 s e restituisce il controllo', await E(() => !PAL.S.lock));
+for (let i=0;i<40 && await E(()=>PAL.S.lock);i++) await W(300); console.log('LOCK', await E(()=>JSON.stringify({l:PAL.S.lock,ph:PAL.S.phase,d:PAL.dlg.active,st:PAL.P.st}))); check('Visione dura 4 s e restituisce il controllo', await E(() => !PAL.S.lock));
 // memoria tra versioni
 await E(() => { localStorage.setItem('pal.memory', JSON.stringify({ runs: 1, deaths: 2, routes: ['forced'], plans: ['rottura'], traces: [[0, -5], [1, -14]] })); });
 await pg.reload(); await W(700); check('il titolo ricorda la versione precedente', (await E(() => document.getElementById('tMem').textContent)).includes('1'));

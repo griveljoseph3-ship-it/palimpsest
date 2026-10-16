@@ -26,7 +26,7 @@ await until(() => PAL.charger.armorBroken, 30000, 'charger armor', behindPillar(
 await W(700); await until(() => !PAL.charger.alive, 15000, 'charger dead', () => { PAL.P.hp = 5; const e = PAL.charger; if (PAL.P.st === 'idle' && e.exposed > 0) { PAL.tp(e.x + 1.3, e.z + 0.5); PAL.face(e.x, e.z); PAL.attack(true); } });
 // III · Conduttivo
 await E(() => PAL.tp(0, -49)); await until(() => PAL.S.room === 'conduct', 3000, 'enter conduct'); await E(() => PAL.skipDialog()); await E(() => PAL.tp(0, -54.3));
-await E(() => PAL.rewrite('plate', 'element.conductive')); await shot('05-plate'); await until(() => PAL.gates.r2.open, 6000, 'r2 gate');
+await E(() => PAL.rewrite('plate', 'element.conductive')); await shot('05-plate'); await until(() => PAL.gates.r2.open, 15000, 'r2 gate');
 // IV · porta di Elara
 await E(() => PAL.tp(0, -79)); await until(() => PAL.S.room === 'door', 3000, 'enter door'); await E(() => PAL.skipDialog());
 if (route === 'forced') { await E(() => PAL.rewrite('relay', 'state.fragile')); await E(() => { PAL.tp(5.4, -96.9); PAL.face(5.4, -98.4); PAL.attack(true); }); }

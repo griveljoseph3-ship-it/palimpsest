@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.4.0';
-import { EFFECTS } from './data.js?v=1.4.0';
-import { Grammar } from './resolver.js?v=1.4.0';
-import { Ink, INK } from './ink.js?v=1.4.0';
-import { Input } from './input.js?v=1.4.0';
-import { Sfx } from './audio.js?v=1.4.0';
-import { Tele } from './telemetry.js?v=1.4.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.4.0';
-import * as W from './world.js?v=1.4.0';
-import * as ST from './story.js?v=1.4.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.4.0';
+import * as THREE from '../vendor/three.module.js?v=1.4.1';
+import { EFFECTS } from './data.js?v=1.4.1';
+import { Grammar } from './resolver.js?v=1.4.1';
+import { Ink, INK } from './ink.js?v=1.4.1';
+import { Input } from './input.js?v=1.4.1';
+import { Sfx } from './audio.js?v=1.4.1';
+import { Tele } from './telemetry.js?v=1.4.1';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.4.1';
+import * as W from './world.js?v=1.4.1';
+import * as ST from './story.js?v=1.4.1';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.4.1';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -806,7 +806,7 @@ function tutUpdate(dt) {
 // ---------- vita e danni leggibili ----------
 const _pv = new THREE.Vector3();
 function toScreen(x, y, z) { _pv.set(x, y, z).project(camera); return { x: (_pv.x * 0.5 + 0.5) * innerWidth, y: (-_pv.y * 0.5 + 0.5) * innerHeight, ok: _pv.z < 1 && Math.abs(_pv.x) < 1.1 && Math.abs(_pv.y) < 1.1 }; }
-function dmgAt(x, y, z, text, cls = '') { const p = toScreen(x, y, z); if (!p.ok) return; const d = document.createElement('div'); d.className = 'dn ' + cls; d.textContent = text; d.style.left = (p.x + rnd(-20, 20)) + 'px'; d.style.top = p.y + 'px'; $('dmg').appendChild(d); setTimeout(() => d.remove(), 950); }
+function dmgAt(x, y, z, text, cls = '') { const p = toScreen(x, y, z); if (!p.ok) return; const d = document.createElement('div'); d.className = 'dn ' + cls; d.textContent = text; const sd = Math.random() < 0.5 ? -1 : 1; d.style.left = (p.x + sd * rnd(70, 95)) + 'px'; d.style.top = (p.y - 24) + 'px'; $('dmg').appendChild(d); setTimeout(() => d.remove(), 950); }
 const CORE = { charger: 2, custode: 4 };
 function enemyHP(e) { const core = CORE[e.id]; const coreLeft = e.alive && e.st !== 'dead' && !(e.boss && arena.snapped) ? core : 0; return { v: Math.max(0, e.armorHP) * (e.armorBroken ? 0 : 1) + coreLeft, max: e.armorMax + core }; }
 const ebarEl = {};

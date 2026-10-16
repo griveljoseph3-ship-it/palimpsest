@@ -9,6 +9,12 @@ export const ROOMS = [
   { id: 'door', cx: 0, cz: -44, w: 16, d: 12, safe: true, title: 'IV · La porta che giudica' },
   { id: 'arena', cx: 0, cz: -62, w: 16, d: 14, safe: false, title: 'V · Il Custode della Fenditura' },
   { id: 'end', cx: 0, cz: -80, w: 12, d: 10, safe: true, title: 'VI · Conseguenza' },
+  { id: 'archive', cx: 40, cz: -28, w: 16, d: 14, safe: false, chain: 'arch', title: 'III½ · Archivio sommerso' },
+  { id: 'c2a', cx: 100, cz: 0, w: 14, d: 10, safe: true, chain: 'c2', title: 'II·1 · La riva' },
+  { id: 'c2b', cx: 100, cz: -15, w: 16, d: 12, safe: false, chain: 'c2', title: 'II·2 · La chiusa' },
+  { id: 'c2c', cx: 100, cz: -31, w: 14, d: 12, safe: true, chain: 'c2', title: 'II·3 · La pila dei libri' },
+  { id: 'c2d', cx: 100, cz: -49, w: 18, d: 16, safe: false, chain: 'c2', title: 'II·4 · La Diga Rilegata' },
+  { id: 'c2e', cx: 100, cz: -67, w: 12, d: 10, safe: true, chain: 'c2', title: 'II·5 · Acqua ferma' },
 ];
 export const GAP = 2.4;
 
@@ -34,19 +40,20 @@ export function buildWorld(scene, paper) {
     const m = new THREE.Mesh(geo, wallMat); m.position.set((x0 + x1) / 2, h / 2, (z0 + z1) / 2); const o = new THREE.Mesh(geo, ol); m.add(o); g.add(m);
     walls.push({ minX: Math.min(x0, x1) - (w === 0.3 ? 0.15 : 0), maxX: Math.max(x0, x1) + (w === 0.3 ? 0.15 : 0), minZ: Math.min(z0, z1) - (d === 0.3 ? 0.15 : 0), maxZ: Math.max(z0, z1) + (d === 0.3 ? 0.15 : 0) }); return m;
   };
-  ROOMS.forEach((r, i) => {
+  ROOMS.forEach((r) => {
+    const chain = ROOMS.filter((q) => (q.chain || 'c1') === (r.chain || 'c1')); const i = chain.indexOf(r); const gi = ROOMS.indexOf(r);
     const x0 = r.cx - r.w / 2, x1 = r.cx + r.w / 2, zs = r.cz + r.d / 2, zn = r.cz - r.d / 2;
     const fl = new THREE.Mesh(withMask(new THREE.PlaneGeometry(r.w + 0.4, r.d + 0.4).rotateX(-Math.PI / 2), 0), floorMat); fl.position.set(r.cx, 0, r.cz); g.add(fl);
     // manoscritto con cancellature sul pavimento
-    const tex = textCanvas(MANUSCRIPT.slice(i % 3, i % 3 + 7), 1024, 512, { strike: false, lh: 66, font: 'italic 40px Georgia, serif', y0: 30, color: 'rgba(60,44,30,0.8)' });
+    const tex = textCanvas(MANUSCRIPT.slice(gi % 3, gi % 3 + 7), 1024, 512, { strike: false, lh: 66, font: 'italic 40px Georgia, serif', y0: 30, color: 'rgba(60,44,30,0.8)' });
     const ms = new THREE.Mesh(new THREE.PlaneGeometry(r.w * 0.42, r.d * 0.26).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.2 }));
-    ms.position.set(r.cx + (i % 2 ? 1 : -1) * r.w * 0.24, 0.006, r.cz + r.d * 0.3); g.add(ms);
+    ms.position.set(r.cx + (gi % 2 ? 1 : -1) * r.w * 0.24, 0.006, r.cz + r.d * 0.3); g.add(ms);
     addWall(x0, zs, x0, zn); addWall(x1, zs, x1, zn);
-    const hasS = i > 0, hasN = i < ROOMS.length - 1;
-    if (hasS) { addWall(x0, zs, -GAP / 2, zs, 0.45); addWall(GAP / 2, zs, x1, zs, 0.45); } else addWall(x0, zs, x1, zs, 0.45);
-    if (hasN) { addWall(x0, zn, -GAP / 2, zn); addWall(GAP / 2, zn, x1, zn);
-      const nz = ROOMS[i + 1].cz + ROOMS[i + 1].d / 2; addWall(-GAP / 2 - 0.15, zn, -GAP / 2 - 0.15, nz, 0.7); addWall(GAP / 2 + 0.15, zn, GAP / 2 + 0.15, nz, 0.7);
-      const cf = new THREE.Mesh(withMask(new THREE.PlaneGeometry(GAP + 0.3, zn - nz).rotateX(-Math.PI / 2), 0), floorMat); cf.position.set(0, -0.001, (zn + nz) / 2); g.add(cf);
+    const hasS = i > 0, hasN = i < chain.length - 1, c = r.cx;
+    if (hasS) { addWall(x0, zs, c - GAP / 2, zs, 0.45); addWall(c + GAP / 2, zs, x1, zs, 0.45); } else addWall(x0, zs, x1, zs, 0.45);
+    if (hasN) { addWall(x0, zn, c - GAP / 2, zn); addWall(c + GAP / 2, zn, x1, zn);
+      const nz = chain[i + 1].cz + chain[i + 1].d / 2; addWall(c - GAP / 2 - 0.15, zn, c - GAP / 2 - 0.15, nz, 0.7); addWall(c + GAP / 2 + 0.15, zn, c + GAP / 2 + 0.15, nz, 0.7);
+      const cf = new THREE.Mesh(withMask(new THREE.PlaneGeometry(GAP + 0.3, zn - nz).rotateX(-Math.PI / 2), 0), floorMat); cf.position.set(c, -0.001, (zn + nz) / 2); g.add(cf);
     } else addWall(x0, zn, x1, zn);
   });
   // pozze di luce calda (additive) e scrivania sotto il libro
@@ -63,7 +70,9 @@ export function buildWorld(scene, paper) {
   ROOMS.forEach((r) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.d).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: wt, transparent: true, depthWrite: false })); m.position.set(r.cx, 0.008, r.cz); g.add(m); });
   const dt = new THREE.CanvasTexture(dc); dt.wrapS = dt.wrapT = THREE.RepeatWrapping; dt.repeat.set(6, 20); dt.colorSpace = THREE.SRGBColorSpace;
   const desk = new THREE.Mesh(new THREE.PlaneGeometry(80, 140).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: dt, color: 0x9a8a7a })); desk.position.set(0, -0.6, -40); g.add(desk);
-  const under = new THREE.Mesh(new THREE.BoxGeometry(18.5, 0.58, 96), new THREE.MeshBasicMaterial({ color: 0x5e5244 })); under.position.set(0, -0.3, -40); g.add(under); // spessore delle pagine
+  const under = new THREE.Mesh(new THREE.BoxGeometry(18.5, 0.58, 96), new THREE.MeshBasicMaterial({ color: 0x5e5244 })); under.position.set(0, -0.3, -40); g.add(under);
+  const desk2 = desk.clone(); desk2.position.set(100, -0.6, -35); g.add(desk2); const desk3 = desk.clone(); desk3.position.set(40, -0.6.toFixed ? -0.6 : -0.6, -28); desk3.scale.set(0.4, 1, 0.2); g.add(desk3);
+  const under2 = new THREE.Mesh(new THREE.BoxGeometry(20.5, 0.58, 82), under.material); under2.position.set(100, -0.3, -34); g.add(under2); const under3 = new THREE.Mesh(new THREE.BoxGeometry(17, 0.58, 15), under.material); under3.position.set(40, -0.3, -28); g.add(under3); // spessore delle pagine
   // corridoio della prova nella stanza di Elara
   addWall(-5, -38.2, -5, -46.2, 0.6);
   // fogli che pendono e rilegatura: dettagli d'atmosfera
@@ -106,9 +115,10 @@ export function makeCustode() {
   for (let i = 0; i < 9; i++) { const pg = inked(new THREE.PlaneGeometry(0.42, 0.55), { color: 0xd8cbb0, outline: true, ow: 0.015 }); pg.material.side = THREE.DoubleSide;
     const a = (i % 3 - 1) * 0.55, row = Math.floor(i / 3); pg.position.set(Math.sin(a) * 0.98, 1.25 + row * 0.38, Math.cos(a) * 0.82 + 0.08); pg.rotation.set(-0.2 + row * 0.05, a, (Math.random() - 0.5) * 0.35); armor.add(pg); }
   // testa: cappuccio a punta con una sola riga rossa
-  const head = inked(lathe([[0, 0], [0.38, 0.05], [0.42, 0.3], [0.3, 0.6], [0, 0.85]], 14), { color: 0x1d1611, y0: 2.3, y1: 3.2 }); head.position.set(0, 2.35, 0.25); armor.add(head);
+  const head = inked(lathe([[0, 0], [0.38, 0.05], [0.42, 0.3], [0.3, 0.6], [0, 0.85]], 14), { color: 0x2a201a, y0: 2.3, y1: 3.2 }); head.position.set(0, 2.35, 0.25); armor.add(head);
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const sp = inked(new THREE.ConeGeometry(0.09, 0.55, 4), { color: 0xefe5cf, ow: 0.02 }); sp.position.set(Math.cos(a) * 0.3, 2.95, 0.25 + Math.sin(a) * 0.3); sp.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); armor.add(sp); }
   // spalle sferiche schiacciate e braccia lunghe con pugni enormi
-  for (const sd of [-1, 1]) { const sh = inked(new THREE.SphereGeometry(0.48, 14, 10), { color: 0x2b221b }); sh.scale.set(1, 0.8, 1); sh.position.set(sd * 1.05, 2.15, 0.05); armor.add(sh);
+  for (const sd of [-1, 1]) { const sh = inked(new THREE.SphereGeometry(0.5, 14, 10), { color: 0xe6d8b8, shift: 0x9e2b1c }); sh.scale.set(1, 0.8, 1); sh.position.set(sd * 1.05, 2.15, 0.05); armor.add(sh);
     const arm = new THREE.Group(); arm.position.set(sd * 1.15, 2.05, 0.1); armor.add(arm); arm.userData.side = sd; armor.userData['arm' + sd] = arm;
     const up = inked(lathe([[0.22, 0], [0.26, -0.4], [0.2, -0.9], [0.17, -1.1]], 10), { color: 0xb5a37f }); arm.add(up);
     const fist = inked(new THREE.DodecahedronGeometry(0.36, 0), { color: 0xbfae8c, shift: 0x9e2b1c }); fist.position.y = -1.3; fist.scale.set(1, 1.1, 1); arm.add(fist); }
@@ -117,7 +127,8 @@ export function makeCustode() {
   // catene d'inchiostro che pendono
   for (let i = 0; i < 4; i++) { const ch = inked(new THREE.TorusGeometry(0.09, 0.025, 4, 8), { color: 0x120c0a, outline: false }); ch.position.set(-0.5 + i * 0.33, 0.95 - (i % 2) * 0.1, 0.72); ch.rotation.y = i % 2 ? Math.PI / 2 : 0; armor.add(ch); }
   const eye = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); eye.position.set(0, 2.62, 0.62); armor.add(eye);
-  body.scale.setScalar(1.2); grp.userData = { body, core, armor, r: 0.9, height: 3.4, eye }; return grp;
+  const halo = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.45, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8a1a10, transparent: true, opacity: 0.7, depthWrite: false })); halo.position.y = 0.03; grp.add(halo);
+  body.scale.setScalar(1.2); grp.userData.halo = halo; Object.assign(grp.userData, { body, core, armor, r: 0.9, height: 3.4, eye }); return grp;
 }
 export function makePlayer() {
   // Il Correttore: mantello d'inchiostro che si sfrangia, cappuccio, volto in ombra con due punti di luce, sciarpa rossa.

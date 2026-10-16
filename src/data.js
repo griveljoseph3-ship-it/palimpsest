@@ -3,6 +3,7 @@ export const SLOTS = {
   state: { baseline: 'state.intact', values: ['state.intact', 'state.fragile'] },
   temperament: { baseline: 'temperament.vigilant', values: ['temperament.vigilant', 'temperament.cautious'] },
   element: { baseline: 'element.insulating', values: ['element.insulating', 'element.conductive'] },
+  weight: { baseline: 'weight.normal', values: ['weight.normal', 'weight.heavy', 'weight.light'] },
 };
 export const EFFECTS = {
   'state.fragile': {
@@ -21,6 +22,8 @@ export const EFFECTS = {
     contract: { cambia: 'il componente trasporta un impulso esistente', azione: 'alimentare un dispositivo o spingere', costo: 'il ramo secondario alimenta un pericolo', verifica: 'linea di propagazione' },
   },
 };
+EFFECTS['weight.heavy'] = { slot: 'weight', word: 'PESANTE', sound: 'heavy', preview: 'Diventa pesante: cade, preme piastre, sfonda; un nemico rallenta' };
+EFFECTS['weight.light'] = { slot: 'weight', word: 'LEGGERO', sound: 'breath', preview: 'Diventa leggero: galleggia, si solleva, il vento lo sposta' };
 // Combinazioni valide fra slot diversi sulla stessa entità (non sempre superiori).
 export const COMBOS = [
   { id: 'combo.retreat_vulnerable', a: 'state.fragile', b: 'temperament.cautious',
@@ -28,6 +31,7 @@ export const COMBOS = [
   { id: 'combo.shatter_pulse', a: 'state.fragile', b: 'element.conductive',
     text: "Il prossimo impulso attraversa la corazza e la incrina dall'interno, ma la scossa colpisce anche chi è vicino" },
 ];
+COMBOS.push({ id: 'combo.collapse', a: 'state.fragile', b: 'weight.heavy', text: 'Crolla sotto il proprio peso: non serve colpirlo, ma i pezzi cadono intorno' });
 export const ENEMY_DURATION = 8; // secondi di simulazione (§05, §06)
 // Durata per effetto per entità: numero = secondi simulati, null = finché non si esce/ricompone.
 export const ENTITY_DEFS = {
@@ -39,5 +43,15 @@ export const ENTITY_DEFS = {
   seam:       { name: 'Cucitura di carta', supports: ['state.fragile'], durations: { 'state.fragile': null }, safe: true },
   custode:    { name: 'Custode della Fenditura', supports: ['state.fragile', 'temperament.cautious', 'element.conductive'], durations: { 'state.fragile': 8, 'temperament.cautious': 8, 'element.conductive': 8 } },
   well:       { name: 'Calamaio di Ilde', supports: ['state.fragile'], durations: { 'state.fragile': null }, safe: true },
+  apipe:      { name: 'Tubo dell\'archivio', supports: ['element.conductive'], durations: { 'element.conductive': null }, safe: true },
+  shelf:      { name: 'Scaffale marcio', supports: ['state.fragile'], durations: { 'state.fragile': null }, safe: true },
+  crate:      { name: 'Cassa bagnata', supports: ['weight.heavy', 'weight.light'], durations: { 'weight.heavy': null, 'weight.light': null }, safe: true },
+  raft:       { name: 'Zattera di carta', supports: ['weight.light', 'weight.heavy'], durations: { 'weight.light': null, 'weight.heavy': null }, safe: true },
+  lockw:      { name: 'Contrappeso della chiusa', supports: ['weight.heavy'], durations: { 'weight.heavy': null }, safe: true },
+  rileg:      { name: 'Il Rilegatore', supports: ['state.fragile', 'temperament.cautious', 'weight.heavy'], durations: { 'state.fragile': 8, 'temperament.cautious': 8, 'weight.heavy': 8 } },
+  pile:       { name: 'Pila di libri', supports: ['state.fragile', 'weight.heavy'], durations: { 'state.fragile': null, 'weight.heavy': null }, safe: true },
+  stone:      { name: 'Sasso sulla pagina', supports: ['weight.light'], durations: { 'weight.light': null }, safe: true },
+  dweight:    { name: 'Peso della diga', supports: ['weight.heavy'], durations: { 'weight.heavy': null } },
+  dam:        { name: 'Cuore della Diga', supports: ['state.fragile', 'element.conductive'], durations: { 'state.fragile': 8, 'element.conductive': 8 } },
   bridge:     { name: 'Ponte conduttivo', supports: ['element.conductive'], durations: { 'element.conductive': 12 } },
 };

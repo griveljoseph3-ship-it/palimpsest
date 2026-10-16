@@ -69,7 +69,14 @@ export const LUMI_VISION = {
   ambiente: 'Lumi ti mostra una versione fallita: il ponte trasporta l\'impulso e la piega sposta il Custode.',
 };
 
+export const ARCHIVE_TEXT = [['narr', 'Sul leggio, la prima versione della storia. Nessuna parola rossa. Nessun verdetto.'], ['ilde', '«Elara attraversò il fiume da sola, e il fiume la lasciò passare.»'], ['narr', 'Sotto, con un\'altra penna, una riga aggiunta dopo: «Ma qualcuno doveva pagare per la notte del fiume».'], ['lumi', 'Allora COLPEVOLE non è caduta per caso. Qualcuno l\'ha scelta.']];
+export const C2_INTRO = [['narr', 'Capitolo II · Il fiume di carta.'], ['narr', 'Dopo la Fenditura, il libro si bagna. Le pagine si gonfiano, le parole affondano.'], ['elara', 'Qui è dove succede. La notte del fiume. Se vuoi davvero riscrivermi, devi vedere questa pagina.'], ['lumi', 'Le cose qui hanno un peso. Anche le parole.']];
+export const C2_END = [['narr', 'Acqua ferma. Al centro, la pagina di Elara si specchia nel fiume.'], ['elara', 'La notte del fiume io non c\'ero. C\'era mia madre. Ilde.'], ['elara', 'Ha scritto COLPEVOLE su di me perché nessuno cercasse lei.'], ['lumi', '…e il Rilegatore profumava di lavanda. Come il suo scialle.'], ['narr', 'Il libro chiude il capitolo. Da qualche parte, qualcuno ricuce.']];
 export const SECRET_TEXT = {
+  c1_shelf: [['narr', 'Tra i libri marci, una lettera mai spedita.'], ['ilde', '«Cara Elara, se un giorno leggerai il libro, sappi che ogni parola sbagliata l\'ho scelta io.»']],
+  c2_stone: [['narr', 'Sotto il sasso, un biglietto del traghetto. Una sola corsa, notte del 12 marzo. Il nome è cancellato.']],
+  c2_pile: [['narr', 'Tra i libri crollati, una pagina di cronaca: «Una donna salva una bambina dal fiume. La donna non è mai stata identificata».']],
+  c2_dam: [['narr', 'Sotto il sasso dell\'acqua ferma, una ciocca di capelli grigi legata con filo da rilegatore.']],
   c1_trap: [['narr', 'Sotto la botola, una pagina di diario. La calligrafia è quella di Ilde, ma più giovane.'], ['ilde', '«Scrivo di notte perché di giorno lei mi guarda. Se legge come finisce, non mi perdonerà.»'], ['narr', 'Come finisce? La riga dopo è stata strappata.']],
   c1_well: [['narr', 'Dal calamaio rotto scivola un foglio arrotolato, asciutto per miracolo.'], ['narr', 'È un disegno a matita: una bambina sul fiume, e sotto, una parola cancellata tre volte. Non è COLPEVOLE.'], ['narr', 'È LIBERA.']],
 };

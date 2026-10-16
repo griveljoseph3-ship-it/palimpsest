@@ -6,7 +6,7 @@ import { Ink, INK } from './ink.js';
 import { Input } from './input.js';
 import { Sfx } from './audio.js';
 import { Tele } from './telemetry.js';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post } from './art.js';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js';
 import * as W from './world.js';
 import * as ST from './story.js';
 import { Film, FILM_LEN, SHOTS } from './film.js';
@@ -63,14 +63,15 @@ function addEnt(id, type, mesh, x, z, extra = {}) {
 function setComp(e, obj) { e.comp = obj; e.compMats = matsOf(obj); }
 // ---------- Capitolo 1: pagine nascoste ----------
 const wellEnt = addEnt('well', 'well', new THREE.Group(), decor.well.x, decor.well.z); wellEnt.mesh.userData.height = 1.0; wellEnt.mats = []; for (const m of decor.well.meshes) wellEnt.mats.push(...matsOf(m)); wellEnt.compMats = wellEnt.mats;
-const SECRETS = { c1_trap: 'La botola sotto la matita', c1_well: 'Dietro il calamaio' };
+const SECRETS = { c1_trap: 'La botola sotto la matita', c1_well: 'Dietro il calamaio', c1_shelf: 'Lo scaffale dell\'archivio', c2_stone: 'Sotto il sasso della chiusa', c2_pile: 'Tra i libri crollati', c2_dam: 'Il sasso dell\'acqua ferma' };
+const chapSecrets = (c) => Object.keys(SECRETS).filter((k) => k.startsWith('c' + c + '_'));
 const trap = { x: -3.6, z: 2.2, open: false };
 const trapMark = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.strokeStyle = 'rgba(60,50,40,.7)'; g.lineWidth = 4; g.setLineDash([14, 8]); g.strokeRect(30, 30, 196, 196); g.setLineDash([]); g.lineWidth = 2; for (let i = 0; i < 12; i++) { g.beginPath(); g.moveTo(40 + i * 15, 220); g.lineTo(60 + i * 15, 40); g.stroke(); } g.fillStyle = 'rgba(60,50,40,.8)'; g.font = 'italic 26px Georgia'; g.fillText('qui suona vuoto', 40, 140);
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0 })); m.position.set(trap.x, 0.012, trap.z); scene.add(m); return m; })();
 const trapHole = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0a0605 })); trapHole.position.set(trap.x, 0.014, trap.z); trapHole.visible = false; scene.add(trapHole);
 const secretPages = {};
 function makeSecretPage(id, x, z) { const p = new THREE.Group(); const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ color: 0xf6eedb, side: THREE.DoubleSide })); sheet.position.y = 1.0; p.add(sheet); const glow = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.65, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.6 })); glow.position.y = 0.03; p.add(glow); p.position.set(x, 0, z); scene.add(p); secretPages[id] = { mesh: p, x, z, sheet }; }
-function foundSecret(id, lines) { if (S.secrets.has(id)) return; S.secrets.add(id); const sp = secretPages[id]; if (sp) { scene.remove(sp.mesh); delete secretPages[id]; } sfx.play('seal'); S.flash = 0.3; toast('✦ PAGINA NASCOSTA ' + S.secrets.size + '/' + Object.keys(SECRETS).length); say(lines); journal('Pagina nascosta: ' + SECRETS[id] + '.'); Tele.log('secret_found', { id }); saveGame(); }
+function foundSecret(id, lines) { if (S.secrets.has(id)) return; S.secrets.add(id); const sp = secretPages[id]; if (sp) { scene.remove(sp.mesh); delete secretPages[id]; } sfx.play('seal'); S.flash = 0.3; { const cs = chapSecrets(id[1]); toast('✦ PAGINA NASCOSTA ' + cs.filter((k) => S.secrets.has(k)).length + '/' + cs.length); } say(lines); journal('Pagina nascosta: ' + SECRETS[id] + '.'); Tele.log('secret_found', { id }); saveGame(); }
 function trapUpdate() {
   trapMark.material.opacity = board.broken && !trap.open ? 0.85 : 0;
 }
@@ -82,9 +83,15 @@ function trySecretsOnHeavy() {
 // ---------- salvataggio e capitoli ----------
 const SAVE_KEY = 'pal_save_v1';
 const ROOM_ORDER = ['intro', 'charger', 'conduct', 'door', 'arena'];
-function saveGame() { if (S.phase !== 'play' || S.done || !ROOM_ORDER.includes(S.room)) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify({ chapter: 1, room: S.room, discovered: [...S.discovered], doorRoute: S.doorRoute, secrets: [...S.secrets], trap: trap.open, well: !!wellEnt.broken, t: Date.now() })); } catch (e) {} }
+const C2_ORDER = ['c2a', 'c2b', 'c2c', 'c2d'];
+function saveGame() { if (S.phase !== 'play' || S.done) return; if (C2_ORDER.includes(S.room)) { try { localStorage.setItem(SAVE_KEY, JSON.stringify({ chapter: 2, room: S.room, discovered: [...S.discovered], secrets: [...S.secrets], c2: { crate: C2.crateDone, raft: C2.raftUp, rileg: C2.rilegSpawned && !rileg.alive, pile: C2.pileDown }, t: Date.now() })); } catch (e) {} return; }
+  const room = S.room === 'archive' ? 'conduct' : S.room; if (!ROOM_ORDER.includes(room)) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify({ chapter: 1, archive: AR.done, gateArch: gates.arch.open, shelf: !!shelf.broken, room, discovered: [...S.discovered], doorRoute: S.doorRoute, secrets: [...S.secrets], trap: trap.open, well: !!wellEnt.broken, t: Date.now() })); } catch (e) {} }
 function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; } }
 function restoreSave(sv) {
+  if (sv.chapter === 2) { for (const w of sv.discovered || []) S.discovered.add(w); for (const s of sv.secrets || []) S.secrets.add(s); S.chapter = 2; const i = C2_ORDER.indexOf(sv.room);
+    if (i >= 1 || sv.c2.crate) { grammar.apply('crate', 'weight.heavy'); } if (i >= 2) { C2.rilegSpawned = true; rileg.alive = false; rileg.mesh.visible = false; grammar.apply('raft', 'weight.light'); C2.raftUp = true; unsolidRaft(true); openGate('c2g2'); }
+    if (i >= 3) collapsePileQuiet(); const r = W.ROOMS.find((q) => q.id === sv.room); P.x = r.cx; P.z = r.cz + r.d / 2 - 1.2; P.spawn = { x: P.x, z: P.z }; return; }
+  if (sv.gateArch) openGate('arch'); if (sv.archive) AR.done = true; if (sv.shelf) { shelf.broken = true; grammar.get('shelf').broken = true; shelf.mesh.visible = false; }
   const idx = ROOM_ORDER.indexOf(sv.room); if (idx < 0) return;
   for (const w of sv.discovered || []) S.discovered.add(w); for (const s of sv.secrets || []) S.secrets.add(s);
   if (idx >= 1) { board.broken = true; grammar.get('board').broken = true; board.mesh.visible = false; openGate('board'); }
@@ -101,6 +108,165 @@ function openGate(id) { const g = gates[id]; if (!g || g.open) return; g.open = 
 // I · tavola
 const board = addEnt('board', 'board', W.makeBoard(), 0, -5); setComp(board, board.mesh.userData.body); addGate('board', 0, -5, null);
 // II · Caricatore
+// ======================= Archivio sommerso (Cap. 1) e Capitolo 2 =======================
+const mk = (geo, color, o = {}) => inked(geo, { color, ...o });
+function solid(x0, z0, x1, z1) { const b = { minX: Math.min(x0, x1), maxX: Math.max(x0, x1), minZ: Math.min(z0, z1), maxZ: Math.max(z0, z1) }; world.walls.push(b); return b; }
+function unsolid(b) { const i = world.walls.indexOf(b); if (i >= 0) world.walls.splice(i, 1); }
+function wallMesh(x0, z0, x1, z1, h = 1.3, color = 0xbfae8c) { const m = mk(new THREE.BoxGeometry(Math.abs(x1 - x0) || 0.3, h, Math.abs(z1 - z0) || 0.3), color, { y0: 0, y1: h }); m.position.set((x0 + x1) / 2, h / 2, (z0 + z1) / 2); scene.add(m); return m; }
+function waterMesh(x0, z0, x1, z1) { const m = new THREE.Mesh(new THREE.PlaneGeometry(Math.abs(x1 - x0), Math.abs(z1 - z0)).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: { uTime: INK_UNIFORMS.uTime }, transparent: true,
+  vertexShader: 'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+  fragmentShader: 'uniform float uTime; varying vec2 vU; void main(){ float w=sin(vU.x*40.+uTime*2.)*.5+sin(vU.y*25.-uTime*1.3)*.5; vec3 c=mix(vec3(.08,.12,.16),vec3(.2,.32,.38),w*.5+.5); gl_FragColor=vec4(c,.92); }' }));
+  m.position.set((x0 + x1) / 2, 0.02, (z0 + z1) / 2); scene.add(m); return m; }
+const swarm = [];
+function spawnMite(x, z) { const m = W.makeMite(); scene.add(m); m.position.set(x, 0.3, z); const o = { mesh: m, x, z, alive: true, r: 0.3, room: roomAt(x, z) && roomAt(x, z).id }; swarm.push(o); particles.burst(x, 0.3, z, 12, 3); return o; }
+function swarmUpdate(dt) {
+  for (const m of swarm) { if (!m.alive) continue; if (m.room !== S.room) continue; const dx = P.x - m.x, dz = P.z - m.z, l = Math.hypot(dx, dz) || 1; const sp = 2.1;
+    m.x += dx / l * sp * dt; m.z += dz / l * sp * dt; m.mesh.position.set(m.x, 0.3 + Math.abs(Math.sin(now * 8 + m.x)) * 0.2, m.z);
+    if (l < 0.75) { damagePlayer(1, m, 'sw' + m.x.toFixed(1)); m.x -= dx / l * 1.2; m.z -= dz / l * 1.2; } }
+}
+const aliveIn = (room) => swarm.filter((m) => m.alive && m.room === room).length;
+
+// ---------- Archivio sommerso ----------
+const AR = { cx: 40, cz: -28, hatch: { x: 4.2, z: -25.4 }, ladder: { x: 40, z: -22.2 }, wave1: false, wave2: false, done: false };
+const hatchM = mk(new THREE.CylinderGeometry(0.75, 0.75, 0.08, 16), 0x2b221b); hatchM.position.set(AR.hatch.x, 0.04, AR.hatch.z); scene.add(hatchM);
+const ladderM = mk(new THREE.BoxGeometry(1, 2.2, 0.2), 0x6b5a46, { y0: 0, y1: 2.2 }); ladderM.position.set(AR.ladder.x, 1.1, AR.ladder.z + 1.1 - 0.4); scene.add(ladderM);
+waterMesh(32.2, -24.5, 47.8, -27.5); // pozze d'inchiostro allagate (decoro)
+wallMesh(32, -29.5, 38.8, -29.5); wallMesh(41.2, -29.5, 48, -29.5); solid(32, -29.65, 38.8, -29.35); solid(41.2, -29.65, 48, -29.35);
+addGate('arch', 40, -29.5, W.makeGate());
+const bellM = new THREE.Group(); const bellB = mk(new THREE.CylinderGeometry(0.25, 0.6, 0.8, 12, 1, true), 0xb8862f, { shift: 0xffd27a }); bellB.material.side = THREE.DoubleSide; bellB.position.y = 1.3; bellM.add(bellB); const bellP = mk(new THREE.BoxGeometry(0.15, 2, 0.15), 0x2b221b, { y0: 0, y1: 2 }); bellP.position.set(0, 1, -0.3); bellM.add(bellP); bellM.position.set(34, 0, -26); scene.add(bellM); circles.push({ x: 34, z: -26, r: 0.5 });
+const apipe = addEnt('apipe', 'apipe', mk(new THREE.CylinderGeometry(0.16, 0.16, 5.5, 8), 0x9a6a3a, { shift: 0x3fc1ff }), 37, -28.6); apipe.mesh.rotation.z = Math.PI / 2; apipe.mesh.position.y = 0.3; apipe.mesh.userData.height = 0.8;
+const shelf = addEnt('shelf', 'shelf', (() => { const g = new THREE.Group(); const fr = mk(new THREE.BoxGeometry(2.4, 2.2, 0.6), 0x5a3a22, { y0: 0, y1: 2.2 }); fr.position.y = 1.1; g.add(fr); for (let i = 0; i < 12; i++) { const b = mk(new THREE.BoxGeometry(0.16, 0.5, 0.45), [0x8a2416, 0x2b4a5a, 0xcdbd98][i % 3], { outline: false }); b.position.set(-1 + (i % 6) * 0.38, 0.6 + Math.floor(i / 6) * 0.8, 0.12); g.add(b); } g.userData.height = 2.2; return g; })(), 45, -33.6); setComp(shelf, shelf.mesh); circles.push({ x: 45, z: -33.6, r: 1.1 });
+const lecternM = mk(new THREE.BoxGeometry(0.8, 1.1, 0.6), 0x4a3a2c, { y0: 0, y1: 1.1 }); lecternM.position.set(38, 0.55, -33.8); scene.add(lecternM); circles.push({ x: 38, z: -33.8, r: 0.5 });
+function archiveUpdate() {
+  if (S.room !== 'archive') return;
+  if (!AR.wave1) { AR.wave1 = true; S.encounter = 'archive'; ink.encounterEnd(); sfx.tension(true); for (const [x, z] of [[34, -23], [46, -23], [44, -27]]) spawnMite(x, z); say([['narr', 'Sotto la pressa, l\'archivio dove Ilde affogava le versioni scartate. Le macchie si svegliano.'], ['lumi', '…la campana. Suonava quando una pagina era pronta.']]); }
+  if (AR.wave1 && !AR.wave2 && gates.arch.open && P.z < -30) { AR.wave2 = true; for (const [x, z] of [[33, -33], [47, -31], [35, -34.5], [46, -34.5]]) spawnMite(x, z); }
+  if (S.encounter === 'archive' && aliveIn('archive') === 0 && (AR.wave2 || !gates.arch.open)) { endEncounter('archive'); }
+}
+function ringBell() { sfx.play('pulse'); particles.burst(34, 1.3, -26, 14, 3, [1, 0.85, 0.4], 0.15); if (grammar.has('apipe', 'element.conductive')) { const w = wireFx(34, -26, 40, -29.5); openGate('arch'); toast('L\'IMPULSO PASSA: LO SCAFFALE SI APRE'); journal('Hai portato il suono della campana attraverso il tubo.'); }
+  else { toastSmall('Il suono muore nel tubo isolante…'); hint('Il tubo dell\'archivio accetta una parola che conosci'); } }
+function wireFx(x0, z0, x1, z1) { for (let i = 0; i <= 10; i++) { const t = i / 10; setTimeout(() => particles.emit(lerp(x0, x1, t), 0.4, lerp(z0, z1, t), 0, 1, 0, 0.5, 0.25, 0.25, 0.75, 1, 3), i * 40); } }
+
+// ---------- Capitolo 2 ----------
+const C2 = { crateDone: false, raftUp: false, rilegSpawned: false, pileDown: false, boss: null, done: false, intro: false };
+const X = 100;
+// Riva
+const lect1 = mk(new THREE.BoxGeometry(0.8, 1.1, 0.6), 0x4a3a2c, { y0: 0, y1: 1.1 }); lect1.position.set(96.5, 0.55, -1); scene.add(lect1); circles.push({ x: 96.5, z: -1, r: 0.5 });
+waterMesh(93.2, -4.6, 97, -2.6);
+const plateC2 = W.makePlate(1.8, 1.8); plateC2.position.set(103.5, 0.06, -2.6); scene.add(plateC2);
+const crate = addEnt('crate', 'crate', mk(new THREE.BoxGeometry(1.3, 1.1, 1.3), 0x9a7a52, { y0: 0, y1: 1.1, shift: 0x3a2a22 }), 103.5, -2.6); crate.mesh.position.y = 0.75; crate.mesh.userData.height = 1.4; circles.push({ x: 103.5, z: -2.6, r: 0.8 });
+addGate('c2g1', X, -5, W.makeGate());
+// Chiusa: canale d'acqua invalicabile tranne dove sale la zattera
+waterMesh(92.2, -14, 107.8, -16.4);
+const chanL = solid(92, -16.3, 98.8, -14.1), chanR = solid(101.2, -16.3, 108, -14.1), chanM = solid(98.8, -16.3, 101.2, -14.1);
+const raft = addEnt('raft', 'raft', (() => { const g = new THREE.Group(); const d = mk(new THREE.BoxGeometry(2.6, 0.18, 2.4), 0xe8dcc0, { shift: 0x3a2a22 }); g.add(d); for (let i = 0; i < 4; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.04).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5a4a38 })); l.position.set(0, 0.1, -0.8 + i * 0.5); g.add(l); } g.userData.height = 0.6; return g; })(), X, -15.2);
+raft.mesh.position.y = -0.25;
+const stone = addEnt('stone', 'stone', mk(new THREE.DodecahedronGeometry(0.6, 0), 0x6b6258), 94.5, -19.5); stone.mesh.position.y = 0.45; stone.mesh.userData.height = 1; circles.push({ x: 94.5, z: -19.5, r: 0.6 });
+const lect2 = mk(new THREE.BoxGeometry(0.8, 1.1, 0.6), 0x4a3a2c, { y0: 0, y1: 1.1 }); lect2.position.set(95, 0.55, -11.5); scene.add(lect2); circles.push({ x: 95, z: -11.5, r: 0.5 });
+addGate('c2g2', X, -21, W.makeGate());
+const rileg = addEnt('rileg', 'rileg', (() => { const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
+  const coat = mk(new THREE.LatheGeometry([[0.55, 0], [0.5, 0.6], [0.38, 1.3], [0.2, 1.7]].map(([a, b]) => new THREE.Vector2(a, b)), 14), 0x3a3550, { shift: 0xd8cbb0, y0: 0, y1: 1.8 }); body.add(coat);
+  const head = mk(new THREE.SphereGeometry(0.28, 12, 10), 0xe8dcc0); head.position.y = 1.95; body.add(head);
+  const eyeB = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.03, 6, 12), new THREE.MeshBasicMaterial({ color: 0x16110d })); eyeB.position.set(0, 1.98, 0.26); body.add(eyeB);
+  const armor = new THREE.Group(); body.add(armor); for (let i = 0; i < 10; i++) { const t = mk(new THREE.TorusGeometry(0.5 - i * 0.03, 0.025, 4, 18), 0xd8cbb0, { outline: false }); t.rotation.x = Math.PI / 2 + (i % 2 ? 0.25 : -0.25); t.position.y = 0.2 + i * 0.15; armor.add(t); }
+  for (const sd of [-1, 1]) { const n = mk(new THREE.ConeGeometry(0.05, 1.3, 5), 0x9a9a9a); n.position.set(sd * 0.55, 1.1, 0.25); n.rotation.x = 1.2; body.add(n); }
+  g.userData = { body, armor, height: 2.3, r: 0.55 }; return g; })(), 106, -19, { hp: 4, maxHp: 4, armor: true, st: 'idle', t: 0, cd: 1.5, home: { x: 106, z: -19 } });
+rileg.mesh.visible = false; rileg.alive = false; setComp(rileg, rileg.mesh.userData.armor);
+// Pila
+const pile = addEnt('pile', 'pile', (() => { const g = new THREE.Group(); for (let i = 0; i < 9; i++) { const b = mk(new THREE.BoxGeometry(2.2 - (i % 3) * 0.2, 0.35, 1.5), [0x8a2416, 0x2b4a5a, 0xcdbd98, 0x4a3a2c][i % 4], { y0: 0, y1: 3.2 }); b.position.set((i % 2 ? 0.15 : -0.15), 0.18 + i * 0.36, 0); b.rotation.y = (i % 3 - 1) * 0.12; g.add(b); } g.userData.height = 3.4; return g; })(), X, -35.6); setComp(pile, pile.mesh);
+const pileBox = solid(X - 1.3, -36.6, X + 1.3, -34.6);
+addGate('c2g3', X, -37, null); // la pila stessa fa da cancello
+addGate('c2g4', X, -57, W.makeGate());
+// Diga
+const damWall = mk(new THREE.BoxGeometry(17.6, 3.2, 1), 0x7a6a56, { y0: 0, y1: 3.2, shift: 0x3fc1ff }); damWall.position.set(X, 1.6, -56.2); scene.add(damWall);
+const dweights = [94.5, 100, 105.5].map((x, i) => { const e = addEnt('dw' + i, 'dweight', (() => { const g = new THREE.Group(); const w = mk(new THREE.CylinderGeometry(0.5, 0.6, 0.9, 10), 0x2b221b, { shift: 0x9e2b1c }); w.position.y = 3.3; g.add(w); const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2, 4), new THREE.MeshBasicMaterial({ color: 0xd8cbb0 })); rope.position.y = 4.7; g.add(rope); const anchor = mk(new THREE.TorusGeometry(0.45, 0.12, 6, 14), 0xd8cbb0); anchor.position.y = 0.5; anchor.rotation.x = Math.PI / 2; g.add(anchor); g.userData = { w, anchor, height: 3.8 }; return g; })(), x, -54.3, { drop: -1, broken: false }); return e; });
+const damHeart = addEnt('dam', 'dam', mk(new THREE.OctahedronGeometry(0.7, 1), 0x3fc1ff, { shift: 0xffffff }), X, -54.6, { hp: 8, maxHp: 8 }); damHeart.mesh.position.y = 1.5; damHeart.mesh.visible = false; damHeart.alive = false; damHeart.mesh.userData.height = 2.2;
+const stone2 = addEnt('stone2', 'stone', mk(new THREE.DodecahedronGeometry(0.6, 0), 0x6b6258), 104.5, -69); stone2.mesh.position.y = 0.45; stone2.mesh.userData.height = 1; circles.push({ x: 104.5, z: -69, r: 0.6 });
+const elaraC2 = W.makeElaraPage(true); elaraC2.position.set(X, 0, -71.3); elaraC2.scale.setScalar(0.8); scene.add(elaraC2);
+['c2a', 'c2b', 'c2c', 'c2d', 'c2e', 'archive'].forEach(() => {});
+
+function ch2Interactables(L) {
+  if (S.room === 'conduct' && S.discovered.has('element.conductive')) L.push({ x: AR.hatch.x, z: AR.hatch.z, r: 1.6, label: 'scendi', fn: () => { sfx.play('page'); P.x = 40; P.z = -23.5; P.face = Math.PI; P.vx = P.vz = 0; Tele.log('archive_enter'); } });
+  if (S.room === 'archive') L.push({ x: AR.ladder.x, z: AR.ladder.z, r: 1.4, label: 'risali', fn: () => { sfx.play('page'); P.x = AR.hatch.x - 1.5; P.z = AR.hatch.z; P.vx = P.vz = 0; } });
+  if (S.room === 'archive' && gates.arch.open && !AR.done) L.push({ x: 38, z: -33.8, r: 1.7, label: 'leggi', fn: () => { AR.done = true; ink.interact(); sfx.play('page'); say(ST.ARCHIVE_TEXT); journal('Archivio sommerso: hai letto la prima versione della storia.'); saveGame(); } });
+  if (S.room === 'c2a' && !S.discovered.has('weight.heavy')) L.push({ x: 96.5, z: -1, r: 1.8, label: 'leggi', fn: () => { S.discovered.add('weight.heavy'); ink.interact(); sfx.play('page'); say([['narr', 'Una pagina fradicia. La cassa, dice il libro, era LEGGERA come un pensiero.'], ['narr', 'Ma l\'inchiostro sotto è più denso, più vecchio: PESANTE.']], { done: () => hint('Scrivi PESANTE sulla cassa: la piastra cederà') }); journal('Hai trovato la parola PESANTE.'); } });
+  if (S.room === 'c2b' && !S.discovered.has('weight.light')) L.push({ x: 95, z: -11.5, r: 1.8, label: 'leggi', fn: () => { S.discovered.add('weight.light'); ink.interact(); sfx.play('page'); say([['narr', 'Sul leggio, una frase annegata: «La zattera affondò, PESANTE di tutto quello che non le avevano detto».'], ['narr', 'Qualcuno ha provato a correggerla a margine: LEGGERO.']], { done: () => hint('Scrivi LEGGERO sulla zattera sommersa') }); journal('Hai trovato la parola LEGGERO.'); } });
+}
+function ch2Hit(heavy, range, arc) {
+  let any = false;
+  if (S.room === 'archive' && Math.hypot(P.x - 34, P.z - 26 + 52) < 2.2) { ringBell(); any = true; }
+  if (S.room === 'archive' && !shelf.broken && dist(P, shelf) < 2.6 && heavy) { if (grammar.has('shelf', 'state.fragile')) { shelf.broken = true; grammar.get('shelf').broken = true; shelf.mesh.visible = false; circles.splice(circles.findIndex((c) => c.x === 45 && c.z === -33.6), 1); sfx.play('break'); S.shake = 0.6; particles.burst(45, 1, -33.6, 40, 5, [0.6, 0.45, 0.3], 0.2); makeSecretPage('c1_shelf', 45, -33.2); } else { sfx.play('deny'); toastSmall('Lo scaffale regge ancora'); } any = true; }
+  if (rileg.alive && inArc(rileg, range + 0.5, arc)) { any = true; hitRileg(heavy); }
+  if (damHeart.alive && inArc(damHeart, range + 0.8, arc + 0.3)) { any = true; if (grammar.has('dam', 'state.fragile') || grammar.has('dam', 'element.conductive')) { damHeart.hp -= heavy ? 2 : 1; damHeart.hitT = 0.16; sfx.play('hit'); S.hitstop = 0.08; particles.burst(X, 1.5, -54.6, 16, 4, [0.3, 0.7, 0.9], 0.15); if (damHeart.hp <= 0) damDefeated(); } else { sfx.play('deny'); dmgAt(X, 2.5, -54.6, 'PARATO', 'block'); toastSmall('Il cuore è sigillato: FRAGILE o CONDUTTIVO lo aprono'); } }
+  if (S.room === 'c2c' && !C2.pileDown && heavy && dist(P, pile) < 2.8) { any = true; if (grammar.has('pile', 'state.fragile')) collapsePile('hit'); else { sfx.play('deny'); toastSmall('La pila oscilla ma regge'); } }
+  return any;
+}
+function hitRileg(heavy) {
+  const e = rileg; e.hitT = 0.16; const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; e.x += dx / l * (heavy ? 1.2 : 0.4); e.z += dz / l * (heavy ? 1.2 : 0.4);
+  if (e.armor) { if (heavy && grammar.has('rileg', 'state.fragile')) { e.armor = false; e.comp.visible = false; sfx.play('break'); S.shake = 0.6; toast('I FILI SI SPEZZANO'); particles.burst(e.x, 1.2, e.z, 30, 5, [0.85, 0.8, 0.7], 0.15); dmgAt(e.x, 2.6, e.z, '-30', 'big'); e.stun = 2; }
+    else { sfx.play('deny'); dmgAt(e.x, 2.6, e.z, 'PARATO', 'block'); toastSmall('I fili ricuciono ogni colpo: rendilo FRAGILE, poi colpo forte'); } return; }
+  const d = heavy ? 2 : 1; e.hp -= d; sfx.play('hit'); S.hitstop = 0.06; dmgAt(e.x, 2.6, e.z, '-' + d * 10, heavy ? 'big' : ''); particles.burst(e.x, 1.2, e.z, 12, 4);
+  if (e.hp <= 0) { e.alive = false; e.st = 'dead'; e.mesh.visible = false; grammar.resetPhrase('rileg'); sfx.play('break'); toast('IL RILEGATORE SI SCUCE'); traces.add(e.x, e.z, 2.4, 3, now); endEncounter('rileg'); journal('Hai scucito il Rilegatore. Per ora.'); say([['narr', 'Il Rilegatore si disfa in fili. Uno ti resta sulla manica: profuma di carta vecchia e di lavanda.'], ['lumi', 'Lavanda. Come… no. Non ancora.']]); if (C2.raftUp) openGate('c2g2'); }
+}
+function rilegUpdate(dt) {
+  const e = rileg; if (!e.alive || S.room !== 'c2b') return; if (e.hitT > 0) { e.hitT -= dt; setU(e.mats, 'uHit', Math.max(0, e.hitT / 0.16)); if (e.hitT <= 0) setU(e.mats, 'uHit', 0); }
+  if (e.stun > 0) { e.stun -= dt; return; }
+  const heavyW = grammar.has('rileg', 'weight.heavy'), cautious = grammar.has('rileg', 'temperament.cautious'); const sp = heavyW ? 0.9 : 2.3;
+  let tx = P.x, tz = P.z; if (C2.raftUp && !cautious) { tx = X; tz = -13.4; }
+  const dx = tx - e.x, dz = tz - e.z, d = Math.hypot(dx, dz) || 1, dp = dist(P, e);
+  if (cautious && dp < 4) { e.x -= (P.x - e.x) / dp * sp * dt; e.z -= (P.z - e.z) / dp * sp * dt; }
+  else if (d > 1.1) { e.x += dx / d * sp * dt; e.z += dz / d * sp * dt; }
+  e.x = clamp(e.x, 92.8, 107.2); e.z = clamp(e.z, -13.6, -9.6 + 0); if (P.z < -16.3) e.z = clamp(e.z, -20.5, -16.6);
+  e.mesh.position.set(e.x, 0, e.z); e.mesh.rotation.y = Math.atan2(P.x - e.x, P.z - e.z); e.mesh.userData.body.position.y = Math.abs(Math.sin(now * 6)) * 0.08;
+  if (C2.raftUp && Math.hypot(e.x - X, e.z + 13.4) < 1.4) { C2.raftUp = false; grammar.resetPhrase('raft'); unsolidRaft(false); toast('IL RILEGATORE RICUCE LA ZATTERA AL FONDO'); sfx.play('tear'); }
+  e.cd -= dt; if (e.cd <= 0 && dp < 2.6) { e.cd = heavyW ? 3 : 1.8; const x = P.x, z = P.z; sfx.play('warn'); ring(x, z, 1.2, heavyW ? 1.1 : 0.75, 0xd8cbb0, () => { if (rileg.alive && Math.hypot(P.x - x, P.z - z) < 1.2) damagePlayer(1, rileg, 'rl' + (++attackCounter)); }); }
+}
+function unsolidRaft(up) { if (up) { unsolid(chanM); } else if (!world.walls.includes(chanM)) world.walls.push(chanM); }
+function collapsePile(by) { if (C2.pileDown) return; C2.pileDown = true; grammar.get('pile').broken = true; unsolid(pileBox); openGate('c2g3'); sfx.play('break'); S.shake = 0.9; input.rumble(1, 1, 300);
+  pile.mesh.children.forEach((b, i) => { b.userData.fall = { vx: rnd(-3, 3), vz: rnd(-2, 2), vy: rnd(1, 3), r: rnd(-3, 3) }; }); C2.pileFall = 1.4;
+  for (const [x, z] of [[X - 1.6, -34.5], [X + 1.8, -35.5]]) ring(x, z, 1.2, 0.6, 0x8a1a10, () => { if (Math.hypot(P.x - x, P.z - z) < 1.2) damagePlayer(1, { x, z }, 'pile' + x); });
+  makeSecretPage('c2_pile', X + 3.5, -33); toast(by === 'combo' ? '✦ FRAGILE + PESANTE: CROLLA DA SOLA' : 'LA PILA CROLLA'); journal('La pila dei libri è crollata' + (by === 'combo' ? ' sotto il suo stesso peso.' : '.')); }
+function collapsePileQuiet() { C2.pileDown = true; grammar.get('pile').broken = true; unsolid(pileBox); openGate('c2g3'); pile.mesh.visible = false; }
+function damDefeated() { damHeart.alive = false; damHeart.mesh.visible = false; C2.boss.done = true; openGate('c2g4'); endEncounter('dam'); sfx.play('seal'); S.flash = 0.6; S.shake = 1.2; toast('LA DIGA SI ROMPE'); damWall.visible = false; journal('Hai rotto la Diga Rilegata.'); Tele.log('boss_defeated', { id: 'dam' });
+  for (let i = 0; i < 80; i++) particles.emit(X + rnd(-8, 8), rnd(0.5, 3), -56, rnd(-1, 1), rnd(0, 3), rnd(2, 6), rnd(1, 2), rnd(0.15, 0.3), 0.25, 0.4, 0.5, 6);
+  say([['narr', 'L\'acqua di carta torna a scorrere. Dietro la diga, una pagina che il fiume nascondeva da quarant\'anni.']]); }
+function bossC2Update(dt) {
+  if (S.room !== 'c2d') return; const B = C2.boss || (C2.boss = { phase: 1, t: 1.5, spawn: 4, done: false });
+  if (B.done) return;
+  if (!B.started) { B.started = true; S.encounter = 'dam'; ink.encounterEnd(); sfx.tension(true); say([['narr', 'La Diga Rilegata. Tre ancore di filo tengono il fiume fermo dove la storia vuole che resti.'], ['lumi', 'I pesi sopra le ancore… sono solo appesi. Come le parole.']]); hint('Scrivi PESANTE sui pesi appesi: cadranno sulle ancore'); }
+  for (const w of dweights) { if (w.drop >= 0 && !w.broken) { w.drop += dt; const y = Math.max(0.6, 3.3 - w.drop * w.drop * 9); w.mesh.userData.w.position.y = y; if (y <= 0.6) { w.broken = true; w.alive = false; grammar.get(w.id).broken = true; w.mesh.userData.anchor.visible = false; sfx.play('break'); S.shake = 0.8; particles.burst(w.x, 0.6, w.z, 30, 5, [0.85, 0.8, 0.7], 0.2); toast('ANCORA SPEZZATA ' + dweights.filter((q) => q.broken).length + '/3'); if (Math.hypot(P.x - w.x, P.z - w.z) < 1.2) damagePlayer(1, w, 'dw' + w.id); } }
+    else if (!w.broken && w.drop < 0 && grammar.has(w.id, 'weight.heavy')) { w.drop = 0; sfx.play('warn'); ring(w.x, w.z, 1.2, 0.55, 0x8a1a10); } }
+  if (B.phase === 1 && dweights.every((w) => w.broken)) { B.phase = 2; damHeart.alive = true; damHeart.mesh.visible = true; toast('LA DIGA · FASE 2'); hint('Il cuore è esposto: FRAGILE o CONDUTTIVO, poi colpiscilo'); S.shake = 1; Tele.log('boss_phase', { id: 'dam', phase: 2 }); }
+  damHeart.mesh.rotation.y += dt * 1.5; if (damHeart.hitT > 0) { damHeart.hitT -= dt; setU(damHeart.mats, 'uHit', Math.max(0, damHeart.hitT / 0.16)); }
+  B.t -= dt; if (B.t <= 0 && !S.lock) { B.t = B.phase === 1 ? 2.4 : 1.7; const x = P.x, z = P.z; sfx.play('warn'); ring(x, z, 1.5, 0.95, 0x1b5a7a, () => { particles.burst(x, 0.3, z, 16, 4, [0.25, 0.4, 0.5], 0.18); if (Math.hypot(P.x - x, P.z - z) < 1.5) damagePlayer(1, { x, z }, 'jet' + (++attackCounter)); }); }
+  B.spawn -= dt; if (B.spawn <= 0) { B.spawn = B.phase === 1 ? 6 : 4.5; if (aliveIn('c2d') < 4) spawnMite(X + rnd(-7, 7), -51 + rnd(-3, 3)); }
+  const v = dweights.filter((w) => !w.broken).length * 2 + (B.phase === 2 ? Math.max(0, damHeart.hp) : 8); $('bossBar').classList.toggle('hidden', S.roomT < 2.6); $('bossBar').querySelector('.bname').textContent = B.phase === 1 ? 'LA DIGA RILEGATA · ANCORE' : 'LA DIGA RILEGATA · CUORE'; setBar($('bossBar').querySelector('.hbar'), v / 14);
+}
+function ch2Update(dt) {
+  archiveUpdate(); swarmUpdate(dt); rilegUpdate(dt); bossC2Update(dt);
+  if (!C2.crateDone && grammar.has('crate', 'weight.heavy')) { C2.crateDone = true; crate.mesh.position.y = 0.6; plateC2.position.y = 0.0; openGate('c2g1'); sfx.play('heavy'); S.shake = 0.4; toast('LA PIASTRA CEDE'); journal('Hai reso PESANTE la cassa: la piastra ha ceduto.'); }
+  if (grammar.has('crate', 'weight.light')) crate.mesh.position.y = 0.75 + 0.3 + Math.sin(now * 2) * 0.08;
+  const up = grammar.has('raft', 'weight.light'); if (up && !C2.raftUp) { C2.raftUp = true; unsolidRaft(true); sfx.play('page'); toast('LA ZATTERA RIAFFIORA'); if (!C2.rilegSpawned) { C2.rilegSpawned = true; rileg.alive = true; rileg.mesh.visible = true; rileg.x = 106; rileg.z = -10.5; S.encounter = 'rileg'; ink.encounterEnd(); sfx.tension(true); say([['narr', 'Dal fondo del canale sale una figura fatta di fili e colla.'], ['custode', 'Ciò che è affondato resta affondato.'], ['lumi', 'Il Rilegatore. Ricuce tutto quello che apri.']]); hint('Il Rilegatore vuole ricucire la zattera: CAUTO lo tiene lontano, PESANTE lo rallenta, FRAGILE + colpo forte spezza i fili'); } if (!rileg.alive) openGate('c2g2'); }
+  if (!up && C2.raftUp) { C2.raftUp = false; unsolidRaft(false); }
+  raft.mesh.position.y = lerp(raft.mesh.position.y, C2.raftUp ? 0.12 : -0.25, 0.08); raft.mesh.rotation.z = C2.raftUp ? Math.sin(now * 1.3) * 0.03 : 0;
+  if (!stone.floated && grammar.has('stone', 'weight.light')) { stone.floated = true; stone.broken = true; sfx.play('breath'); makeSecretPage('c2_stone', 94.5, -19.5); circles.splice(circles.findIndex((c) => c.x === 94.5 && c.z === -19.5), 1); }
+  if (stone.floated && stone.mesh.position.y < 6) stone.mesh.position.y += dt * 1.5;
+  if (!stone2.floated && grammar.has('stone2', 'weight.light')) { stone2.floated = true; stone2.broken = true; sfx.play('breath'); makeSecretPage('c2_dam', 104.5, -69); circles.splice(circles.findIndex((c) => c.x === 104.5 && c.z === -69), 1); }
+  if (stone2.floated && stone2.mesh.position.y < 6) stone2.mesh.position.y += dt * 1.5;
+  if (!C2.pileDown && grammar.has('pile', 'state.fragile') && grammar.has('pile', 'weight.heavy')) collapsePile('combo');
+  if (C2.pileFall > 0) { C2.pileFall -= dt; pile.mesh.children.forEach((b) => { const f = b.userData.fall; if (!f) return; f.vy -= 12 * dt; b.position.x += f.vx * dt; b.position.z += f.vz * dt; b.position.y = Math.max(0.18, b.position.y + f.vy * dt); b.rotation.z += f.r * dt; }); }
+  if (S.room === 'c2e' && !C2.done && !S.lock) { C2.done = true; S.lock = true; say(ST.C2_END, { done: () => { S.lock = false; finishChapter2(); } }); }
+}
+function startChapter2() {
+  S.chapter = 2; for (const w of ['state.fragile', 'temperament.cautious', 'element.conductive']) S.discovered.add(w);
+  P.x = X; P.z = 3.4; P.face = Math.PI; P.spawn = { x: X, z: 3.4 }; enterRoom(W.ROOMS.find((r) => r.id === 'c2a'));
+  say(ST.C2_INTRO, { done: () => { S.lock = false; } });
+}
+function finishChapter2() { mem.chapters = mem.chapters || {}; const prev = mem.chapters[2] || {}; mem.chapters[2] = { done: true, secrets: Math.max(['c2_stone', 'c2_pile', 'c2_dam'].filter((s) => S.secrets.has(s)).length, prev.secrets || 0) }; ST.saveMem(mem); try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  S.done = true; Tele.log('chapter_complete', { chapter: 2, t: Math.round(S.time) }); Tele.flush();
+  $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') + `<p><b>Capitolo II completato.</b><br><b>Pagine nascoste:</b> ${mem.chapters[2].secrets}/3<br><b>Macchie lasciate:</b> ${S.deaths}</p><p class="small">Il Capitolo III è in scrittura.</p>`;
+  $('journal').classList.remove('hidden'); $('journal').querySelector('h2').textContent = 'Fine del Capitolo II'; $('journal').querySelector('[data-close]').textContent = 'Torna al titolo'; }
+
 const charger = addEnt('charger', 'charger', W.makeCharger(), 0, -16);
 for (const [x, z] of [[-3.6, -17], [3.6, -12.5]]) { const m = W.makePillar(); m.position.set(x, 1.3, z); scene.add(m); circles.push({ x, z, r: 0.72, pillar: true, mesh: m }); }
 addGate('r1', 0, -20, W.makeGate());
@@ -273,10 +439,11 @@ function doHit(heavy) {
     else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); toastSmall('La corazza è integra: attendi un varco'); dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.3, e.z, 'PARATO', 'block'); }
     const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; if (e.st !== 'charge') { e.vx += dx / l * (heavy ? 4 : 1.5); e.vz += dz / l * (heavy ? 4 : 1.5); }
   }
-  for (const m of door.mites) if (m.alive && inArc(m, range, arc + 0.3)) { m.alive = false; any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g) popInk('+' + g); }
+  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range, arc + 0.3)) { m.alive = false; any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g) popInk('+' + g); }
   if (!board.broken && dist(P, board) < 2.4 && heavy) { if (grammar.has('board', 'state.fragile')) breakBoard(); else { sfx.play('deny'); toastSmall('La tavola è integra. Il libro dice: integra.'); } any = true; }
   if (!relay.broken && dist(P, relay) < 2.2 && heavy && !S.doorRoute && !door.defense) { if (grammar.has('relay', 'state.fragile')) forceRelay(); else { sfx.play('deny'); toastSmall('Il supporto del relè regge'); } any = true; }
   if (heavy && trySecretsOnHeavy()) any = true;
+  if (ch2Hit(heavy, range, arc)) any = true;
   if (any) input.rumble(0.3, heavy ? 0.7 : 0.3, 80);
 }
 function coreHit(e) {
@@ -296,6 +463,7 @@ function interactables() {
   if (S.room === 'door' && door.hasDoc && !door.docPlaced && !S.doorRoute) L.push({ x: -1.9, z: -49.4, r: 1.7, label: 'inserisci', fn: () => { door.docPlaced = true; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'reader' }); hint('La prova è nel lettore. Il relè pulsa già: dai alla piastra una strada'); } });
   if (S.room === 'door' && !S.doorRoute && !door.defense) L.push({ x: 0, z: -48.9, r: 2.0, label: 'parla', fn: talkElara });
   if (S.room === 'arena' && (arena.snapped || arena.window > 0) && !S.victory) L.push({ x: 0, z: -68.2, r: 1.8, label: 'tocca', fn: touchSeal });
+  ch2Interactables(L);
   return L;
 }
 function nearestInteract() { let b = null, bd = 1e9; for (const it of interactables()) { const d = Math.hypot(P.x - it.x, P.z - it.z); if (d < it.r && d < bd) { bd = d; b = it; } } return b; }
@@ -345,7 +513,7 @@ function buildBubbles() {
   panel.words.forEach((w, i) => { const b = document.createElement('div'); const isR = w === 'reset';
     b.className = 'bubble ' + (isR ? 'reset' : EFFECTS[w].slot) + (opts.panel ? ' side' : '') + (!isR && grammar.has(e.id, w) ? ' active' : '');
     b.textContent = isR ? 'ripristina' : EFFECTS[w].word; b.style.animationDelay = i * 0.06 + 's';
-    if (opts.panel && !isR) b.textContent = { state: 'Stato · ', temperament: 'Temperamento · ', element: 'Elemento · ' }[EFFECTS[w].slot] + EFFECTS[w].word;
+    if (opts.panel && !isR) b.textContent = { state: 'Stato · ', temperament: 'Temperamento · ', element: 'Elemento · ', weight: 'Peso · ' }[EFFECTS[w].slot] + EFFECTS[w].word;
     b.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); ev.preventDefault(); if (!ink.canSelect()) return; if (panel.sel === i && panel.armed) confirmWord(); else { selectWord(i); panel.armed = true; } });
     b.addEventListener('pointerenter', () => { if (input.mode === 'kb' && ink.canSelect() && panel.sel !== i) selectWord(i); });
     box.appendChild(b); panel.els.push(b); });
@@ -590,7 +758,10 @@ function dmgAt(x, y, z, text, cls = '') { const p = toScreen(x, y, z); if (!p.ok
 const CORE = { charger: 2, custode: 4 };
 function enemyHP(e) { const core = CORE[e.id]; const coreLeft = e.alive && e.st !== 'dead' && !(e.boss && arena.snapped) ? core : 0; return { v: Math.max(0, e.armorHP) * (e.armorBroken ? 0 : 1) + coreLeft, max: e.armorMax + core }; }
 const ebarEl = {};
+function rilegBar() { const e = rileg; let el = ebarEl.rileg; if (!el) { el = ebarEl.rileg = document.createElement('div'); el.className = 'ebar'; el.innerHTML = '<div class="lbl">Il Rilegatore</div><div class="hbar"><div class="trail"></div><div class="fill"></div></div>'; $('ebars').appendChild(el); }
+  const p = toScreen(e.x, 2.9, e.z); const vis = e.alive && S.room === 'c2b' && p.ok && !S.done; el.style.display = vis ? 'block' : 'none'; if (vis) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; setBar(el.querySelector('.hbar'), ((e.armor ? 3 : 0) + Math.max(0, e.hp)) / (3 + e.maxHp)); } }
 function healthUpdate(dt) {
+  rilegBar();
   for (const e of [charger, custode]) {
     const h = enemyHP(e); if (e.lastHP === undefined) e.lastHP = h.v;
     if (h.v < e.lastHP) { const d = (e.lastHP - h.v) * 10; dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.4, e.z, '-' + d, d >= 30 ? 'big' : ''); e.hitT = 0.16;
@@ -598,7 +769,7 @@ function healthUpdate(dt) {
     e.lastHP = h.v;
     if (e.hitT > 0) { e.hitT -= dt; setU(e.mats, 'uHit', Math.max(0, e.hitT / 0.16) * 0.85); if (e.hitT <= 0) setU(e.mats, 'uHit', 0); }
     const inRoom = S.room === (e.boss ? 'arena' : 'charger') && S.phase === 'play' && !S.done;
-    if (e.boss) { const show = inRoom && !S.victory; $('bossBar').classList.toggle('hidden', !show); if (show) setBar($('bossBar').querySelector('.hbar'), h.v / h.max); continue; }
+    if (e.boss) { const show = inRoom && !S.victory && S.roomT > 2.6; if (S.room === 'c2d') continue; $('bossBar').classList.toggle('hidden', !show); if (show) setBar($('bossBar').querySelector('.hbar'), h.v / h.max); continue; }
     let el = ebarEl[e.id]; if (!el) { el = ebarEl[e.id] = document.createElement('div'); el.className = 'ebar'; el.innerHTML = '<div class="lbl">' + grammar.get(e.id).def.name + '</div><div class="hbar"><div class="trail"></div><div class="fill"></div></div>'; $('ebars').appendChild(el); }
     const p = toScreen(e.x, (e.mesh.userData.height || 1.6) + 0.9, e.z); const vis = inRoom && e.alive && e.st !== 'dead' && p.ok;
     el.style.display = vis ? 'block' : 'none'; if (vis) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; setBar(el.querySelector('.hbar'), h.v / h.max); }
@@ -612,6 +783,12 @@ function goalText() {
     case 'door': return S.doorRoute ? 'Obiettivo: attraversa la porta' : door.defense ? 'Obiettivo: difendi Elara dalle macchie' : 'Obiettivo: apri la porta che giudica (3 modi: forza il relè · porta la prova · parla con Elara)';
     case 'arena': return S.victory ? '' : (arena.snapped || arena.window > 0) ? 'Obiettivo: tocca il sigillo rosso a nord, ora!' : 'Obiettivo: spezza il legame tra il Custode e il nucleo, poi tocca il sigillo';
     case 'end': return 'La storia ricorda come l\'hai riscritta';
+    case 'archive': return !gates.arch.open ? 'Obiettivo: fai suonare la campana fino allo scaffale-cancello (il tubo è isolante…)' : !AR.done ? 'Obiettivo: leggi il leggio in fondo all\'archivio · poi risali la scala' : 'Obiettivo: risali la scala e torna alla pressa';
+    case 'c2a': return !S.discovered.has('weight.heavy') ? 'Obiettivo: leggi la pagina fradicia sul leggio' : !C2.crateDone ? 'Obiettivo: scrivi PESANTE sulla cassa sulla piastra' : 'Obiettivo: prosegui verso nord';
+    case 'c2b': return !S.discovered.has('weight.light') ? 'Obiettivo: leggi il leggio annegato' : !C2.raftUp ? 'Obiettivo: fai riaffiorare la zattera (LEGGERO) per attraversare il canale' : rileg.alive ? 'Obiettivo: ferma il Rilegatore prima che ricucia la zattera' : 'Obiettivo: attraversa il canale verso nord';
+    case 'c2c': return !C2.pileDown ? 'Obiettivo: abbatti la pila di libri (una combinazione la fa crollare da sola)' : 'Obiettivo: prosegui verso la diga';
+    case 'c2d': return C2.boss && C2.boss.done ? 'Obiettivo: attraversa la diga rotta' : (C2.boss && C2.boss.phase === 2) ? 'Obiettivo: rendi il cuore FRAGILE o CONDUTTIVO e colpiscilo' : 'Obiettivo: fai cadere i 3 pesi sulle ancore (PESANTE)';
+    case 'c2e': return 'Obiettivo: ascolta Elara';
   } return '';
 }
 function phase2Update(dt) {
@@ -659,6 +836,7 @@ let filmEnding = false;
 function endFilm() { if (!introPlaying || filmEnding) return; filmEnding = true; film.done = true; if (window.speechSynthesis) speechSynthesis.cancel(); $('fFade').style.opacity = 1;
   setTimeout(() => { $('film').classList.add('hidden'); $('fSub').textContent = ''; introPlaying = false; filmEnding = false; Tele.log('intro_end', { t: Math.round(film.t) }); startGame(); }, 700); }
 function setupTitle() {
+  if (pendingChapter === 2) setTimeout(() => { $('title').classList.add('hidden'); startGame(); }, 400);
   const sv = loadSave(); const rn = sv && W.ROOMS.find((r) => r.id === sv.room);
   $('bContinue').classList.toggle('hidden', !sv); if (sv) $('bContinue').textContent = 'Continua · Cap. 1 · ' + (rn ? rn.title : '');
   $('bContinue').onclick = () => { if (S.phase !== 'title') return; pendingSave = loadSave(); startGame(); };
@@ -667,16 +845,17 @@ function setupTitle() {
 }
 const CHAPTERS = [['I', 'La tavola', 'FRAGILE · CAUTO · CONDUTTIVO'], ['II', 'Il fiume di carta', 'PESANTE · LEGGERO'], ['III', 'L\'incendio del frontespizio', 'CIECO · ARDENTE'], ['IV', 'L\'orologio di Ilde', 'LENTO · LEGATO'], ['V', 'La pagina bianca', 'NON SCRITTO']];
 function renderChapters() {
-  const ch = mem.chapters || {}; $('chList').innerHTML = CHAPTERS.map(([n, t, w], i) => { const done = ch[i + 1] && ch[i + 1].done; const open = i === 0;
-    return `<button class="chap ${open ? '' : 'locked'}" data-ch="${i + 1}" ${open ? '' : 'disabled'}><b>Capitolo ${n}</b> · ${t}<small>${open ? (done ? '✔ completato · pagine nascoste ' + ch[1].secrets + '/2' : 'parole: ' + w) : 'in scrittura… (' + w + ')'}</small></button>`; }).join('');
-  $('chList').querySelectorAll('.chap:not(.locked)').forEach((b) => b.onclick = () => { $('chapters').classList.add('hidden'); try { localStorage.removeItem(SAVE_KEY); } catch (e) {} beginWithIntro(false); });
+  const ch = mem.chapters || {}; $('chList').innerHTML = CHAPTERS.map(([n, t, w], i) => { const done = ch[i + 1] && ch[i + 1].done; const open = i === 0 || (i === 1 && ch[1] && ch[1].done);
+    return `<button class="chap ${open ? '' : 'locked'}" data-ch="${i + 1}" ${open ? '' : 'disabled'}><b>Capitolo ${n}</b> · ${t}<small>${open ? (done ? '✔ completato · pagine nascoste ' + ch[i + 1].secrets + '/3' : 'parole: ' + w) : 'in scrittura… (' + w + ')'}</small></button>`; }).join('');
+  $('chList').querySelectorAll('.chap:not(.locked)').forEach((b) => b.onclick = () => { $('chapters').classList.add('hidden'); try { localStorage.removeItem(SAVE_KEY); } catch (e) {} if (b.dataset.ch === '2') { pendingChapter = 2; startGame(); } else beginWithIntro(false); });
 }
-let pendingSave = null;
+let pendingSave = null, pendingChapter = sessionStorage.getItem('pal_goto') === 'c2' ? 2 : 0; sessionStorage.removeItem('pal_goto');
 function startGame() {
   if (S.phase !== 'title') return;
   $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); sfx.start(); sfx.setVol(opts.vol); sfx.setMusic(opts.mus); S.phase = 'play'; S.lock = true; renderHP();
   if (isTouch) input.mode = 'touch'; Tele.log('session_start', { runs: mem.runs });
   for (const [x, z] of (mem.traces || [])) traces.add(x, z, rnd(0.8, 1.6), 3, -100); // le cancellature delle versioni precedenti
+  if (pendingChapter === 2) { pendingChapter = 0; tut.on = false; startChapter2(); return; }
   if (pendingSave) { restoreSave(pendingSave); tut.on = false; $('bossBar').querySelector('.bname').textContent = 'IL CUSTODE DELLA FENDITURA'; enterRoom(W.ROOMS[ROOM_ORDER.indexOf(pendingSave.room)] || W.ROOMS[0]); pendingSave = null; S.lock = false; return; }
   enterRoom(W.ROOMS[0]); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
   say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } });
@@ -700,9 +879,10 @@ function goEnd() {
 }
 function finish() {
   S.done = true; S.lock = false; Tele.log('slice_complete', { t: Math.round(S.time), door_route: S.doorRoute, plan: S.plan, deaths: S.deaths }); Tele.flush();
-  mem.chapters = mem.chapters || {}; mem.chapters[1] = { done: true, secrets: Math.max(S.secrets.size, (mem.chapters[1] && mem.chapters[1].secrets) || 0) }; try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  mem.chapters = mem.chapters || {}; mem.chapters[1] = { done: true, secrets: Math.max(chapSecrets(1).filter((k) => S.secrets.has(k)).length, (mem.chapters[1] && mem.chapters[1].secrets) || 0) }; try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
   mem.runs++; mem.routes.push(S.doorRoute); mem.plans.push(S.plan); mem.traces = S.tracePos.slice(-60); ST.saveMem(mem);
-  $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') + `<p><b>Strada della porta:</b> ${ST.ROUTE_TEXT[S.doorRoute] || '—'}<br><b>Piano contro il Custode:</b> ${ST.PLAN_TEXT[S.plan] || '—'}<br><b>Macchie lasciate:</b> ${S.deaths}<br><b>Pagine nascoste:</b> ${S.secrets.size}/${Object.keys(SECRETS).length}</p><p class="small">Rigioca: le pagine ricorderanno questa versione.</p>`;
+  $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') + `<p><b>Strada della porta:</b> ${ST.ROUTE_TEXT[S.doorRoute] || '—'}<br><b>Piano contro il Custode:</b> ${ST.PLAN_TEXT[S.plan] || '—'}<br><b>Macchie lasciate:</b> ${S.deaths}<br><b>Pagine nascoste:</b> ${chapSecrets(1).filter((k) => S.secrets.has(k)).length}/3</p><p><button class="pbtn big" id="bToC2">Capitolo II ▸</button></p><p class="small">Rigioca: le pagine ricorderanno questa versione.</p>`;
+  { const b2 = $('bToC2'); if (b2) b2.onclick = () => { sessionStorage.setItem('pal_goto', 'c2'); location.reload(); }; }
   $('journal').classList.remove('hidden'); $('journal').querySelector('h2').textContent = 'Fine del frammento'; $('journal').querySelector('[data-close]').textContent = 'Riscrivi di nuovo';
 }
 
@@ -729,7 +909,7 @@ const camPos = new THREE.Vector3(0, 14, 14), camLook = new THREE.Vector3(0, 0.8,
 function slowmo(t) { slowT = t; }
 function step(sdt) {
   S.time += sdt; now += sdt; grammar.tick(sdt);
-  playerUpdate(sdt); aiUpdate(charger, sdt); aiUpdate(custode, sdt); devicesUpdate(sdt); if (S.room === 'arena') arenaUpdate(sdt); defenseUpdate(sdt);
+  playerUpdate(sdt); aiUpdate(charger, sdt); aiUpdate(custode, sdt); devicesUpdate(sdt); if (S.room === 'arena') arenaUpdate(sdt); defenseUpdate(sdt); ch2Update(sdt);
   for (const e of [charger, custode]) { if (!e.alive || e.st === 'dead' || e.st === 'charge' || P.st === 'dodge') continue; const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz), rr = P.r + e.cfg.r; if (d < rr && d > 1e-4) { const k = (rr - d) / d; P.x += dx * k * 0.7; P.z += dz * k * 0.7; e.x -= dx * k * 0.3; e.z -= dz * k * 0.3; collide(P, P.r, false); } }
   const r = roomAt(P.x, P.z); if (r && S.phase === 'play' && !S.lock && r.id !== 'end') enterRoom(r);
 }
@@ -816,7 +996,7 @@ function loop() {
 
 // ---------- avvio + agganci di test ----------
 resize(); bindUI(); P.mesh.position.set(P.x, 0, P.z); requestAnimationFrame(loop);
-window.PAL = { tut, TUT, trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { tut, TUT, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

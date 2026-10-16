@@ -93,30 +93,47 @@ export function makeCharger() {
     for (const z of [0.5, -0.1, -0.6]) { const leg = inked(new THREE.CylinderGeometry(0.07, 0.04, 0.55, 5), { color: 0x2a211a, ow: 0.02 }); leg.position.set(s * 0.62, 0.22, z); leg.rotation.z = s * 0.5; body.add(leg); } }
   grp.userData = { body, core, armor, r: 0.85, height: 1.6 }; return grp;
 }
+const lathe = (pts, seg = 18) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
 export function makeCustode() {
+  // Il Custode: una statua d'inchiostro indurito, curva, coperta di pagine incollate come armatura.
   const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
-  const core = inked(new THREE.OctahedronGeometry(0.42, 0), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.y = 1.5; body.add(core);
+  const core = inked(new THREE.OctahedronGeometry(0.42, 1), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.set(0, 1.55, 0.05); body.add(core);
   const armor = new THREE.Group(); body.add(armor);
-  const torso = inked(new THREE.BoxGeometry(1.4, 1.5, 0.9, 3, 3, 2), { color: 0xbfae8c, y0: 0.6, y1: 2.6 }); torso.position.y = 1.55; armor.add(torso);
-  const head = inked(new THREE.BoxGeometry(0.7, 0.55, 0.6), { color: 0xd3c4a2, y0: 2.3, y1: 2.9 }); head.position.y = 2.6; armor.add(head);
-  for (const s of [-1, 1]) { const sh = inked(new THREE.BoxGeometry(0.55, 0.35, 0.95), { color: 0x2b221b }); sh.position.set(s * 0.95, 2.15, 0); sh.rotation.z = s * -0.25; armor.add(sh);
-    const arm = inked(new THREE.BoxGeometry(0.32, 1.3, 0.32), { color: 0xb5a37f }); arm.position.set(s * 0.95, 1.35, 0.1); armor.add(arm); arm.userData.side = s; armor.userData['arm' + s] = arm; }
-  const legs = inked(new THREE.BoxGeometry(1.0, 0.8, 0.6), { color: 0x2b221b }); legs.position.y = 0.4; body.add(legs);
-  // occhio: una riga d'inchiostro rigida
-  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.02), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); eye.position.set(0, 2.62, 0.31); armor.add(eye);
-  grp.userData = { body, core, armor, r: 0.9, height: 2.9, eye }; return grp;
+  // busto massiccio a goccia rovesciata, inclinato in avanti
+  const torso = inked(lathe([[0, 0], [0.55, 0.05], [0.8, 0.45], [0.95, 0.95], [0.9, 1.3], [0.6, 1.55], [0, 1.62]], 20), { color: 0xcdbd98, shift: 0x9e2b1c, y0: 0.7, y1: 2.6 });
+  torso.position.y = 0.85; torso.rotation.x = 0.18; torso.scale.set(1.15, 1, 0.85); armor.add(torso);
+  // pagine incollate sul petto (armatura a scaglie)
+  for (let i = 0; i < 9; i++) { const pg = inked(new THREE.PlaneGeometry(0.42, 0.55), { color: 0xd8cbb0, outline: true, ow: 0.015 }); pg.material.side = THREE.DoubleSide;
+    const a = (i % 3 - 1) * 0.55, row = Math.floor(i / 3); pg.position.set(Math.sin(a) * 0.98, 1.25 + row * 0.38, Math.cos(a) * 0.82 + 0.08); pg.rotation.set(-0.2 + row * 0.05, a, (Math.random() - 0.5) * 0.35); armor.add(pg); }
+  // testa: cappuccio a punta con una sola riga rossa
+  const head = inked(lathe([[0, 0], [0.38, 0.05], [0.42, 0.3], [0.3, 0.6], [0, 0.85]], 14), { color: 0x1d1611, y0: 2.3, y1: 3.2 }); head.position.set(0, 2.35, 0.25); armor.add(head);
+  // spalle sferiche schiacciate e braccia lunghe con pugni enormi
+  for (const sd of [-1, 1]) { const sh = inked(new THREE.SphereGeometry(0.48, 14, 10), { color: 0x2b221b }); sh.scale.set(1, 0.8, 1); sh.position.set(sd * 1.05, 2.15, 0.05); armor.add(sh);
+    const arm = new THREE.Group(); arm.position.set(sd * 1.15, 2.05, 0.1); armor.add(arm); arm.userData.side = sd; armor.userData['arm' + sd] = arm;
+    const up = inked(lathe([[0.22, 0], [0.26, -0.4], [0.2, -0.9], [0.17, -1.1]], 10), { color: 0xb5a37f }); arm.add(up);
+    const fist = inked(new THREE.DodecahedronGeometry(0.36, 0), { color: 0xbfae8c, shift: 0x9e2b1c }); fist.position.y = -1.3; fist.scale.set(1, 1.1, 1); arm.add(fist); }
+  // gambe corte e pesanti
+  for (const sd of [-1, 1]) { const lg = inked(lathe([[0.3, 0], [0.34, 0.4], [0.26, 0.85]], 10), { color: 0x1d1611 }); lg.position.set(sd * 0.42, 0, 0); body.add(lg); }
+  // catene d'inchiostro che pendono
+  for (let i = 0; i < 4; i++) { const ch = inked(new THREE.TorusGeometry(0.09, 0.025, 4, 8), { color: 0x120c0a, outline: false }); ch.position.set(-0.5 + i * 0.33, 0.95 - (i % 2) * 0.1, 0.72); ch.rotation.y = i % 2 ? Math.PI / 2 : 0; armor.add(ch); }
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); eye.position.set(0, 2.62, 0.62); armor.add(eye);
+  body.scale.setScalar(1.2); grp.userData = { body, core, armor, r: 0.9, height: 3.4, eye }; return grp;
 }
 export function makePlayer() {
+  // Il Correttore: mantello d'inchiostro che si sfrangia, cappuccio, volto in ombra con due punti di luce, sciarpa rossa.
   const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
-  const cloak = inked(new THREE.ConeGeometry(0.42, 1.25, 9, 3, true), { color: 0x2c2420, shift: 0x7a1f14, y0: 0, y1: 1.3 }); cloak.position.y = 0.66; cloak.material.side = THREE.DoubleSide; body.add(cloak);
-  const torso = inked(new THREE.CapsuleGeometry(0.2, 0.45, 4, 8), { color: 0x3a302a, y0: 0.6, y1: 1.4 }); torso.position.y = 1.05; body.add(torso);
-  const head = inked(new THREE.SphereGeometry(0.21, 14, 10), { color: 0xf2e9d6, y0: 1.3, y1: 1.75 }); head.position.y = 1.55; body.add(head);
-  const hood = inked(new THREE.ConeGeometry(0.27, 0.45, 9), { color: 0x2c2420 }); hood.position.set(0, 1.72, -0.04); hood.rotation.x = -0.25; body.add(hood);
-  const sash = inked(new THREE.TorusGeometry(0.22, 0.04, 5, 12), { color: 0x8a2416, outline: false }); sash.rotation.x = Math.PI / 2; sash.position.y = 0.95; body.add(sash);
-  const quillPivot = new THREE.Group(); quillPivot.position.set(0.32, 1.05, 0.05); body.add(quillPivot);
-  const quill = inked(new THREE.ConeGeometry(0.06, 1.2, 6), { color: 0x15100c, shift: 0x8a2416 }); quill.rotation.x = Math.PI / 2; quill.position.z = 0.55; quillPivot.add(quill);
-  const feather = inked(new THREE.PlaneGeometry(0.22, 0.55), { color: 0xeee4cf, outline: false }); feather.material.side = THREE.DoubleSide; feather.position.set(0, 0.12, -0.15); feather.rotation.x = -0.4; quillPivot.add(feather);
-  grp.userData = { body, cloak, head, quillPivot, quill, r: 0.38 }; return grp;
+  const cloak = inked(lathe([[0.46, 0], [0.5, 0.06], [0.4, 0.45], [0.3, 0.9], [0.22, 1.25], [0.14, 1.38]], 16), { color: 0x241d19, shift: 0x7a1f14, y0: 0, y1: 1.4 }); cloak.material.side = THREE.DoubleSide; body.add(cloak);
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const fr = inked(new THREE.ConeGeometry(0.07, 0.22, 4), { color: 0x16110d, outline: false }); fr.position.set(Math.sin(a) * 0.46, -0.05, Math.cos(a) * 0.46); fr.rotation.x = Math.PI; body.add(fr); }
+  const head = inked(new THREE.SphereGeometry(0.2, 16, 12), { color: 0x14100d, y0: 1.3, y1: 1.75 }); head.position.y = 1.5; body.add(head);
+  const hood = inked(lathe([[0.27, 0], [0.28, 0.15], [0.2, 0.36], [0.03, 0.52]], 14), { color: 0x2c2420 }); hood.position.set(0, 1.33, -0.03); hood.rotation.x = -0.18; body.add(hood);
+  for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), new THREE.MeshBasicMaterial({ color: 0xf6e3b0 })); e.position.set(sd * 0.07, 1.52, 0.18); body.add(e); }
+  const scarf = inked(new THREE.TorusGeometry(0.19, 0.06, 6, 14), { color: 0x8a2416, outline: false }); scarf.rotation.x = Math.PI / 2; scarf.position.y = 1.3; body.add(scarf);
+  const tail = inked(new THREE.PlaneGeometry(0.14, 0.6, 1, 4), { color: 0x8a2416, outline: false }); tail.material.side = THREE.DoubleSide; tail.position.set(0.1, 1.05, -0.22); tail.rotation.x = 0.35; body.add(tail);
+  const sash = inked(new THREE.TorusGeometry(0.33, 0.03, 5, 14), { color: 0x5a1810, outline: false }); sash.rotation.x = Math.PI / 2; sash.position.y = 0.72; body.add(sash);
+  const quillPivot = new THREE.Group(); quillPivot.position.set(0.32, 1.0, 0.05); body.add(quillPivot);
+  const quill = inked(new THREE.ConeGeometry(0.05, 1.2, 6), { color: 0x15100c, shift: 0x8a2416 }); quill.rotation.x = Math.PI / 2; quill.position.z = 0.55; quillPivot.add(quill);
+  const feather = inked(new THREE.PlaneGeometry(0.22, 0.55, 1, 3), { color: 0xeee4cf, outline: false }); feather.material.side = THREE.DoubleSide; feather.position.set(0, 0.12, -0.15); feather.rotation.x = -0.4; quillPivot.add(feather);
+  grp.userData = { body, cloak, head, quillPivot, quill, tail, r: 0.38 }; return grp;
 }
 export function makeLumi() {
   const grp = new THREE.Group();
@@ -131,12 +148,19 @@ export function makeElaraPage(guilty = true) {
   const draw = (state) => { const c = document.createElement('canvas'); c.width = 512; c.height = 768; const g = c.getContext('2d');
     g.fillStyle = '#efe5cf'; g.fillRect(0, 0, 512, 768); g.strokeStyle = '#2a1f16'; g.lineWidth = 6; g.strokeRect(14, 14, 484, 740);
     g.fillStyle = 'rgba(40,28,20,.35)'; g.font = 'italic 22px Georgia'; for (let i = 0; i < 16; i++) g.fillText('elara elara non ha scritto questa riga'.slice(0, 20 + (i * 7) % 18), 40, 360 + i * 24);
-    // volto a inchiostro
-    g.strokeStyle = '#1b130e'; g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.ellipse(256, 210, 95, 125, 0, 0, Math.PI * 2); g.stroke();
-    g.beginPath(); g.moveTo(200, 200); g.quadraticCurveTo(215, state.eyes, 230, 200); g.moveTo(282, 200); g.quadraticCurveTo(297, state.eyes, 312, 200); g.stroke();
-    g.beginPath(); g.moveTo(225, 280); g.quadraticCurveTo(256, 280 + state.mouth, 287, 280); g.stroke();
-    g.beginPath(); g.moveTo(170, 120); g.bezierCurveTo(120, 260, 140, 380, 110, 470); g.moveTo(342, 120); g.bezierCurveTo(392, 260, 372, 380, 402, 470); g.stroke();
-    if (state.verdict) { g.save(); g.translate(256, 520); g.rotate(-0.08); g.fillStyle = '#8a1a10'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.fillText(state.verdict, 0, 0); g.restore(); }
+    // ritratto a inchiostro: capelli come una macchia che cola, volto pallido, spalle
+    g.fillStyle = '#e8dcc0'; g.fillRect(30, 30, 452, 470); g.strokeStyle = 'rgba(40,28,20,.25)'; g.lineWidth = 1; for (let i = 0; i < 70; i++) { g.beginPath(); g.moveTo(30 + i * 7, 30); g.lineTo(30, 30 + i * 7); g.stroke(); }
+    g.fillStyle = '#1b130e'; g.beginPath(); g.moveTo(256, 60); g.bezierCurveTo(120, 60, 110, 200, 120, 300); g.bezierCurveTo(125, 400, 90, 470, 110, 500); g.lineTo(402, 500); g.bezierCurveTo(420, 470, 387, 400, 392, 300); g.bezierCurveTo(402, 200, 392, 60, 256, 60); g.fill();
+    for (let i = 0; i < 6; i++) { g.fillRect(118 + i * 55, 480, 7, 30 + (i * 17) % 40); g.beginPath(); g.arc(121 + i * 55, 512 + (i * 17) % 40, 6, 0, 6.3); g.fill(); }
+    g.fillStyle = '#f3e9d4'; g.beginPath(); g.ellipse(256, 230, 78, 100, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.moveTo(215, 320); g.lineTo(297, 320); g.lineTo(330, 420); g.lineTo(182, 420); g.fill();
+    g.fillStyle = '#1b130e'; g.beginPath(); g.moveTo(180, 175); g.quadraticCurveTo(256, 120, 334, 175); g.quadraticCurveTo(300, 130, 256, 132); g.quadraticCurveTo(205, 132, 180, 175); g.fill();
+    g.fillStyle = 'rgba(180,90,70,.25)'; g.beginPath(); g.arc(212, 262, 16, 0, 6.3); g.arc(300, 262, 16, 0, 6.3); g.fill();
+    g.strokeStyle = '#1b130e'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(205, 225); g.quadraticCurveTo(222, state.eyes + 30, 240, 225); g.moveTo(272, 225); g.quadraticCurveTo(290, state.eyes + 30, 307, 225); g.stroke();
+    g.lineWidth = 3; g.beginPath(); g.moveTo(256, 235); g.lineTo(250, 268); g.lineTo(260, 270); g.stroke();
+    g.lineWidth = 4; g.beginPath(); g.moveTo(236, 295); g.quadraticCurveTo(256, 295 + state.mouth, 276, 295); g.stroke();
+    g.fillStyle = '#8a2416'; g.beginPath(); g.moveTo(190, 405); g.lineTo(322, 405); g.lineTo(300, 430); g.lineTo(212, 430); g.fill();
+    if (state.verdict) { g.save(); g.translate(256, 625); g.rotate(-0.08); g.fillStyle = '#8a1a10'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.fillText(state.verdict, 0, 0); g.restore(); }
     if (state.torn) { g.fillStyle = '#120c0a'; g.beginPath(); g.moveTo(330, 0); for (let y = 0; y <= 768; y += 30) g.lineTo(320 + Math.random() * 40, y); g.lineTo(512, 768); g.lineTo(512, 0); g.fill(); }
     if (state.seam) { g.strokeStyle = '#5a1810'; g.lineWidth = 3; for (let y = 40; y < 740; y += 26) { g.beginPath(); g.moveTo(330, y); g.lineTo(350, y + 12); g.stroke(); } }
     return c; };
@@ -194,7 +218,7 @@ export function buildDecor(scene) {
   quill.position.set(0.3, 4.6, -4.75); quill.rotation.z = 0.12; quill.visible = false; out.quill = quill;
   // calamaio
   const well = inked(new THREE.CylinderGeometry(0.55, 0.7, 0.8, 12), { color: 0x1a1410, shift: 0x3a1a40 }); well.position.set(4.2, 0.4, -3.2); scene.add(well);
-  const lip = inked(new THREE.TorusGeometry(0.35, 0.08, 6, 14), { color: 0x2b221b }); lip.rotation.x = Math.PI / 2; lip.position.set(4.2, 0.82, -3.2); scene.add(lip); out.well = { x: 4.2, z: -3.2, r: 0.75 };
+  const lip = inked(new THREE.TorusGeometry(0.35, 0.08, 6, 14), { color: 0x2b221b }); lip.rotation.x = Math.PI / 2; lip.position.set(4.2, 0.82, -3.2); scene.add(lip); out.well = { x: 4.2, z: -3.2, r: 0.75, meshes: [well, lip] };
   for (let i = 0; i < 5; i++) { const ball = inked(new THREE.IcosahedronGeometry(0.22 + Math.random() * 0.12, 1), { color: 0xeee4cf, ow: 0.02 }); ball.position.set(-4.6 + Math.random() * 1.6, 0.2, -3.5 + Math.random() * 2.5); ball.rotation.set(Math.random() * 3, Math.random() * 3, 0); scene.add(ball); }
   // crepe d'inchiostro che partono dal nucleo dell'arena
   const k = document.createElement('canvas'); k.width = k.height = 512; const kg = k.getContext('2d'); kg.strokeStyle = 'rgba(20,12,8,.8)'; kg.lineCap = 'round';

@@ -51,7 +51,8 @@
   <button class="pbtn" id="pRestart">Ricomincia il frammento</button>
   <p class="small">Controller: stick muovi · A interagisci/conferma · X colpo · Y colpo forte · B schiva · RB riscrivi · LB riapplica · Select ripristina frase<br>Tastiera: WASD · J colpo · K forte · Spazio schiva · E interagisci · Q riscrivi · R riapplica · T ripristina · Y ricomponi · Esc pausa</p>
 </div>
-<div id="title"><div class="tpage"><h1>PALIMPSEST</h1><p class="sub">«Cambia una parola. Scopri chi o cosa cambia con lei.»</p><button id="bStart" class="pbtn big">Apri il libro</button><button id="bReplayIntro" class="pbtn">Rivedi il prologo (film)</button><p class="small" id="tMem"></p><p class="small">Meglio con le cuffie. Controller o touch.</p></div></div>
+<div id="title"><div class="tpage"><h1>PALIMPSEST</h1><p class="sub">«Cambia una parola. Scopri chi o cosa cambia con lei.»</p><button id="bContinue" class="pbtn big hidden">Continua</button><button id="bStart" class="pbtn big">Apri il libro</button><button id="bChapters" class="pbtn">Capitoli</button><button id="bReplayIntro" class="pbtn">Rivedi il prologo (film)</button><p class="small" id="tMem"></p><p class="small">Meglio con le cuffie. Controller o touch.</p></div></div>
+<div id="chapters" class="hidden"><div class="tpage"><h2>Capitoli</h2><div id="chList"></div><button id="chClose" class="pbtn">Chiudi</button></div></div>
 <div id="film" class="hidden"><div class="bar top"></div><div class="bar bot"></div><div id="fFade"></div><div id="fSub"></div><div id="fTitle">PALIMPSEST</div><button id="fVoice">🔊 Voce</button><button id="fSkip">Salta ▸▸</button><div id="fProg"><i></i></div></div>
 <div id="fade"></div>
 <script type="module" src="src/main.js"></script>

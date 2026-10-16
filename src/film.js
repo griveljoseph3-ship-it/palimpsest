@@ -58,8 +58,12 @@ export class Film {
     this.halo = new THREE.Mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({ color: 0xff9a40, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false })); this.halo.position.copy(this.flame.position); s.add(this.halo);
     // Ilde, l'autrice
     const ilde = this.ilde = new THREE.Group(); s.add(ilde); ilde.position.set(0, 0, -2.6);
-    const robe = inked(new THREE.ConeGeometry(1.3, 3.2, 12, 2, true), { color: 0x2a211b, y0: 0, y1: 3.2 }); robe.material.side = THREE.DoubleSide; robe.position.y = 1.6; ilde.add(robe);
-    const head = inked(new THREE.SphereGeometry(0.55, 16, 12), { color: 0xeadfc8, y0: 3, y1: 4.2 }); head.position.set(0, 3.6, 0.15); ilde.add(head); this.ildeHead = head;
+    const L = (pts, seg = 20) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
+    const robe = inked(L([[1.4, 0], [1.3, 0.8], [1.05, 1.8], [0.95, 2.5], [0.7, 3.0], [0.35, 3.2]]), { color: 0x2a211b, y0: 0, y1: 3.2 }); robe.material.side = THREE.DoubleSide; ilde.add(robe);
+    const hair = inked(L([[0.6, 0], [0.62, 0.35], [0.5, 0.75], [0, 0.95]], 16), { color: 0x8f877c }); hair.position.set(0, 3.35, 0.05); ilde.add(hair);
+    for (let i = 0; i < 5; i++) { const st = inked(new THREE.CylinderGeometry(0.03, 0.02, 1.1, 4), { color: 0x8f877c, outline: false }); st.position.set(-0.45 + i * 0.22, 3.0, -0.35); st.rotation.x = 0.2; ilde.add(st); }
+    const head = inked(new THREE.SphereGeometry(0.5, 20, 16), { color: 0xeadfc8, y0: 3, y1: 4.2 }); head.scale.set(0.9, 1.08, 0.95); head.position.set(0, 3.6, 0.2);
+    const glasses = inked(new THREE.TorusGeometry(0.12, 0.02, 4, 12), { color: 0x16110d, outline: false }); glasses.position.set(-0.17, 3.62, 0.66); const g2 = glasses.clone(); g2.position.x = 0.17; head.parent; ilde.add(glasses, g2); ilde.add(head); this.ildeHead = head;
     const bun = inked(new THREE.SphereGeometry(0.33, 10, 8), { color: 0xa9a196 }); bun.position.set(0, 4.0, -0.3); ilde.add(bun);
     const shawl = inked(new THREE.TorusGeometry(0.75, 0.2, 6, 16), { color: 0x6b2318, outline: false }); shawl.rotation.x = Math.PI / 2; shawl.position.y = 2.95; ilde.add(shawl);
     this.arm = new THREE.Group(); this.arm.position.set(0.8, 2.7, 0.3); ilde.add(this.arm);

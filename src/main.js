@@ -39,7 +39,7 @@ addEventListener('resize', resize);
 const grammar = new Grammar(); const ink = new Ink(); const input = new Input(canvas); const sfx = new Sfx();
 const mem = ST.loadMem();
 const S = { phase: 'title', room: null, deaths: 0, arenaDeaths: 0, arenaProgress: false, doorRoute: null, plan: null, discovered: new Set(), journal: [], lastWord: null, prepared: null,
-  encounter: null, time: 0, hitstop: 0, shake: 0, flash: 0, lock: false, done: false, victory: false, tracePos: [], lumiShown: false, attempted: new Set(), visionT: 0 };
+  encounter: null, time: 0, hitstop: 0, shake: 0, flash: 0, lock: false, done: false, victory: false, tracePos: [], lumiShown: false, secrets: new Set(), roomT: 0, lumiHintT: 0, attempted: new Set(), visionT: 0 };
 let now = 0;
 particles.onLand = (x, z) => { traces.add(x, z, rnd(0.18, 0.4), Math.random() < 0.5 ? 0 : 1, now); };
 function journal(text) { S.journal.push({ t: Math.round(S.time), text }); toastSmall('✒︎ Diario aggiornato'); }
@@ -61,6 +61,39 @@ function addEnt(id, type, mesh, x, z, extra = {}) {
   e.compMats = e.mats; ENT[id] = e; if (type) grammar.register(id, type); return e;
 }
 function setComp(e, obj) { e.comp = obj; e.compMats = matsOf(obj); }
+// ---------- Capitolo 1: pagine nascoste ----------
+const wellEnt = addEnt('well', 'well', new THREE.Group(), decor.well.x, decor.well.z); wellEnt.mesh.userData.height = 1.0; wellEnt.mats = []; for (const m of decor.well.meshes) wellEnt.mats.push(...matsOf(m)); wellEnt.compMats = wellEnt.mats;
+const SECRETS = { c1_trap: 'La botola sotto la matita', c1_well: 'Dietro il calamaio' };
+const trap = { x: -3.6, z: 2.2, open: false };
+const trapMark = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); g.strokeStyle = 'rgba(60,50,40,.7)'; g.lineWidth = 4; g.setLineDash([14, 8]); g.strokeRect(30, 30, 196, 196); g.setLineDash([]); g.lineWidth = 2; for (let i = 0; i < 12; i++) { g.beginPath(); g.moveTo(40 + i * 15, 220); g.lineTo(60 + i * 15, 40); g.stroke(); } g.fillStyle = 'rgba(60,50,40,.8)'; g.font = 'italic 26px Georgia'; g.fillText('qui suona vuoto', 40, 140);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.8).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, opacity: 0 })); m.position.set(trap.x, 0.012, trap.z); scene.add(m); return m; })();
+const trapHole = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0a0605 })); trapHole.position.set(trap.x, 0.014, trap.z); trapHole.visible = false; scene.add(trapHole);
+const secretPages = {};
+function makeSecretPage(id, x, z) { const p = new THREE.Group(); const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ color: 0xf6eedb, side: THREE.DoubleSide })); sheet.position.y = 1.0; p.add(sheet); const glow = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.65, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.6 })); glow.position.y = 0.03; p.add(glow); p.position.set(x, 0, z); scene.add(p); secretPages[id] = { mesh: p, x, z, sheet }; }
+function foundSecret(id, lines) { if (S.secrets.has(id)) return; S.secrets.add(id); const sp = secretPages[id]; if (sp) { scene.remove(sp.mesh); delete secretPages[id]; } sfx.play('seal'); S.flash = 0.3; toast('✦ PAGINA NASCOSTA ' + S.secrets.size + '/' + Object.keys(SECRETS).length); say(lines); journal('Pagina nascosta: ' + SECRETS[id] + '.'); Tele.log('secret_found', { id }); saveGame(); }
+function trapUpdate() {
+  trapMark.material.opacity = board.broken && !trap.open ? 0.85 : 0;
+}
+function trySecretsOnHeavy() {
+  if (S.room === 'intro' && board.broken && !trap.open && Math.hypot(P.x + Math.sin(P.face) * 1.4 - trap.x, P.z + Math.cos(P.face) * 1.4 - trap.z) < 1.4) { trap.open = true; trapHole.visible = true; sfx.play('tear'); S.shake = 0.5; particles.burst(trap.x, 0.2, trap.z, 30, 4, [0.85, 0.78, 0.62], 0.2); makeSecretPage('c1_trap', trap.x, trap.z); toastSmall('La botola cede: dentro c\'è una pagina'); return true; }
+  if (S.room === 'intro' && !wellEnt.broken && grammar.has('well', 'state.fragile') && dist(P, wellEnt) < 2.4) { wellEnt.broken = true; grammar.get('well').broken = true; for (const m of decor.well.meshes) m.visible = false; circles.splice(circles.findIndex((c) => c.x === decor.well.x && c.z === decor.well.z), 1); sfx.play('break'); S.shake = 0.6; particles.burst(wellEnt.x, 0.5, wellEnt.z, 40, 5, [0.05, 0.03, 0.04], 0.2); traces.add(wellEnt.x, wellEnt.z, 2.2, 0, now); makeSecretPage('c1_well', wellEnt.x, wellEnt.z); return true; }
+  return false;
+}
+// ---------- salvataggio e capitoli ----------
+const SAVE_KEY = 'pal_save_v1';
+const ROOM_ORDER = ['intro', 'charger', 'conduct', 'door', 'arena'];
+function saveGame() { if (S.phase !== 'play' || S.done || !ROOM_ORDER.includes(S.room)) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify({ chapter: 1, room: S.room, discovered: [...S.discovered], doorRoute: S.doorRoute, secrets: [...S.secrets], trap: trap.open, well: !!wellEnt.broken, t: Date.now() })); } catch (e) {} }
+function loadSave() { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return null; } }
+function restoreSave(sv) {
+  const idx = ROOM_ORDER.indexOf(sv.room); if (idx < 0) return;
+  for (const w of sv.discovered || []) S.discovered.add(w); for (const s of sv.secrets || []) S.secrets.add(s);
+  if (idx >= 1) { board.broken = true; grammar.get('board').broken = true; board.mesh.visible = false; openGate('board'); }
+  if (idx >= 2) { charger.alive = false; charger.st = 'dead'; charger.mesh.visible = false; openGate('r1'); }
+  if (idx >= 3) openGate('r2');
+  if (idx >= 4 && sv.doorRoute) setRoute(sv.doorRoute);
+  if (sv.trap) { trap.open = true; trapHole.visible = true; } if (sv.well) { wellEnt.broken = true; grammar.get('well').broken = true; for (const m of decor.well.meshes) m.visible = false; }
+  const r = W.ROOMS[idx]; P.x = r.cx; P.z = r.cz + r.d / 2 - 1.2; P.spawn = { x: P.x, z: P.z };
+}
 const gates = {};
 function addGate(id, x, z, mesh) { const g = { id, mesh, open: false, box: { minX: x - W.GAP / 2 - 0.1, maxX: x + W.GAP / 2 + 0.1, minZ: z - 0.3, maxZ: z + 0.3 } }; if (mesh) { mesh.position.set(x, mesh.position.y, z); scene.add(mesh); } world.walls.push(g.box); gates[id] = g; return g; }
 function openGate(id) { const g = gates[id]; if (!g || g.open) return; g.open = true; const i = world.walls.indexOf(g.box); if (i >= 0) world.walls.splice(i, 1); sfx.play('page'); }
@@ -243,6 +276,7 @@ function doHit(heavy) {
   for (const m of door.mites) if (m.alive && inArc(m, range, arc + 0.3)) { m.alive = false; any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g) popInk('+' + g); }
   if (!board.broken && dist(P, board) < 2.4 && heavy) { if (grammar.has('board', 'state.fragile')) breakBoard(); else { sfx.play('deny'); toastSmall('La tavola è integra. Il libro dice: integra.'); } any = true; }
   if (!relay.broken && dist(P, relay) < 2.2 && heavy && !S.doorRoute && !door.defense) { if (grammar.has('relay', 'state.fragile')) forceRelay(); else { sfx.play('deny'); toastSmall('Il supporto del relè regge'); } any = true; }
+  if (heavy && trySecretsOnHeavy()) any = true;
   if (any) input.rumble(0.3, heavy ? 0.7 : 0.3, 80);
 }
 function coreHit(e) {
@@ -256,6 +290,7 @@ function interactables() {
   const L = [];
   if (S.room === 'intro' && !board.broken && !S.discovered.has('state.fragile')) L.push({ x: 0, z: -4.4, r: 2.6, label: 'guarda', fn: () => { S.discovered.add('state.fragile'); const g = ink.interact(); Tele.log('interact', { what: 'board', gain: g }); sfx.play('page');
     say([['narr', 'Una goccia ha morso la tavola. Sotto la parola INTEGRA si vede un\'altra parola, più vecchia.'], ['narr', 'FRAGILE.']], { done: () => hint(ST.HINTS.firstRewrite) }); journal('Hai trovato la parola FRAGILE sotto INTEGRA.'); } });
+  for (const [id, sp] of Object.entries(secretPages)) L.push({ x: sp.x, z: sp.z, r: 2.1, label: 'leggi', fn: () => foundSecret(id, ST.SECRET_TEXT[id]) });
   if (S.room === 'door' && !door.hasDoc && !S.doorRoute) L.push({ x: -6.5, z: -39.3, r: 1.6, label: 'prendi', fn: () => { door.hasDoc = true; docM.userData.paper.visible = false; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'evidence' });
     say([['narr', 'Una testimonianza piegata in quattro. In fondo, una firma che non è quella del relè.']]); journal('Hai preso la prova dal corridoio.'); } });
   if (S.room === 'door' && door.hasDoc && !door.docPlaced && !S.doorRoute) L.push({ x: -1.9, z: -49.4, r: 1.7, label: 'inserisci', fn: () => { door.docPlaced = true; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'reader' }); hint('La prova è nel lettore. Il relè pulsa già: dai alla piastra una strada'); } });
@@ -292,7 +327,7 @@ const panel = { open: false, target: null, cands: [], words: [], sel: 0, els: []
 function zoneSafe() { const r = W.ROOMS.find((x) => x.id === S.room); if (!r) return true; if (S.room === 'door') return !door.defense; return r.safe; }
 function visibleWords(id) { return grammar.supported(id).filter((w) => S.discovered.has(w)); }
 function candidates() {
-  const L = []; for (const e of Object.values(ENT)) { if (!e.type || e.alive === false || e.st === 'dead' || e.broken) continue;
+  const L = []; for (const e of Object.values(ENT)) { if (!e.type || e.alive === false || e.st === 'dead' || e.broken) continue; if (e.id === 'well' && !board.broken) continue;
     const d = dist(P, e); if (d > 10) continue; if (!visibleWords(e.id).length) continue; const a = Math.abs(angDiff(Math.atan2(e.x - P.x, e.z - P.z), P.face)); L.push({ e, score: d + a * 1.5 }); }
   return L.sort((a, b) => a.score - b.score).map((x) => x.e);
 }
@@ -449,7 +484,7 @@ function arenaUpdate(dt) {
 // ---------- stanze, incontri, morte ----------
 function roomAt(x, z) { for (const r of W.ROOMS) if (Math.abs(x - r.cx) <= r.w / 2 - 0.3 && Math.abs(z - r.cz) <= r.d / 2 - 0.5) return r; return null; }
 function enterRoom(r) {
-  if (S.room === r.id) return; const prev = S.room; S.room = r.id; P.spawn = { x: r.cx, z: r.cz + r.d / 2 - 1.2 }; $('room').textContent = r.title; toast(r.title.toUpperCase()); Tele.log('section_enter', { section: r.id, t: Math.round(S.time) });
+  if (S.room === r.id) return; const prev = S.room; S.room = r.id; S.roomT = 0; S.lumiHintT = 0; setTimeout(saveGame, 50); P.spawn = { x: r.cx, z: r.cz + r.d / 2 - 1.2 }; $('room').textContent = r.title; toast(r.title.toUpperCase()); Tele.log('section_enter', { section: r.id, t: Math.round(S.time) });
   $('inkWrap').classList.toggle('safe', zoneSafe());
   if (r.id === 'intro') grammar.snapshot('intro', ['board'], () => ({}));
   if (r.id === 'charger' && !S.discovered.has('temperament.cautious') && charger.alive) { S.discovered.add('temperament.cautious'); S.encounter = 'charger'; ink.encounterEnd(); Tele.log('encounter_start', { id: 'charger' }); sfx.tension(true);
@@ -579,8 +614,20 @@ function goalText() {
     case 'end': return 'La storia ricorda come l\'hai riscritta';
   } return '';
 }
+function phase2Update(dt) {
+  if (S.room !== 'arena' || !arena.snapped || S.victory || !custode.alive) { arena.p2 = false; return; }
+  if (!arena.p2) { arena.p2 = true; arena.p2T = 1.2; toast('IL CUSTODE · FASE 2'); $('bossBar').querySelector('.bname').textContent = 'FASE 2 · LEGAME SPEZZATO — TOCCA IL SIGILLO'; S.shake = 0.8; Tele.log('boss_phase', { phase: 2 }); }
+  arena.p2T -= dt; if (arena.p2T <= 0 && !S.lock) { arena.p2T = 2.3; const x = P.x, z = P.z; sfx.play('warn');
+    ring(x, z, 1.6, 0.9, 0x8a1a10, () => { sfx.play('heavy'); particles.burst(x, 0.3, z, 18, 4, [0.1, 0.05, 0.04], 0.18); traces.add(x, z, 1.2, 0, now); if (Math.hypot(P.x - x, P.z - z) < 1.6) damagePlayer(1, { x, z }, 'wave' + (++attackCounter)); }); }
+}
+function lumiGuide(dt) {
+  S.roomT += dt; if (S.lock || dlg.active || S.done) return;
+  if (S.room === 'intro' && board.broken && S.roomT > 25 && !S.lumiSecretHint && (!trap.open || !wellEnt.broken)) { S.lumiSecretHint = true; showLumiTip('Lumi: "Il pavimento segnato a matita suona vuoto… e il calamaio di Ilde sembra incrinato."'); return; }
+  if (S.roomT > 90 && S.roomT - S.lumiHintT > 45) { S.lumiHintT = S.roomT; const g = goalText().replace('Obiettivo: ', ''); if (g) showLumiTip('Lumi: "' + g + '"'); }
+}
+function showLumiTip(t) { hint(t); sfx.play('voice'); Tele.log('lumi_tip', { room: S.room }); }
 function hudUpdate(dt) {
-  tutUpdate(dt); healthUpdate(dt);
+  tutUpdate(dt); healthUpdate(dt); lumiGuide(dt); phase2Update(dt); trapUpdate();
   if (frame % 10 === 0) { const g = goalText(); if ($('goal').textContent !== g) { $('goal').textContent = g; $('goal').classList.remove('flash'); void $('goal').offsetWidth; $('goal').classList.add('flash'); } }
   $('inkFill').style.width = ink.v + '%'; $('inkNum').textContent = Math.round(ink.v); $('inkWrap').classList.toggle('low', ink.v < 25 && !zoneSafe());
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
@@ -611,11 +658,26 @@ function playFilm() {
 let filmEnding = false;
 function endFilm() { if (!introPlaying || filmEnding) return; filmEnding = true; film.done = true; if (window.speechSynthesis) speechSynthesis.cancel(); $('fFade').style.opacity = 1;
   setTimeout(() => { $('film').classList.add('hidden'); $('fSub').textContent = ''; introPlaying = false; filmEnding = false; Tele.log('intro_end', { t: Math.round(film.t) }); startGame(); }, 700); }
+function setupTitle() {
+  const sv = loadSave(); const rn = sv && W.ROOMS.find((r) => r.id === sv.room);
+  $('bContinue').classList.toggle('hidden', !sv); if (sv) $('bContinue').textContent = 'Continua · Cap. 1 · ' + (rn ? rn.title : '');
+  $('bContinue').onclick = () => { if (S.phase !== 'title') return; pendingSave = loadSave(); startGame(); };
+  $('bChapters').onclick = () => { renderChapters(); $('chapters').classList.remove('hidden'); $('title').classList.add('hidden'); };
+  $('chClose').onclick = () => { $('chapters').classList.add('hidden'); $('title').classList.remove('hidden'); };
+}
+const CHAPTERS = [['I', 'La tavola', 'FRAGILE · CAUTO · CONDUTTIVO'], ['II', 'Il fiume di carta', 'PESANTE · LEGGERO'], ['III', 'L\'incendio del frontespizio', 'CIECO · ARDENTE'], ['IV', 'L\'orologio di Ilde', 'LENTO · LEGATO'], ['V', 'La pagina bianca', 'NON SCRITTO']];
+function renderChapters() {
+  const ch = mem.chapters || {}; $('chList').innerHTML = CHAPTERS.map(([n, t, w], i) => { const done = ch[i + 1] && ch[i + 1].done; const open = i === 0;
+    return `<button class="chap ${open ? '' : 'locked'}" data-ch="${i + 1}" ${open ? '' : 'disabled'}><b>Capitolo ${n}</b> · ${t}<small>${open ? (done ? '✔ completato · pagine nascoste ' + ch[1].secrets + '/2' : 'parole: ' + w) : 'in scrittura… (' + w + ')'}</small></button>`; }).join('');
+  $('chList').querySelectorAll('.chap:not(.locked)').forEach((b) => b.onclick = () => { $('chapters').classList.add('hidden'); try { localStorage.removeItem(SAVE_KEY); } catch (e) {} beginWithIntro(false); });
+}
+let pendingSave = null;
 function startGame() {
   if (S.phase !== 'title') return;
   $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); sfx.start(); sfx.setVol(opts.vol); sfx.setMusic(opts.mus); S.phase = 'play'; S.lock = true; renderHP();
   if (isTouch) input.mode = 'touch'; Tele.log('session_start', { runs: mem.runs });
   for (const [x, z] of (mem.traces || [])) traces.add(x, z, rnd(0.8, 1.6), 3, -100); // le cancellature delle versioni precedenti
+  if (pendingSave) { restoreSave(pendingSave); tut.on = false; $('bossBar').querySelector('.bname').textContent = 'IL CUSTODE DELLA FENDITURA'; enterRoom(W.ROOMS[ROOM_ORDER.indexOf(pendingSave.room)] || W.ROOMS[0]); pendingSave = null; S.lock = false; return; }
   enterRoom(W.ROOMS[0]); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
   say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } });
 }
@@ -638,8 +700,9 @@ function goEnd() {
 }
 function finish() {
   S.done = true; S.lock = false; Tele.log('slice_complete', { t: Math.round(S.time), door_route: S.doorRoute, plan: S.plan, deaths: S.deaths }); Tele.flush();
+  mem.chapters = mem.chapters || {}; mem.chapters[1] = { done: true, secrets: Math.max(S.secrets.size, (mem.chapters[1] && mem.chapters[1].secrets) || 0) }; try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
   mem.runs++; mem.routes.push(S.doorRoute); mem.plans.push(S.plan); mem.traces = S.tracePos.slice(-60); ST.saveMem(mem);
-  $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') + `<p><b>Strada della porta:</b> ${ST.ROUTE_TEXT[S.doorRoute] || '—'}<br><b>Piano contro il Custode:</b> ${ST.PLAN_TEXT[S.plan] || '—'}<br><b>Macchie lasciate:</b> ${S.deaths}</p><p class="small">Rigioca: le pagine ricorderanno questa versione.</p>`;
+  $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') + `<p><b>Strada della porta:</b> ${ST.ROUTE_TEXT[S.doorRoute] || '—'}<br><b>Piano contro il Custode:</b> ${ST.PLAN_TEXT[S.plan] || '—'}<br><b>Macchie lasciate:</b> ${S.deaths}<br><b>Pagine nascoste:</b> ${S.secrets.size}/${Object.keys(SECRETS).length}</p><p class="small">Rigioca: le pagine ricorderanno questa versione.</p>`;
   $('journal').classList.remove('hidden'); $('journal').querySelector('h2').textContent = 'Fine del frammento'; $('journal').querySelector('[data-close]').textContent = 'Riscrivi di nuovo';
 }
 
@@ -648,7 +711,7 @@ let paused = false;
 function togglePause() { if (S.phase !== 'play') return; paused = !paused; $('pause').classList.toggle('hidden', !paused); if (paused) closePanel(); Tele.log(paused ? 'pause' : 'resume'); }
 function applyOpts() { document.body.classList.toggle('contrast', !!opts.contrast); document.body.classList.toggle('big', !!opts.big); post.comp.uniforms.reduce.value = opts.reduce ? 1 : 0; INK_UNIFORMS.uContrast.value = opts.contrast ? 1 : 0; }
 function bindUI() {
-  $('bStart').onclick = () => beginWithIntro(false); $('fSkip').onclick = endFilm; $('fVoice').onclick = () => { voiceOn = !voiceOn; localStorage.setItem('pal_voice', voiceOn ? '1' : '0'); $('fVoice').textContent = voiceOn ? '🔊 Voce' : '🔇 Voce'; if (!voiceOn && window.speechSynthesis) speechSynthesis.cancel(); else speak($('fSub').textContent); }; $('bReplayIntro').onclick = () => beginWithIntro(true); if (!mem.runs) $('bReplayIntro').classList.add('hidden'); $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
+  $('bStart').onclick = () => beginWithIntro(false); $('fSkip').onclick = endFilm; $('fVoice').onclick = () => { voiceOn = !voiceOn; localStorage.setItem('pal_voice', voiceOn ? '1' : '0'); $('fVoice').textContent = voiceOn ? '🔊 Voce' : '🔇 Voce'; if (!voiceOn && window.speechSynthesis) speechSynthesis.cancel(); else speak($('fSub').textContent); }; $('bReplayIntro').onclick = () => beginWithIntro(true); setupTitle(); if (!mem.runs) $('bReplayIntro').classList.add('hidden'); $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
   input.bindTouch($('stickZone'), $('stickKnob'), $('stickBase'), { attack: $('tAttack'), heavy: $('tHeavy'), dodge: $('tDodge'), rewrite: $('tRewrite'), quick: $('tQuick'), interact: $('tInteract'), reset: $('tReset') });
   $('bJournal').onclick = () => { $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') || '<p>Ancora niente.</p>'; $('journal').classList.toggle('hidden'); };
   document.querySelectorAll('[data-close]').forEach((b) => b.onclick = () => { b.closest('.panel').classList.add('hidden'); if (S.done) location.reload(); });
@@ -753,7 +816,7 @@ function loop() {
 
 // ---------- avvio + agganci di test ----------
 resize(); bindUI(); P.mesh.position.set(P.x, 0, P.z); requestAnimationFrame(loop);
-window.PAL = { tut, TUT, damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { tut, TUT, trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

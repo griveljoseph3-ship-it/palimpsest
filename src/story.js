@@ -3,7 +3,7 @@ const MK = 'pal.memory';
 export function loadMem() { try { return JSON.parse(localStorage.getItem(MK)) || { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } catch (e) { return { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } }
 export function saveMem(m) { try { localStorage.setItem(MK, JSON.stringify(m)); } catch (e) {} }
 
-export const WHO = { narr: 'Il Libro', elara: 'Elara', lumi: 'Lumi', custode: 'Il Custode', you: 'Tu' };
+export const WHO = { ilde: 'Ilde', narr: 'Il Libro', elara: 'Elara', lumi: 'Lumi', custode: 'Il Custode', you: 'Tu' };
 
 export function introLines(mem) {
   if (mem.runs === 0) return [
@@ -67,4 +67,9 @@ export const LUMI_VISION = {
   rottura: 'Lumi ti mostra una versione fallita: il Custode carica, sbatte contro un pilastro... e la corazza si apre.',
   controllo: 'Lumi ti mostra una versione fallita: il Custode ha paura, si allontana dal nucleo, e il legame cede.',
   ambiente: 'Lumi ti mostra una versione fallita: il ponte trasporta l\'impulso e la piega sposta il Custode.',
+};
+
+export const SECRET_TEXT = {
+  c1_trap: [['narr', 'Sotto la botola, una pagina di diario. La calligrafia è quella di Ilde, ma più giovane.'], ['ilde', '«Scrivo di notte perché di giorno lei mi guarda. Se legge come finisce, non mi perdonerà.»'], ['narr', 'Come finisce? La riga dopo è stata strappata.']],
+  c1_well: [['narr', 'Dal calamaio rotto scivola un foglio arrotolato, asciutto per miracolo.'], ['narr', 'È un disegno a matita: una bambina sul fiume, e sotto, una parola cancellata tre volte. Non è COLPEVOLE.'], ['narr', 'È LIBERA.']],
 };

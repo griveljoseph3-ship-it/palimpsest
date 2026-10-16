@@ -38,5 +38,6 @@ export const ENTITY_DEFS = {
   evplate:    { name: 'Piastra del lettore', supports: ['element.conductive'], durations: { 'element.conductive': null }, safe: true },
   seam:       { name: 'Cucitura di carta', supports: ['state.fragile'], durations: { 'state.fragile': null }, safe: true },
   custode:    { name: 'Custode della Fenditura', supports: ['state.fragile', 'temperament.cautious', 'element.conductive'], durations: { 'state.fragile': 8, 'temperament.cautious': 8, 'element.conductive': 8 } },
+  well:       { name: 'Calamaio di Ilde', supports: ['state.fragile'], durations: { 'state.fragile': null }, safe: true },
   bridge:     { name: 'Ponte conduttivo', supports: ['element.conductive'], durations: { 'element.conductive': 12 } },
 };

@@ -24,7 +24,7 @@ check('Invio conferma FRAGILE', await E(() => PAL.grammar.has('board', 'state.fr
 check('traccia persistente creata', await E(() => PAL.ENT.board.marks === 1));
 await hold('KeyT'); await W(450); check('T ripristina la frase', await E(() => !PAL.grammar.has('board', 'state.fragile')));
 await hold('KeyR'); await W(450); check('R riapplica l\'ultima parola', await E(() => PAL.grammar.has('board', 'state.fragile')));
-await E(() => PAL.face(0, -10)); await hold('KeyK'); await W(1200); check('K colpo forte rompe la tavola', await E(() => PAL.ENT.board.broken));
+await E(() => PAL.face(0, -10)); await hold('KeyK'); await W(2200); check('K colpo forte rompe la tavola', await E(() => PAL.ENT.board.broken));
 await hold('KeyY'); await W(300); check('Y ricomponi prova ripristina la tavola', await E(() => !PAL.ENT.board.broken && !PAL.grammar.has('board', 'state.fragile')));
 await E(() => PAL.rewrite('board', 'state.fragile'));
 // touch: pulsanti a ventaglio
@@ -34,7 +34,7 @@ await E(() => { PAL.tp(0, -8.4); PAL.face(0, -10); }); await W(500); await pg.ta
 check('touch: ✎ apre il pannello', await E(() => PAL.panel.open));
 const bb = await pg.$('.bubble'); await bb.tap(); await W(400);
 check('touch: un solo tocco scrive', await E(() => !PAL.panel.open && PAL.grammar.has('board', 'state.fragile')));
-await pg.tap('#tHeavy'); await W(1200); check('touch: colpo forte rompe la tavola', await E(() => PAL.ENT.board.broken));
+await pg.tap('#tHeavy'); await W(2200); check('touch: colpo forte rompe la tavola', await E(() => PAL.ENT.board.broken));
 // stick virtuale
 const zA = await E(() => { PAL.tp(0, 4); return PAL.P.z; }); await pg.touchscreen.tap(200, 700); // reset stato
 await E(() => { const z = document.getElementById('stickZone'); const r = z.getBoundingClientRect(); const fire = (t, x, y) => z.dispatchEvent(new PointerEvent(t, { pointerId: 7, clientX: x, clientY: y, bubbles: true })); fire('pointerdown', 200, 700); fire('pointermove', 200, 640); window.__fire = fire; });

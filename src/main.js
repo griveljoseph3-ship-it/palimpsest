@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.4.1';
-import { EFFECTS } from './data.js?v=1.4.1';
-import { Grammar } from './resolver.js?v=1.4.1';
-import { Ink, INK } from './ink.js?v=1.4.1';
-import { Input } from './input.js?v=1.4.1';
-import { Sfx } from './audio.js?v=1.4.1';
-import { Tele } from './telemetry.js?v=1.4.1';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.4.1';
-import * as W from './world.js?v=1.4.1';
-import * as ST from './story.js?v=1.4.1';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.4.1';
+import * as THREE from '../vendor/three.module.js?v=1.4.2';
+import { EFFECTS } from './data.js?v=1.4.2';
+import { Grammar } from './resolver.js?v=1.4.2';
+import { Ink, INK } from './ink.js?v=1.4.2';
+import { Input } from './input.js?v=1.4.2';
+import { Sfx } from './audio.js?v=1.4.2';
+import { Tele } from './telemetry.js?v=1.4.2';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.4.2';
+import * as W from './world.js?v=1.4.2';
+import * as ST from './story.js?v=1.4.2';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.4.2';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -350,6 +350,12 @@ const tether = W.makeTether(); tether.visible = false; scene.add(tether);
 const arena = { t: 0, period: 4, loosenT: 0, window: 0, windowPlan: null, snapped: false, hazardT: 0, warn: false };
 // VI · fine
 const elara2 = W.makeElaraPage(false); elara2.position.set(-5.2, 0, -165.2); elara2.scale.setScalar(0.75); scene.add(elara2);
+// v1.5: Elara in 3D accanto alla sua pagina + luci extra (porta e arena)
+const elaraFig = W.makeElara(); elaraFig.position.set(2.6, 0, -98.1); elaraFig.rotation.y = -0.35; scene.add(elaraFig); circles.push({ x: 2.6, z: -98.1, r: 0.5 });
+const elaraFig2 = W.makeElara(); elaraFig2.position.set(-3.3, 0, -164.3); elaraFig2.rotation.y = 0.4; scene.add(elaraFig2);
+for (const [k, x, z] of [['candle', -1.9, -98.9], ['lamp', 6.5, -96.8], ['lamp', -14.5, -111.5], ['lamp', 14.5, -111.5], ['lamp', -14.5, -136.5], ['lamp', 14.5, -136.5], ['candle', -1.8, -163.8]]) {
+  const m = k === 'candle' ? W.makeCandle(0.6) : W.makeLamp(); m.position.set(x, 0, z); scene.add(m);
+  storyLights.push({ m, x, y: m.userData.ly, z, r: k === 'lamp' ? 5.2 : 3.4, col: k === 'lamp' ? [1.3, 0.95, 0.55] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: k }); }
 const lumi = { mesh: W.makeLumi(), on: false, x: 0, z: 0 }; scene.add(lumi.mesh); lumi.mesh.visible = false;
 const lumiTraces = [];
 const warnRings = []; const waves = [];
@@ -851,13 +857,13 @@ function phase2Update(dt) {
 }
 function lightsUpdate() {
   const t = performance.now() / 1000; const px = P.x, pz = P.z;
-  const near = storyLights.map((l) => [l, (l.x - px) ** 2 + (l.z - pz) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 7).map((a) => a[0]);
+  const near = storyLights.map((l) => [l, (l.x - px) ** 2 + (l.z - pz) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 11).map((a) => a[0]);
   const PL = INK_UNIFORMS.uPL.value, PC = INK_UNIFORMS.uPC.value;
-  for (let i = 0; i < 8; i++) { PL[i].set(0, -99, 0, 1); PC[i].set(0, 0, 0); }
+  for (let i = 0; i < 12; i++) { PL[i].set(0, -99, 0, 1); PC[i].set(0, 0, 0); }
   near.forEach((l, i) => { const f = l.kind === 'lamp' ? 1 + Math.sin(t * 2 + l.ph) * 0.03 : 0.85 + Math.sin(t * 13 + l.ph) * 0.08 + Math.sin(t * 7.1 + l.ph * 2) * 0.07; PL[i].set(l.x, l.y, l.z, l.r * 1.35 * f); PC[i].set(l.col[0] * f, l.col[1] * f, l.col[2] * f);
     const u = l.m.userData; u.glow.scale.setScalar((l.kind === 'lamp' ? 1.6 : 0.9) * f); if (l.kind === 'candle') u.flame.scale.set(1, 2.2 * f, 1); });
   // la penna del giocatore è sempre una piccola luce d'inchiostro
-  const q = P.mesh.userData.nibWorld; if (q) { P.mesh.userData.nib.getWorldPosition(q); PL[7].set(q.x, q.y, q.z, panel.open ? 3.2 : 1.8); const k = panel.open ? 1.4 : 0.6; PC[7].set(1.0 * k, 0.25 * k, 0.15 * k); P.mesh.userData.nibGlow.scale.setScalar(panel.open ? 0.6 : 0.3 + Math.sin(t * 4) * 0.05); if (frame % 75 === 0 && S.phase === 'play') particles.emit(q.x, q.y, q.z, 0, -0.5, 0, 1.4, 0.08, 0.45, 0.06, 0.04, 9); }
+  const q = P.mesh.userData.nibWorld; if (q) { P.mesh.userData.nib.getWorldPosition(q); PL[11].set(q.x, q.y, q.z, panel.open ? 3.2 : 1.8); const k = panel.open ? 1.4 : 0.6; PC[11].set(1.0 * k, 0.25 * k, 0.15 * k); P.mesh.userData.nibGlow.scale.setScalar(panel.open ? 0.6 : 0.3 + Math.sin(t * 4) * 0.05); if (frame % 75 === 0 && S.phase === 'play') particles.emit(q.x, q.y, q.z, 0, -0.5, 0, 1.4, 0.08, 0.45, 0.06, 0.04, 9); }
 }
 function lumiGuide(dt) {
   S.roomT += dt; if (S.lock || dlg.active || S.done) return;
@@ -1020,7 +1026,7 @@ function visualUpdate(dt, rdt) {
   for (const g of Object.values(gates)) if (g.mesh && g.open && g.mesh.position.y > -2) g.mesh.position.y -= dt * 2;
   if (door.open != null && door.open < 1) { door.open = Math.min(1, door.open + dt * 0.6); elara.rotation.y = door.open * (S.doorRoute === 'forced' ? 1.5 : 1.2); elara.position.x = -door.open * 1.3; }
   if (frame % 240 === 0 && S.room === 'door') { const st = elara.userData.st, e0 = st.eyes; st.eyes = 200; elara.userData.redraw(); setTimeout(() => { st.eyes = e0; elara.userData.redraw(); }, 140); }
-  elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
+  elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; for (const f of [elaraFig, elaraFig2]) { const u = f.userData; u.body.position.y = 0.06 + Math.sin(now * 1.6) * 0.05; u.orbit.rotation.y = now * 0.35; u.head.rotation.y = Math.sin(now * 0.5) * 0.25; } elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
   if (lumi.on) { lumi.x = lerp(lumi.x, P.x + 1.2, 0.03); lumi.z = lerp(lumi.z, P.z + 0.8, 0.03); lumi.mesh.position.set(lumi.x, 1.2 + Math.sin(now * 2) * 0.15, lumi.z); if (frame % 6 === 0) particles.emit(lumi.x, 1.1, lumi.z, rnd(-0.2, 0.2), -0.3, rnd(-0.2, 0.2), 1, 0.12, 0.05, 0.03, 0.04, 3); }
   for (const l of lumiTraces) l.position.y = 0.25 + Math.sin(now * 1.5 + l.position.x) * 0.06;
   for (let i = waves.length - 1; i >= 0; i--) { const w = waves[i]; w.t += rdt; const k = w.t / 0.55; w.m.scale.setScalar(0.3 + k * w.maxR); w.m.material.opacity = 0.85 * (1 - k); if (k >= 1) { scene.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); waves.splice(i, 1); } }
@@ -1032,7 +1038,7 @@ function visualUpdate(dt, rdt) {
   INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -124, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 16 : S.room === 'c2d' ? 11 : 12;
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
-  const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.25 : 1.08; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
+  const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.12 : 0.96; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
   const cr = W.ROOMS.find((q) => q.id === S.room); const rcx = cr ? cr.cx : 0; let tx = rcx + (P.x - rcx) * 0.85, tz = P.z - 0.6; if (S.room === 'end') { tx = 0; tz = -161; } if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -124, 0.3); }
   camLook.lerp(tmpV.set(tx, 0.8, tz), 1 - Math.pow(0.004, rdt)); camPos.set(camLook.x, camLook.y + dy, camLook.z + dz);
   camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3; camera.position.x += rnd(-sh, sh); camera.position.y += rnd(-sh, sh); camera.lookAt(camLook);

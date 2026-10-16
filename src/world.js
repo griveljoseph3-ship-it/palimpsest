@@ -1,6 +1,6 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=1.4.1';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.4.1';
+import * as THREE from '../vendor/three.module.js?v=1.4.2';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.4.2';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 24, d: 20, safe: true, title: 'I · La tavola' },
@@ -88,6 +88,7 @@ export function buildWorld(scene, paper) {
 }
 
 // ---- entità ----
+let _rad = null; const radTex = () => { if (_rad) return _rad; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); _rad = new THREE.CanvasTexture(c); return _rad; };
 export function makeBoard() {
   const grp = new THREE.Group();
   const board = inked(new THREE.BoxGeometry(GAP + 0.2, 1.6, 0.18, 6, 4, 1), { color: 0xcdb48a, y0: 0, y1: 1.6, ow: 0.03 }); board.position.y = 0.8; grp.add(board);
@@ -106,7 +107,7 @@ export function makeCharger() {
     for (const z of [0.5, -0.1, -0.6]) { const leg = inked(new THREE.CylinderGeometry(0.07, 0.04, 0.55, 5), { color: 0x2a211a, ow: 0.02 }); leg.position.set(s * 0.62, 0.22, z); leg.rotation.z = s * 0.5; body.add(leg); } }
   // più minaccioso: mandibole, spine dorsali, occhi incandescenti, crepe rosse
   for (const sd of [-1, 1]) { const md = inked(new THREE.ConeGeometry(0.07, 0.5, 5), { color: 0xe8dcc0, ow: 0.02 }); md.position.set(sd * 0.2, 0.42, 1.3); md.rotation.set(Math.PI / 2, 0, sd * 0.6); body.add(md);
-    const eg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xff3a20, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); eg.scale.setScalar(0.22); eg.position.set(sd * 0.18, 0.68, 1.22); body.add(eg); }
+    const eg = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xff3a20, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); eg.scale.setScalar(0.22); eg.position.set(sd * 0.18, 0.68, 1.22); body.add(eg); }
   for (let i = 0; i < 6; i++) { const sp = inked(new THREE.ConeGeometry(0.08, 0.38 - Math.abs(i - 2.5) * 0.04, 5), { color: 0x2a211a, ow: 0.02 }); sp.position.set(0, 1.12 - Math.abs(i - 2.5) * 0.05, -0.75 + i * 0.32); sp.rotation.x = -0.35; armor.add(sp); }
   for (let i = 0; i < 4; i++) { const cr = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.5), new THREE.MeshBasicMaterial({ color: 0xc8321e })); cr.position.set(-0.45 + i * 0.3, 0.98 - Math.abs(i - 1.5) * 0.08, -0.1 + (i % 2) * 0.3); cr.rotation.y = (i - 1.5) * 0.4; armor.add(cr); }
   grp.userData = { body, core, armor, r: 0.85, height: 1.6 }; return grp;
@@ -160,16 +161,19 @@ export function makePlayer() {
   const pages = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.07), new THREE.MeshBasicMaterial({ color: 0xefe5cf })); pages.position.set(0.03, 1.05, -0.3); pages.rotation.x = 0.15; body.add(pages);
   // LA PENNA: stilografica-piuma con pennino d'oro, fusto laccato, goccia d'inchiostro e bagliore
   const quillPivot = new THREE.Group(); quillPivot.position.set(0.34, 1.0, 0.05); body.add(quillPivot);
-  const quill = new THREE.Group(); quill.scale.setScalar(1.35); quillPivot.add(quill);
+  const quill = new THREE.Group(); quill.scale.setScalar(1.7); quillPivot.add(quill);
   const barrel = inked(new THREE.CylinderGeometry(0.045, 0.055, 0.62, 10).rotateX(Math.PI / 2), { color: 0x120c0a, shift: 0x8a2416, ow: 0.015 }); barrel.position.z = 0.42; quill.add(barrel);
   for (const z of [0.16, 0.7]) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.056, 0.014, 6, 14), new THREE.MeshBasicMaterial({ color: 0xd8a63a })); band.position.z = z; quill.add(band); }
   const grip = inked(new THREE.CylinderGeometry(0.05, 0.034, 0.18, 10).rotateX(Math.PI / 2), { color: 0x8a2416, ow: 0.012 }); grip.position.z = 0.82; quill.add(grip);
-  const nibGeo = new THREE.ConeGeometry(0.036, 0.22, 4).rotateX(Math.PI / 2); nibGeo.scale(1.3, 0.35, 1); const nibM = new THREE.Mesh(nibGeo, new THREE.MeshBasicMaterial({ color: 0xe8be55 })); nibM.position.z = 1.01; quill.add(nibM);
+  const nibGeo = new THREE.ConeGeometry(0.036, 0.22, 4).rotateX(Math.PI / 2); nibGeo.scale(1.7, 0.4, 1.25); const nibM = new THREE.Mesh(nibGeo, new THREE.MeshBasicMaterial({ color: 0xe8be55 })); nibM.position.z = 1.01; quill.add(nibM);
   const slit = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.02, 0.12), new THREE.MeshBasicMaterial({ color: 0x120c0a })); slit.position.set(0, 0.012, 1.04); quill.add(slit);
   const drop = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); drop.scale.y = 1.4; drop.position.set(0, -0.04, 1.12); quill.add(drop);
   const nibGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })(), color: 0xff5a30, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); nibGlow.scale.setScalar(0.35); nibGlow.position.z = 1.1; quill.add(nibGlow);
-  // piuma: tre vessilli curvi
-  for (let i = 0; i < 3; i++) { const v = inked(new THREE.PlaneGeometry(0.2 - i * 0.04, 0.7 - i * 0.12, 1, 4), { color: i ? 0xd8cbb0 : 0xf4ecd8, outline: false }); v.material.side = THREE.DoubleSide; const pos = v.geometry.attributes.position; for (let k = 0; k < pos.count; k++) pos.setZ(k, Math.pow(pos.getY(k) + 0.35, 2) * 0.35); v.geometry.computeVertexNormals(); v.position.set(i * 0.03, 0.12 + i * 0.02, -0.12 - i * 0.05); v.rotation.x = -1.2; v.rotation.z = i * 0.25; quill.add(v); }
+  // fondello del cappuccio con fermaglio d'oro: legge subito come una stilografica
+  const cap = inked(new THREE.CylinderGeometry(0.058, 0.05, 0.3, 12).rotateX(Math.PI / 2), { color: 0x120c0a, shift: 0x8a2416, ow: 0.015 }); cap.position.z = -0.02; quill.add(cap);
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 6), new THREE.MeshBasicMaterial({ color: 0xd8a63a })); finial.scale.z = 0.6; finial.position.z = -0.17; quill.add(finial);
+  const clip = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.012, 0.3), new THREE.MeshBasicMaterial({ color: 0xe8be55 })); clip.position.set(0, 0.068, 0.02); quill.add(clip);
+  const clipEnd = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 4), new THREE.MeshBasicMaterial({ color: 0xe8be55 })); clipEnd.position.set(0, 0.07, 0.17); quill.add(clipEnd);
   const nib = new THREE.Object3D(); nib.position.z = 1.12; quill.add(nib);
   grp.userData = { body, cloak, head, quillPivot, quill, tail, nib, nibGlow, nibWorld: new THREE.Vector3(), r: 0.38 }; return grp;
 }
@@ -232,10 +236,23 @@ export function makeMonolith() { const m = inked(new THREE.CylinderGeometry(0.45
 export function makeMite() { const m = inked(new THREE.IcosahedronGeometry(0.3, 1), { color: 0x120c0a, shift: 0x7a1f14, ow: 0.02 }); m.position.y = 0.3;
   const sg = new THREE.ConeGeometry(0.06, 0.32, 4); const sm = new THREE.MeshBasicMaterial({ color: 0x1b120e }); for (let i = 0; i < 9; i++) { const a = i * 2.4, b = Math.acos(1 - 2 * (i + 0.5) / 9); const d = new THREE.Vector3(Math.sin(b) * Math.cos(a), Math.cos(b), Math.sin(b) * Math.sin(a)); const sp = new THREE.Mesh(sg, sm); sp.position.copy(d).multiplyScalar(0.32); sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); m.add(sp); }
   for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff3a20 })); e.position.set(sd * 0.1, 0.06, 0.26); m.add(e); }
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 4, 10, Math.PI), new THREE.MeshBasicMaterial({ color: 0xc8321e })); mouth.position.set(0, -0.08, 0.27); mouth.rotation.z = Math.PI; m.add(mouth); return m; }
+  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 4, 10, Math.PI), new THREE.MeshBasicMaterial({ color: 0xc8321e })); mouth.position.set(0, -0.08, 0.27); mouth.rotation.z = Math.PI; m.add(mouth); const lg = new THREE.CylinderGeometry(0.02, 0.012, 0.34, 4); const lm = new THREE.MeshBasicMaterial({ color: 0x0c0806 });
+  for (let i = 0; i < 6; i++) { const sd = i < 3 ? -1 : 1, k = i % 3; const leg = new THREE.Mesh(lg, lm); leg.position.set(sd * 0.3, -0.16, -0.12 + k * 0.13); leg.rotation.set((k - 1) * 0.4, 0, sd * 1.0); m.add(leg); }
+  const jg = new THREE.ConeGeometry(0.035, 0.22, 4); const jm = new THREE.MeshBasicMaterial({ color: 0xe8dcc0 });
+  for (const sd of [-1, 1]) { const j = new THREE.Mesh(jg, jm); j.position.set(sd * 0.08, -0.06, 0.36); j.rotation.set(Math.PI / 2, 0, sd * 0.55); m.add(j);
+    const eg = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xff3a20, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false })); eg.scale.setScalar(0.16); eg.position.set(sd * 0.1, 0.07, 0.3); m.add(eg); }
+  m.scale.setScalar(1.15); return m; }
 export function makeDoc() { const g = new THREE.Group(); const p = inked(new THREE.BoxGeometry(0.5, 0.04, 0.65), { color: 0xf5ecd8, ow: 0.02 }); p.position.y = 0.95; p.rotation.y = 0.3; g.add(p);
   const st = inked(new THREE.CylinderGeometry(0.1, 0.2, 0.9, 6), { color: 0x2b221b }); st.position.y = 0.45; g.add(st); g.userData.paper = p; return g; }
-export function makeReader() { const m = inked(new THREE.BoxGeometry(0.7, 1.1, 0.5), { color: 0x4a3a2c, shift: 0x3fc1ff, y0: 0, y1: 1.1 }); m.position.y = 0.55; return m; }
+export function makeReader() { // leggio d'inchiostro con libro aperto (prima era una scatola scura)
+  const g = new THREE.Group(); g.position.y = 0.55; const o = -0.55;
+  const base = inked(new THREE.CylinderGeometry(0.32, 0.4, 0.12, 10), { color: 0x2b221b, ow: 0.02 }); base.position.y = o + 0.06; g.add(base);
+  const post = inked(new THREE.CylinderGeometry(0.06, 0.09, 0.85, 8), { color: 0x6b4a2a, ow: 0.02 }); post.position.y = o + 0.5; g.add(post);
+  const top = inked(new THREE.BoxGeometry(0.7, 0.06, 0.5), { color: 0x6b4a2a, shift: 0x3fc1ff, ow: 0.02 }); top.position.set(0, o + 1.0, 0); top.rotation.x = 0.45; g.add(top);
+  const lip = inked(new THREE.BoxGeometry(0.7, 0.08, 0.04), { color: 0x4a3a2c, outline: false }); lip.position.set(0, o + 0.92, 0.24); lip.rotation.x = 0.45; g.add(lip);
+  for (const sd of [-1, 1]) { const pg = inked(new THREE.BoxGeometry(0.3, 0.03, 0.4), { color: 0xf3ead6, ow: 0.012 }); pg.position.set(sd * 0.16, o + 1.05, -0.01); pg.rotation.set(0.45, 0, sd * -0.08); g.add(pg); }
+  const mark = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.005, 0.28), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); mark.position.set(0, o + 1.075, 0.04); mark.rotation.x = 0.45; g.add(mark);
+  return g; }
 export function makeRelay() { const g = new THREE.Group(); const sup = inked(new THREE.CylinderGeometry(0.18, 0.28, 1.6, 7, 3), { color: 0xb8a684, y0: 0, y1: 1.6 }); sup.position.y = 0.8; g.add(sup);
   const box = inked(new THREE.BoxGeometry(0.6, 0.5, 0.5), { color: 0x3a2a20, shift: 0xff5530 }); box.position.y = 1.85; g.add(box); g.userData = { sup, box }; return g; }
 export function makeTether() { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 5, 1, true), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); return m; }
@@ -392,4 +409,35 @@ export function buildStory(scene) {
   const out = []; for (let [k, x, z] of LIGHTS) { [x, z] = F(x, z); const m = k === 'candle' ? makeCandle(0.4 + Math.random() * 0.4) : k === 'lamp' ? makeLamp() : makeInkJar(); m.position.set(x, 0, z); scene.add(m);
     const col = k === 'jar' ? [0.25, 0.75, 1.2] : k === 'lamp' ? [1.3, 0.95, 0.55] : [1.2, 0.7, 0.3]; out.push({ m, x, y: m.userData.ly, z, r: k === 'lamp' ? 4.6 : k === 'jar' ? 2.8 : 3.4, col, ph: Math.random() * 10, kind: k }); }
   return out;
+}
+
+// ELARA in 3D: una ragazza fatta di carta e inchiostro, accanto alla sua pagina.
+export function makeElara() {
+  const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
+  const dress = inked(lathe([[0.5, 0], [0.47, 0.1], [0.36, 0.55], [0.24, 0.95], [0.17, 1.15], [0.12, 1.22]], 18), { color: 0xefe5cf, shift: 0x8a2416, y0: 0, y1: 1.25, texScale: 0.6 }); dress.material.side = THREE.DoubleSide; body.add(dress);
+  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; const fr = inked(new THREE.ConeGeometry(0.06, 0.2, 3), { color: 0xd8cbb0, outline: false }); fr.position.set(Math.sin(a) * 0.48, 0.02, Math.cos(a) * 0.48); fr.rotation.set(Math.PI, a, 0); body.add(fr); }
+  const lines = new THREE.Group(); body.add(lines); for (let i = 0; i < 6; i++) { const r = 0.45 - i * 0.045; const ln = new THREE.Mesh(new THREE.TorusGeometry(r, 0.006, 3, 30), new THREE.MeshBasicMaterial({ color: 0x3a2a20 })); ln.rotation.x = Math.PI / 2; ln.position.y = 0.12 + i * 0.13; lines.add(ln); }
+  const sash = inked(new THREE.TorusGeometry(0.2, 0.035, 6, 16), { color: 0x8a2416, outline: false }); sash.rotation.x = Math.PI / 2; sash.position.y = 0.92; body.add(sash);
+  const ribbon = inked(new THREE.PlaneGeometry(0.08, 0.45, 1, 3), { color: 0x8a2416, outline: false }); ribbon.material.side = THREE.DoubleSide; ribbon.position.set(0.09, 0.7, 0.2); ribbon.rotation.set(-0.15, 0, 0.12); body.add(ribbon);
+  const collar = inked(new THREE.TorusGeometry(0.12, 0.03, 6, 14), { color: 0xf6efe0, ow: 0.012 }); collar.rotation.x = Math.PI / 2; collar.position.y = 1.2; body.add(collar);
+  const neck = inked(new THREE.CylinderGeometry(0.05, 0.06, 0.12, 8), { color: 0xf3e9d4, outline: false }); neck.position.y = 1.27; body.add(neck);
+  const head = inked(new THREE.SphereGeometry(0.17, 18, 14), { color: 0xf6eddb, y0: 1.25, y1: 1.6, ow: 0.018 }); head.scale.set(0.92, 1.05, 0.95); head.position.y = 1.45; body.add(head);
+  const hair = inked(new THREE.SphereGeometry(0.19, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), { color: 0x120c0a, ow: 0.018 }); hair.position.set(0, 1.47, -0.02); hair.rotation.x = -0.25; body.add(hair);
+  const back = inked(lathe([[0.17, 0], [0.2, -0.25], [0.18, -0.55], [0.1, -0.7]], 14), { color: 0x120c0a, outline: false }); back.position.set(0, 1.5, -0.06); back.scale.z = 0.7; body.add(back);
+  for (let i = 0; i < 7; i++) { const a = -1.2 + i * 0.4; const len = 0.12 + (i * 37 % 5) * 0.05; const d = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, len, 4), new THREE.MeshBasicMaterial({ color: 0x120c0a })); d.position.set(Math.sin(a + Math.PI) * 0.15, 0.8 - len / 2, Math.cos(a + Math.PI) * 0.1 - 0.05); body.add(d);
+    const dr = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 4), new THREE.MeshBasicMaterial({ color: 0x120c0a })); dr.scale.y = 1.4; dr.position.set(d.position.x, 0.8 - len, d.position.z); body.add(dr); }
+  for (const sd of [-1, 1]) { const ey = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1b130e })); ey.scale.set(1, 0.7, 0.5); ey.position.set(sd * 0.06, 1.47, 0.15); body.add(ey);
+    const br = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.008, 0.01), new THREE.MeshBasicMaterial({ color: 0x1b130e })); br.position.set(sd * 0.06, 1.515, 0.155); br.rotation.z = sd * -0.15; body.add(br);
+    const ch = new THREE.Mesh(new THREE.CircleGeometry(0.025, 8), new THREE.MeshBasicMaterial({ color: 0xd88a70, transparent: true, opacity: 0.45 })); ch.position.set(sd * 0.085, 1.42, 0.16); body.add(ch);
+    const arm = new THREE.Group(); arm.position.set(sd * 0.17, 1.14, 0); arm.rotation.set(-0.5, 0, sd * 0.18); body.add(arm);
+    const sl = inked(lathe([[0.05, 0], [0.07, -0.25], [0.09, -0.45]], 10), { color: 0xe6dcc6, ow: 0.012 }); arm.add(sl);
+    const hand = inked(new THREE.SphereGeometry(0.04, 8, 6), { color: 0xf6eddb, outline: false }); hand.position.y = -0.48; arm.add(hand); }
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.008, 0.01), new THREE.MeshBasicMaterial({ color: 0x8a2416 })); mouth.position.set(0, 1.38, 0.16); body.add(mouth);
+  // libro di sentenze stretto al petto
+  const bk = inked(new THREE.BoxGeometry(0.26, 0.32, 0.06), { color: 0x6b2318, ow: 0.015 }); bk.position.set(0, 0.92, 0.3); bk.rotation.x = -0.3; body.add(bk);
+  const bp = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.29, 0.065), new THREE.MeshBasicMaterial({ color: 0xefe5cf })); bp.position.set(0.012, 0.92, 0.3); bp.rotation.x = -0.3; body.add(bp);
+  // alone e fogli che le girano intorno
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xffe2b0, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })); glow.scale.set(1.6, 2.4, 1); glow.position.y = 0.95; g.add(glow);
+  const orbit = new THREE.Group(); g.add(orbit); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; const sh = inked(new THREE.PlaneGeometry(0.16, 0.2), { color: 0xf3ead6, outline: false }); sh.material.side = THREE.DoubleSide; sh.position.set(Math.cos(a) * 0.75, 0.6 + (i % 3) * 0.35, Math.sin(a) * 0.75); sh.rotation.set(0.4, a, 0.3); orbit.add(sh); }
+  g.userData = { body, orbit, head }; return g;
 }

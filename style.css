@@ -110,3 +110,20 @@ body.big{--fs:1.3}
 .fade{opacity:0;animation:fin 1s ease var(--d) forwards}@keyframes fin{to{opacity:1}}
 .drip{opacity:0;animation:drip 1.6s ease-in var(--d) infinite}@keyframes drip{0%{opacity:1;transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(60px) scale(.6,1.4)}100%{opacity:0;transform:translateY(70px) scale(1.6,.3)}}
 .wob{animation:wob2 3s ease-in-out infinite;transform-origin:400px 280px}@keyframes wob2{50%{transform:scale(1.04,.96) translateY(4px)}}
+
+#film{position:fixed;inset:0;z-index:15;pointer-events:auto}
+#film .bar{position:absolute;left:0;right:0;height:11vh;background:#050302}#film .top{top:0}#film .bot{bottom:0}
+#fFade{position:absolute;inset:0;background:#050302;opacity:1;transition:opacity .7s;pointer-events:none}
+#fSub{position:absolute;left:50%;bottom:calc(11vh + 14px);transform:translateX(-50%);max-width:min(900px,88vw);text-align:center;color:#f6efdc;font-size:calc(22px*var(--fs));line-height:1.35;text-shadow:0 2px 4px #000,0 0 12px #000;background:rgba(5,3,2,.45);padding:6px 14px;border-radius:6px;transition:opacity .25s}
+#fSub:empty{display:none}
+#fTitle{position:absolute;top:42%;width:100%;text-align:center;font-size:min(10vw,96px);letter-spacing:.25em;color:#efe5cf;text-shadow:0 0 30px #8a1a10;opacity:0;transition:opacity 1.2s;pointer-events:none}#fTitle.on{opacity:1}
+#fSkip,#fVoice{position:absolute;top:calc(11vh + 12px);font-family:Georgia,serif;font-size:17px;padding:9px 16px;background:rgba(22,17,13,.8);color:#efe5cf;border:1px solid rgba(239,229,207,.4);border-radius:20px}
+#fSkip{right:calc(18px + env(safe-area-inset-right))}#fVoice{left:calc(18px + env(safe-area-inset-left))}
+#fProg{position:absolute;bottom:calc(11vh - 6px);left:0;right:0;height:3px}#fProg i{display:block;height:100%;width:0;background:#8a1a10}
+
+#tut{position:absolute;top:calc(84px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);max-width:min(640px,80vw);background:#efe5cf;color:#16110d;border:3px solid #16110d;border-radius:10px;padding:10px 16px 12px;font-size:calc(19px*var(--fs));line-height:1.3;box-shadow:0 6px 0 rgba(10,6,4,.5);text-align:center;pointer-events:none;animation:tutIn .35s ease}
+#tutStep{display:block;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#8a1a10;margin-bottom:3px}
+@keyframes tutIn{from{opacity:0;transform:translate(-50%,-8px)}}
+.tutPulse{animation:tutPulse 1s ease-in-out infinite !important;box-shadow:0 0 0 4px #c8321e,0 0 24px 8px rgba(200,50,30,.7) !important}
+@keyframes tutPulse{50%{box-shadow:0 0 0 8px rgba(200,50,30,.5),0 0 36px 14px rgba(200,50,30,.35)}}
+@media (orientation:portrait){#tut{top:calc(150px + env(safe-area-inset-top));max-width:90vw}}

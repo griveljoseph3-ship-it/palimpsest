@@ -11,10 +11,9 @@ const center = async (sel) => { const r = await (await pg.$(sel)).boundingBox();
 const tapSel = async (sel) => { const [x, y] = await center(sel); await touch('touchStart', [[x, y]]); await W(90); await touch('touchEnd', []); };
 await pg.goto(BASE); await W(800);
 await tapSel('#bStart'); await W(1500);
-check('prologo visibile', await E(() => !document.getElementById('cine').classList.contains('hidden')));
-for (let k = 0; k < 3; k++) { await touch('touchStart', [[683, 600]]); await W(60); await touch('touchEnd', []); await W(500); }
-check('il tocco fa avanzare il prologo', await E(() => window.__cine.scene() >= 1));
-await tapSel('#cSkip'); await W(1500);
+check('film visibile', await E(() => !document.getElementById('film').classList.contains('hidden')));
+await W(2000); check('il film scorre', await E(() => __film.t() > 1.5));
+await tapSel('#fSkip'); await W(1500);
 check('Salta chiude il prologo e avvia il gioco', await E(() => PAL.S.phase === 'play'));
 for (let k = 0; k < 4; k++) { await touch('touchStart', [[683, 900]]); await W(60); await touch('touchEnd', []); await W(400); } // avanza i dialoghi
 const t0 = Date.now(); let hiddenSeen = 0, samples = 0, moves = 0, attacks = 0;

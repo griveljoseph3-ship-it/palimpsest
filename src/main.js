@@ -9,7 +9,7 @@ import { Tele } from './telemetry.js';
 import { paperTexture, INK_UNIFORMS, Traces, Particles, Post } from './art.js';
 import * as W from './world.js';
 import * as ST from './story.js';
-import { playIntro } from './cine.js';
+import { Film, FILM_LEN, SHOTS } from './film.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -300,7 +300,7 @@ function openPanel(forceId) {
   if (panel.open) { closePanel(); return; }
   panel.cands = forceId ? [ENT[forceId]] : candidates();
   if (!panel.cands.length || !panel.cands[0] || !visibleWords(panel.cands[0].id).length) { sfx.play('deny'); toastSmall(S.discovered.size ? 'Nessuna pagina da riscrivere qui' : 'Non conosci ancora nessuna parola'); return; }
-  panel.target = panel.cands[0]; panel.open = true; panel.openedFrame = frame; panel.wasFaded = false; panel.sel = 0; ink.openPanel(zoneSafe()); sfx.play('open'); input.rumble(0.15, 0, 50);
+  panel.target = panel.cands[0]; panel.open = true; panel.openedFrame = frame; panel.armed = false; panel.wasFaded = false; panel.sel = 0; ink.openPanel(zoneSafe()); sfx.play('open'); input.rumble(0.15, 0, 50);
   Tele.log('rewrite_open', { target: panel.target.id, ink: Math.round(ink.v), safe: ink.safe }); buildBubbles();
   if (ink.faded) { panel.wasFaded = true; $('words').classList.add('faded'); sfx.play('dry'); Tele.log('ink_faded', { ink: Math.round(ink.v) }); }
 }
@@ -311,7 +311,7 @@ function buildBubbles() {
     b.className = 'bubble ' + (isR ? 'reset' : EFFECTS[w].slot) + (opts.panel ? ' side' : '') + (!isR && grammar.has(e.id, w) ? ' active' : '');
     b.textContent = isR ? 'ripristina' : EFFECTS[w].word; b.style.animationDelay = i * 0.06 + 's';
     if (opts.panel && !isR) b.textContent = { state: 'Stato · ', temperament: 'Temperamento · ', element: 'Elemento · ' }[EFFECTS[w].slot] + EFFECTS[w].word;
-    b.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); ev.preventDefault(); if (!ink.canSelect()) return; if (panel.sel === i) confirmWord(); else selectWord(i); });
+    b.addEventListener('pointerdown', (ev) => { ev.stopPropagation(); ev.preventDefault(); if (!ink.canSelect()) return; if (panel.sel === i && panel.armed) confirmWord(); else { selectWord(i); panel.armed = true; } });
     b.addEventListener('pointerenter', () => { if (input.mode === 'kb' && ink.canSelect() && panel.sel !== i) selectWord(i); });
     box.appendChild(b); panel.els.push(b); });
   $('words').classList.remove('hidden'); $('words').classList.toggle('sidePanel', !!opts.panel); $('wordTarget').textContent = grammar.get(e.id).def.name + (panel.cands.length > 1 ? '  ▲▼' : '');
@@ -387,7 +387,7 @@ function applyWord(e, w, via) {
 function quickReapply() {
   const w = S.prepared || S.lastWord; if (!w) { sfx.play('deny'); toastSmall('Nessuna parola pronta'); return; }
   const c = candidates().find((e) => grammar.supported(e.id).includes(w)); if (!c) { sfx.play('deny'); toastSmall('Nessun bersaglio accetta ' + EFFECTS[w].word); return; }
-  applyWord(c, w, 'quick');
+  if (applyWord(c, w, 'quick')) tut.quick = true;
 }
 function resetPhrase() { const c = candidates().find((e) => grammar.active(e.id).length); if (!c) { sfx.play('deny'); toastSmall('Niente da ripristinare qui'); return; } doReset(c); }
 function doReset(e) { grammar.resetPhrase(e.id); sfx.play('close'); traces.add(e.x, e.z, 1.2, 3, now); toastSmall('Frase ripristinata: ' + grammar.get(e.id).def.name); Tele.log('reset_phrase', { target: e.id }); }
@@ -523,6 +523,30 @@ function hint(t) { persistHint = t; if (tempHintT <= 0) $('hint').textContent = 
 function toastSmall(t) { $('hint').textContent = t; tempHintT = 2.6; }
 let toastT = 0; function toast(t) { $('toast').textContent = t; $('toast').classList.add('on'); toastT = 2.2; }
 function popInk(t) { const d = document.createElement('div'); d.textContent = t; d.className = 'inkpop'; document.body.appendChild(d); d.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: 900 }).onfinish = () => d.remove(); sfx.play('gain'); }
+// ---------- tutorial interattivo (touch / controller / tastiera) ----------
+const TUT = [
+  { id: 'move', room: 'intro', pulse: '#stickBase', t: { touch: 'Trascina il pollice sinistro per muoverti', pad: 'Muoviti con lo stick sinistro', kb: 'Muoviti con W A S D' }, done: () => Math.hypot(P.x - tut.sx, P.z - tut.sz) > 1.5 },
+  { id: 'look', room: 'intro', pulse: '#tInteract', t: { touch: 'Avvicinati alla tavola lacerata e tocca ◉ GUARDA', pad: 'Avvicinati alla tavola lacerata e premi A', kb: 'Avvicinati alla tavola lacerata e premi E' }, done: () => S.discovered.has('state.fragile') },
+  { id: 'open', room: 'intro', pulse: '#tRewrite', t: { touch: 'Tocca ✎ RISCRIVI: le parole appaiono sopra il bersaglio più vicino (la tavola)', pad: 'Premi RB per RISCRIVERE: le parole appaiono sopra il bersaglio più vicino', kb: 'Premi Q per RISCRIVERE: le parole appaiono sopra il bersaglio più vicino' }, done: () => panel.open || grammar.has('board', 'state.fragile') },
+  { id: 'pick', room: 'intro', pulse: '.bubble', t: { touch: 'Tocca FRAGILE una volta: vedi l’anteprima. Toccala di nuovo: la scrivi sulla tavola', pad: '◀ ▶ scegli la parola (vedi l’anteprima) · A la scrive · ▲▼ cambia bersaglio', kb: '◀ ▶ scegli la parola (vedi l’anteprima) · Invio la scrive · ▲▼ cambia bersaglio' }, done: () => grammar.has('board', 'state.fragile'), back: () => !panel.open ? 2 : -1 },
+  { id: 'ink', room: 'intro', pulse: '#inkWrap', t: { all: 'La barra INCHIOSTRO in alto: il menu aperto e ogni parola la consumano. Qui sei in zona sicura, quindi è gratis' }, timer: 6 },
+  { id: 'heavy', room: 'intro', pulse: '#tHeavy', t: { touch: 'Ora che è FRAGILE: colpo forte ⟰ e la tavola si rompe', pad: 'Ora che è FRAGILE: colpo forte con Y', kb: 'Ora che è FRAGILE: colpo forte con K' }, done: () => board.broken },
+  { id: 'quick', room: 'charger', pulse: '#tQuick', t: { touch: 'Riscrittura rapida ↻: riscrive l’ultima parola sul bersaglio più vicino, senza aprire il menu. Provala sul Caricatore', pad: 'Riscrittura rapida con LB: riscrive l’ultima parola sul bersaglio più vicino. Provala sul Caricatore', kb: 'Riscrittura rapida con R: riscrive l’ultima parola sul bersaglio più vicino. Provala sul Caricatore' }, done: () => tut.quick || !charger.alive || charger.armorBroken },
+  { id: 'inkfight', room: 'charger', pulse: '#inkWrap', t: { all: 'Fuori dalle zone sicure l’inchiostro costa. Per ricaricarlo: colpisci i nemici e schiva all’ultimo' }, timer: 6 },
+];
+const tut = { i: 0, t: 0, sx: 0, sz: 0, quick: false, on: false };
+function tutUpdate(dt) {
+  const el = $('tut'); document.querySelectorAll('.tutPulse').forEach((x) => x.classList.remove('tutPulse'));
+  if (!tut.on || tut.i >= TUT.length || S.phase !== 'play' || S.done) { el.classList.add('hidden'); return; }
+  const st = TUT[tut.i]; if (st.room && S.room !== st.room) { el.classList.add('hidden'); return; }
+  if (dlg.active && dlg.lock) { el.classList.add('hidden'); return; }
+  tut.t += dt; const mode = input.mode === 'pad' ? 'pad' : input.mode === 'kb' && !isTouch ? 'kb' : (input.mode === 'kb' ? 'kb' : 'touch');
+  const txt = st.t.all || st.t[mode]; if ($('tutText').textContent !== txt) $('tutText').textContent = txt; $('tutStep').textContent = 'Tutorial ' + (tut.i + 1) + '/' + TUT.length;
+  el.classList.remove('hidden'); const pe = document.querySelector(st.pulse); if (pe) pe.classList.add('tutPulse');
+  const fin = (st.done && st.done()) || (st.timer && tut.t > st.timer);
+  if (!fin && st.back) { const b = st.back(); if (b >= 0) { tut.i = b; tut.t = 0; return; } }
+  if (fin) { tut.i++; tut.t = 0; sfx.play('gain'); Tele.log('tutorial_step', { step: st.id }); if (tut.i === TUT.length) { mem.tutDone = true; ST.saveMem(mem); } }
+}
 function goalText() {
   switch (S.room) {
     case 'intro': return !S.discovered.has('state.fragile') ? 'Obiettivo: guarda la tavola lacerata' : !board.broken ? (grammar.has('board', 'state.fragile') ? 'Obiettivo: rompi la tavola con un colpo forte' : 'Obiettivo: scrivi FRAGILE sulla tavola (✎)') : 'Obiettivo: prosegui verso nord';
@@ -534,6 +558,7 @@ function goalText() {
   } return '';
 }
 function hudUpdate(dt) {
+  tutUpdate(dt);
   if (frame % 10 === 0) { const g = goalText(); if ($('goal').textContent !== g) { $('goal').textContent = g; $('goal').classList.remove('flash'); void $('goal').offsetWidth; $('goal').classList.add('flash'); } }
   $('inkFill').style.width = ink.v + '%'; $('inkNum').textContent = Math.round(ink.v); $('inkWrap').classList.toggle('low', ink.v < 25 && !zoneSafe());
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
@@ -548,15 +573,28 @@ let introPlaying = false;
 function beginWithIntro(force) {
   if (S.phase !== 'title' || introPlaying) return; sfx.start(); sfx.setVol(opts.vol); sfx.setMusic(opts.mus);
   if (mem.runs > 0 && !force) { startGame(); return; }
-  introPlaying = true; $('title').classList.add('hidden'); Tele.log('intro_start');
-  playIntro(input, sfx).then(() => { introPlaying = false; Tele.log('intro_end'); startGame(); });
+  introPlaying = true; $('title').classList.add('hidden'); Tele.log('intro_start'); playFilm();
 }
+const film = new Film(paper); film.resize(innerWidth, innerHeight); addEventListener('resize', () => film.resize(innerWidth, innerHeight));
+let voiceOn = localStorage.getItem('pal_voice') !== '0', itVoice = null;
+function pickVoice() { if (!window.speechSynthesis) return; const vs = speechSynthesis.getVoices(); itVoice = vs.find((v) => /it[-_]IT/i.test(v.lang) && /Alice|Federica|Luca|Google/i.test(v.name)) || vs.find((v) => /^it/i.test(v.lang)) || null; }
+if (window.speechSynthesis) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function speak(text) { if (!voiceOn || !window.speechSynthesis) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text.replace(/’/g, "'")); u.lang = 'it-IT'; if (itVoice) u.voice = itVoice; u.rate = 0.95; u.pitch = 0.95; u.volume = opts.vol; speechSynthesis.speak(u); } catch (e) {} }
+function playFilm() {
+  const el = $('film'); el.classList.remove('hidden'); $('fTitle').classList.remove('on'); $('fVoice').textContent = voiceOn ? '🔊 Voce' : '🔇 Voce';
+  if (!window.speechSynthesis) $('fVoice').classList.add('hidden');
+  film.start({ sub: (t) => { $('fSub').textContent = t; speak(t); if (/Riscrivi la fine/.test(t)) $('fTitle').classList.add('on'); }, cut: () => { const f = $('fFade'); f.style.transition = 'none'; f.style.opacity = 1; void f.offsetWidth; f.style.transition = 'opacity .7s'; f.style.opacity = 0; }, progress: (x) => { $('fProg').firstChild.style.width = (x * 100).toFixed(1) + '%'; } });
+  window.__film = { seek: (x) => { film.t = x; }, len: () => FILM_LEN, skip: endFilm, t: () => film.t, shot: () => film.lastShot };
+}
+let filmEnding = false;
+function endFilm() { if (!introPlaying || filmEnding) return; filmEnding = true; film.done = true; if (window.speechSynthesis) speechSynthesis.cancel(); $('fFade').style.opacity = 1;
+  setTimeout(() => { $('film').classList.add('hidden'); $('fSub').textContent = ''; introPlaying = false; filmEnding = false; Tele.log('intro_end', { t: Math.round(film.t) }); startGame(); }, 700); }
 function startGame() {
   if (S.phase !== 'title') return;
   $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); sfx.start(); sfx.setVol(opts.vol); sfx.setMusic(opts.mus); S.phase = 'play'; S.lock = true; renderHP();
   if (isTouch) input.mode = 'touch'; Tele.log('session_start', { runs: mem.runs });
   for (const [x, z] of (mem.traces || [])) traces.add(x, z, rnd(0.8, 1.6), 3, -100); // le cancellature delle versioni precedenti
-  enterRoom(W.ROOMS[0]);
+  enterRoom(W.ROOMS[0]); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
   say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } });
 }
 function controlsCard() {
@@ -565,7 +603,7 @@ function controlsCard() {
     : input.mode === 'touch' ? '<b>Trascina a sinistra</b> per muoverti · <b>◉</b> guarda quando appare<br><b>✎</b> riscrivi · tocca una parola per vederla, toccala di nuovo per scriverla' : '<b>WASD</b> muovi · <b>E</b> guarda · <b>J</b>/clic colpo · <b>K</b>/clic destro forte · <b>Spazio</b> schiva<br><b>Q</b> riscrivi · <b>R</b> riapplica · <b>T</b> ripristina · <b>Y</b> ricomponi';
   document.body.appendChild(d); setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 900); }, FAST ? 300 : 6500);
 }
-function inkDrop() { controlsCard();
+function inkDrop() { if (!tut.on) controlsCard();
   for (let i = 0; i < 6; i++) setTimeout(() => particles.emit(0.3 + rnd(-0.05, 0.05), 4, -4.75, 0, -2, 0, 1.2, 0.3, 0.03, 0.02, 0.02, 9), i * 90);
   setTimeout(() => { sfx.play('tear'); traces.add(0.3, -4.3, 1, 0, now); S.shake = 0.3; if (S.room === 'intro' && !S.discovered.has('state.fragile')) hint(ST.HINTS.look); }, 900);
 }
@@ -588,7 +626,7 @@ let paused = false;
 function togglePause() { if (S.phase !== 'play') return; paused = !paused; $('pause').classList.toggle('hidden', !paused); if (paused) closePanel(); Tele.log(paused ? 'pause' : 'resume'); }
 function applyOpts() { document.body.classList.toggle('contrast', !!opts.contrast); document.body.classList.toggle('big', !!opts.big); post.comp.uniforms.reduce.value = opts.reduce ? 1 : 0; INK_UNIFORMS.uContrast.value = opts.contrast ? 1 : 0; }
 function bindUI() {
-  $('bStart').onclick = () => beginWithIntro(false); $('bReplayIntro').onclick = () => beginWithIntro(true); if (!mem.runs) $('bReplayIntro').classList.add('hidden'); $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
+  $('bStart').onclick = () => beginWithIntro(false); $('fSkip').onclick = endFilm; $('fVoice').onclick = () => { voiceOn = !voiceOn; localStorage.setItem('pal_voice', voiceOn ? '1' : '0'); $('fVoice').textContent = voiceOn ? '🔊 Voce' : '🔇 Voce'; if (!voiceOn && window.speechSynthesis) speechSynthesis.cancel(); else speak($('fSub').textContent); }; $('bReplayIntro').onclick = () => beginWithIntro(true); if (!mem.runs) $('bReplayIntro').classList.add('hidden'); $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
   input.bindTouch($('stickZone'), $('stickKnob'), $('stickBase'), { attack: $('tAttack'), heavy: $('tHeavy'), dodge: $('tDodge'), rewrite: $('tRewrite'), quick: $('tQuick'), interact: $('tInteract'), reset: $('tReset') });
   $('bJournal').onclick = () => { $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') || '<p>Ancora niente.</p>'; $('journal').classList.toggle('hidden'); };
   document.querySelectorAll('[data-close]').forEach((b) => b.onclick = () => { b.closest('.panel').classList.add('hidden'); if (S.done) location.reload(); });
@@ -659,7 +697,7 @@ function visualUpdate(dt, rdt) {
   for (const l of lumiTraces) l.position.y = 0.25 + Math.sin(now * 1.5 + l.position.x) * 0.06;
   for (let i = waves.length - 1; i >= 0; i--) { const w = waves[i]; w.t += rdt; const k = w.t / 0.55; w.m.scale.setScalar(0.3 + k * w.maxR); w.m.material.opacity = 0.85 * (1 - k); if (k >= 1) { scene.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); waves.splice(i, 1); } }
   for (let i = warnRings.length - 1; i >= 0; i--) { const w = warnRings[i]; w.life -= dt; w.m.material.opacity = 0.4 + 0.5 * Math.abs(Math.sin(w.life * 20)); w.m.scale.setScalar(1 + (1 - w.life / w.max) * 0.1); if (w.life <= 0) { scene.remove(w.m); w.m.geometry.dispose(); warnRings.splice(i, 1); if (w.onEnd) w.onEnd(); } }
-  decor.quill.position.y = 4.6 + Math.sin(now * 0.9) * 0.15; decor.quill.rotation.z = 0.12 + Math.sin(now * 0.6) * 0.04; if (!board.broken && frame % 50 === 0 && S.room === 'intro') particles.emit(0.3, 2.5, -4.75, 0, -1, 0, 1.6, 0.18, 0.03, 0.02, 0.02, 9);
+  decor.quill.position.y = 4.6 + Math.sin(now * 0.9) * 0.15; decor.quill.rotation.z = 0.12 + Math.sin(now * 0.6) * 0.04;
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
   if (frame % 20 === 0) particles.emit(P.x + rnd(-8, 8), rnd(1, 4), P.z + rnd(-8, 4), rnd(-0.1, 0.1), 0.05, rnd(-0.1, 0.1), 4, 0.06, 0.95, 0.85, 0.6, 0); // pulviscolo di luce
   ghostUpdate(dt); particles.update(dt);
@@ -675,7 +713,7 @@ function visualUpdate(dt, rdt) {
 function loop() {
   requestAnimationFrame(loop); const t = performance.now(); const rawDt = Math.min(0.25, (t - last) / 1000); const rdt = Math.min(0.1, rawDt); last = t; frame++;
   try {
-    if (introPlaying) { post.render(scene, camera); return; }
+    if (introPlaying) { input.poll(); if (input.pressed('pause') || input.pressed('back')) endFilm(); film.update(rdt); if (film.done) endFilm(); renderer.info.reset(); post.render(film.scene, film.camera); return; }
     input.poll();
     if (input.pressed('pause') && S.phase === 'play' && !panel.open) togglePause();
     if (S.phase === 'play' && !paused) {
@@ -693,7 +731,7 @@ function loop() {
 
 // ---------- avvio + agganci di test ----------
 resize(); bindUI(); P.mesh.position.set(P.x, 0, P.z); requestAnimationFrame(loop);
-window.PAL = { S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { tut, TUT, S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

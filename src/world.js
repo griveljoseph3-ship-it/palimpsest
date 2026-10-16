@@ -38,9 +38,9 @@ export function buildWorld(scene, paper) {
     const x0 = r.cx - r.w / 2, x1 = r.cx + r.w / 2, zs = r.cz + r.d / 2, zn = r.cz - r.d / 2;
     const fl = new THREE.Mesh(withMask(new THREE.PlaneGeometry(r.w + 0.4, r.d + 0.4).rotateX(-Math.PI / 2), 0), floorMat); fl.position.set(r.cx, 0, r.cz); g.add(fl);
     // manoscritto con cancellature sul pavimento
-    const tex = textCanvas(MANUSCRIPT.slice(i % 3, i % 3 + 7), 1024, 512, { strike: true, lh: 66, font: 'italic 40px Georgia, serif', y0: 30 });
-    const ms = new THREE.Mesh(new THREE.PlaneGeometry(r.w * 0.8, r.d * 0.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.5 }));
-    ms.position.set(r.cx + (i % 2 ? 1 : -1), 0.006, r.cz + 1.2); g.add(ms);
+    const tex = textCanvas(MANUSCRIPT.slice(i % 3, i % 3 + 7), 1024, 512, { strike: false, lh: 66, font: 'italic 40px Georgia, serif', y0: 30, color: 'rgba(60,44,30,0.8)' });
+    const ms = new THREE.Mesh(new THREE.PlaneGeometry(r.w * 0.42, r.d * 0.26).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.2 }));
+    ms.position.set(r.cx + (i % 2 ? 1 : -1) * r.w * 0.24, 0.006, r.cz + r.d * 0.3); g.add(ms);
     addWall(x0, zs, x0, zn); addWall(x1, zs, x1, zn);
     const hasS = i > 0, hasN = i < ROOMS.length - 1;
     if (hasS) { addWall(x0, zs, -GAP / 2, zs, 0.45); addWall(GAP / 2, zs, x1, zs, 0.45); } else addWall(x0, zs, x1, zs, 0.45);
@@ -65,12 +65,12 @@ export function buildWorld(scene, paper) {
   const desk = new THREE.Mesh(new THREE.PlaneGeometry(80, 140).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: dt, color: 0x9a8a7a })); desk.position.set(0, -0.6, -40); g.add(desk);
   const under = new THREE.Mesh(new THREE.BoxGeometry(18.5, 0.58, 96), new THREE.MeshBasicMaterial({ color: 0x5e5244 })); under.position.set(0, -0.3, -40); g.add(under); // spessore delle pagine
   // corridoio della prova nella stanza di Elara
-  addWall(-5, -38, -5, -46.2);
+  addWall(-5, -38.2, -5, -46.2, 0.6);
   // fogli che pendono e rilegatura: dettagli d'atmosfera
   const scraps = new THREE.Group(); g.add(scraps);
   for (let i = 0; i < 26; i++) { const r = ROOMS[i % ROOMS.length]; const side = i % 2 ? 1 : -1;
-    const p = new THREE.Mesh(withMask(new THREE.PlaneGeometry(0.5 + Math.random() * 0.5, 0.7 + Math.random() * 0.6), 0.2), inkMaster({ color: 0xf1e8d4, texBlend: 1 }));
-    p.material.side = THREE.DoubleSide; p.position.set(r.cx + side * (r.w / 2 - 0.05), 1.6 + Math.random() * 0.6, r.cz + (Math.random() - 0.5) * r.d * 0.8); p.rotation.y = side * Math.PI / 2; p.rotation.z = (Math.random() - 0.5) * 0.4; p.userData.sw = Math.random() * 6; scraps.add(p); }
+    const p = new THREE.Mesh(withMask(new THREE.PlaneGeometry(0.5 + Math.random() * 0.5, 0.5 + Math.random() * 0.25), 0.2), inkMaster({ color: 0xf1e8d4, texBlend: 1 }));
+    p.material.side = THREE.DoubleSide; p.position.set(r.cx + side * (r.w / 2 - 0.17), 0.7 + Math.random() * 0.15, r.cz + (Math.random() - 0.5) * r.d * 0.8); p.rotation.y = side * Math.PI / 2; p.rotation.z = (Math.random() - 0.5) * 0.4; p.userData.sw = Math.random() * 6; scraps.add(p); }
   return { group: g, walls, scraps, floorMat, wallMat };
 }
 
@@ -191,7 +191,7 @@ export function buildDecor(scene) {
   // penna gigante che pende sopra la tavola e gocciola
   const quill = new THREE.Group(); const shaft = inked(new THREE.ConeGeometry(0.12, 4.2, 8), { color: 0x15100c, ow: 0.03 }); shaft.rotation.x = Math.PI; quill.add(shaft);
   const vane = inked(new THREE.PlaneGeometry(0.9, 2.6, 1, 6), { color: 0xf1e8d4, ow: 0.02 }); vane.material.side = THREE.DoubleSide; vane.position.set(0.35, 0.9, 0); vane.rotation.z = -0.15; quill.add(vane);
-  quill.position.set(0.3, 4.6, -4.75); quill.rotation.z = 0.12; scene.add(quill); out.quill = quill;
+  quill.position.set(0.3, 4.6, -4.75); quill.rotation.z = 0.12; quill.visible = false; out.quill = quill;
   // calamaio
   const well = inked(new THREE.CylinderGeometry(0.55, 0.7, 0.8, 12), { color: 0x1a1410, shift: 0x3a1a40 }); well.position.set(4.2, 0.4, -3.2); scene.add(well);
   const lip = inked(new THREE.TorusGeometry(0.35, 0.08, 6, 14), { color: 0x2b221b }); lip.rotation.x = Math.PI / 2; lip.position.set(4.2, 0.82, -3.2); scene.add(lip); out.well = { x: 4.2, z: -3.2, r: 0.75 };

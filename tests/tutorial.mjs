@@ -1,0 +1,36 @@
+// Tutorial interattivo con touch reale (CDP) su iPad: ogni passo deve avanzare con l'azione giusta.
+import { chromium } from 'playwright-core';
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const ctx = await b.newContext({ viewport: { width: 1366, height: 1024 }, hasTouch: true, isMobile: true, userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' });
+const pg = await ctx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); pg.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
+const cdp = await ctx.newCDPSession(pg); const E = (f, a) => pg.evaluate(f, a); const W = (ms) => pg.waitForTimeout(ms);
+let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
+const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], i) => ({ x, y, id: i + 1 })) });
+const tapSel = async (sel) => { const r = await (await pg.$(sel)).boundingBox(); const x = r.x + r.width / 2, y = r.y + r.height / 2; await touch('touchStart', [[x, y]]); await W(90); await touch('touchEnd', []); };
+const step = () => E(() => PAL.TUT[PAL.tut.i] ? PAL.TUT[PAL.tut.i].id : 'end');
+const until = async (f, ms) => { const t = Date.now(); while (Date.now() - t < ms) { if (await E(f)) return true; await W(150); } return false; };
+await pg.goto('http://localhost:8941/'); await W(700); await tapSel('#bStart'); await W(1500);
+check('film parte con letterbox e sottotitoli', await E(() => !document.getElementById('film').classList.contains('hidden') && document.getElementById('fSub').textContent.length > 10));
+await pg.screenshot({ path: '/workspace/palimpsest-shots/14-film-ipad.png' });
+await tapSel('#fSkip'); await W(1500); check('Salta → gioco', await E(() => PAL.S.phase === 'play'));
+await until(() => { PAL.skipDialog(); return !PAL.S.lock; }, 15000);
+check('tutorial attivo al passo move', (await step()) === 'move' && await E(() => !document.getElementById('tut').classList.contains('hidden')));
+await pg.screenshot({ path: '/workspace/palimpsest-shots/15-tut-move.png' });
+await touch('touchStart', [[250, 750]]); await W(60); await touch('touchMove', [[250, 670]]); await W(1800); await touch('touchEnd', []);
+check('move → look', (await step()) === 'look');
+await E(() => { PAL.P.x = 0; PAL.P.z = -2.8; PAL.P.face = Math.PI; }); await W(500); await tapSel('#tInteract'); await W(800);
+await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000); await W(400);
+check('look → open', (await step()) === 'open');
+await tapSel('#tRewrite'); await W(700); check('open → pick (menu aperto)', (await step()) === 'pick' && await E(() => PAL.panel.open));
+await pg.screenshot({ path: '/workspace/palimpsest-shots/16-tut-pick.png' });
+await tapSel('.bubble'); await W(400); check('primo tocco = anteprima, non scrive', await E(() => !PAL.grammar.has('board', 'state.fragile')));
+console.log(await E(() => [PAL.panel.open, PAL.panel.armed, PAL.panel.sel, PAL.ink.v, PAL.ink.canSelect(), document.querySelectorAll('.bubble').length])); await tapSel('.bubble'); await W(800); console.log(await E(() => [PAL.panel.open, PAL.panel.armed, PAL.grammar.has('board','state.fragile')])); check('secondo tocco scrive FRAGILE → ink', (await step()) === 'ink');
+await W(6800); check('ink → heavy', (await step()) === 'heavy');
+await tapSel('#tHeavy'); await W(2500); if ((await step()) === 'heavy') { await tapSel('#tHeavy'); await W(2500); }
+check('heavy rompe la tavola → quick', (await step()) === 'quick');
+await E(() => { PAL.P.x = 0; PAL.P.z = -13; }); await W(1500); await until(() => { PAL.skipDialog(); return !PAL.dlg.active; }, 5000);
+await E(() => { const c = PAL.charger; PAL.P.x = c.x; PAL.P.z = c.z + 3; PAL.P.face = Math.PI; PAL.ink.v = 100; }); await W(300);
+check('card quick visibile nella stanza del Caricatore', await E(() => !document.getElementById('tut').classList.contains('hidden')) && (await step()) === 'quick');
+await tapSel('#tQuick'); await W(900); check('↻ riscrittura rapida → inkfight', (await step()) === 'inkfight');
+await W(6800); check('tutorial completato e salvato', (await step()) === 'end' && await E(() => PAL.mem.tutDone === true));
+console.log('ERRORS', errs); if (bad || errs.length) process.exitCode = 1; await b.close();

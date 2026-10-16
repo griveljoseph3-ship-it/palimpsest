@@ -1,6 +1,6 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=1.5.0';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.5.0';
+import * as THREE from '../vendor/three.module.js?v=1.6.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.6.0';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 24, d: 20, safe: true, title: 'I · La tavola' },
@@ -16,6 +16,7 @@ export const ROOMS = [
   { id: 'c2c', cx: 100, cz: -31, w: 14, d: 12, safe: true, chain: 'c2', title: 'II·3 · La pila dei libri' },
   { id: 'c2d', cx: 100, cz: -49, w: 18, d: 16, safe: false, chain: 'c2', title: 'II·4 · La Diga Rilegata' },
   { id: 'c2e', cx: 100, cz: -67, w: 12, d: 10, safe: true, chain: 'c2', title: 'II·5 · Acqua ferma' },
+  { id: 'open', cx: -220, cz: 90, w: 16, d: 44, safe: true, chain: 'open', title: 'Prologo · E qui il viaggiatore cadde' },
   { id: 'maze', cx: -220, cz: -56, w: 88, d: 88, safe: false, chain: 'maze', title: 'III · Il labirinto del filo' },
 ];
 export const GAP = 2.8;

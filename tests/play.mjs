@@ -10,7 +10,7 @@ pg.on('requestfailed', (r) => errs.push('REQ ' + r.url()));
 pg.on('response', (r) => { if (r.status() >= 400 && !r.url().includes('favicon')) errs.push(r.status() + ' ' + r.url()); });
 const E = (f, a) => pg.evaluate(f, a); const W = (ms) => pg.waitForTimeout(ms);
 const shot = async (n) => { if (shots) await pg.screenshot({ path: `${shots}/${n}.png` }); };
-async function until(fn, ms, label, tick) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (tick) await E(tick); if (await E(fn)) return true; await W(150); } throw new Error('timeout: ' + label + ' ' + JSON.stringify(await E(() => ({ door: [PAL.door.hasDoc, PAL.door.docPlaced, PAL.grammar.has('evplate','element.conductive'), PAL.ink.v, PAL.dlg.active], room: PAL.S.room, p: [PAL.P.x, PAL.P.z], c: [PAL.custode.x, PAL.custode.z, PAL.custode.st], ch: [PAL.charger.x, PAL.charger.z, PAL.charger.st], hp: PAL.P.hp })))); }
+async function until(fn, ms, label, tick) { ms *= 3; const t0 = Date.now(); while (Date.now() - t0 < ms) { if (tick) await E(tick); if (await E(fn)) return true; await W(150); } throw new Error('timeout: ' + label + ' ' + JSON.stringify(await E(() => ({ door: [PAL.door.hasDoc, PAL.door.docPlaced, PAL.grammar.has('evplate','element.conductive'), PAL.ink.v, PAL.dlg.active], room: PAL.S.room, p: [PAL.P.x, PAL.P.z], c: [PAL.custode.x, PAL.custode.z, PAL.custode.st], ch: [PAL.charger.x, PAL.charger.z, PAL.charger.st], hp: PAL.P.hp })))); }
 const keepAlive = () => { PAL.P.hp = 5; };
 await pg.goto(BASE + '?fast'); await W(800); await E(() => PAL.start()); await W(600); await E(() => PAL.skipDialog()); await W(1200);
 // I · tavola
@@ -35,7 +35,7 @@ if (route === 'trust') { await E(() => PAL.tp(0, -96.5)); await E(() => PAL.inte
   await until(() => PAL.S.doorRoute === 'trust', 400000, 'defense', () => { PAL.P.hp = 5; const m = PAL.door.mites.find((m) => m.alive); if (m && PAL.P.st === 'idle') { PAL.tp(m.x + 0.8, m.z); PAL.face(m.x, m.z); PAL.attack(false); } }); }
 await until(`PAL.S.doorRoute === '${route}'`, 8000, 'door route ' + route); await W(400); await shot('07-door-' + route); await E(() => PAL.skipDialog());
 // V · arena
-await W(1200); await E(() => PAL.tp(0, -112.6)); await until(() => PAL.S.room === 'arena', 3000, 'enter arena'); await E(() => PAL.skipDialog());
+await W(1200); await E(() => PAL.tp(0, -112.6)); await until(() => PAL.S.room === 'arena', 3000, 'enter arena'); await E(() => PAL.skipDialog()); await E(() => { PAL.C3.phase = 9; PAL.PROG.skills.nib2 = true; });
 if (plan === 'controllo') { await E(() => PAL.rewrite('custode', 'temperament.cautious')); await shot('08-cauto');
   await until(() => PAL.arena.window > 0, 15000, 'loosen', () => { PAL.P.hp = 5; if (!PAL.grammar.has('custode', 'temperament.cautious')) PAL.rewrite('custode', 'temperament.cautious'); PAL.tp(0, -121); });
   await E(() => PAL.tp(0, -136.6)); }

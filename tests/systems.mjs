@@ -10,7 +10,7 @@ const check = (name, v) => { (v ? ok : bad).push(name); console.log(v ? 'OK ' : 
 const hold = async (k) => { await pg.keyboard.down(k); await pg.waitForTimeout(350); await pg.keyboard.up(k); };
 await pg.goto(BASE + '?fast'); await W(700);
 // tastiera: avvio con click, movimento WASD, interazione E, riscrittura Q + frecce + Invio, colpo forte K
-await pg.click('#bStart'); await W(800); await E(() => window.__film && window.__film.skip()); await W(1500); await E(() => PAL.skipDialog()); await W(300);
+await pg.click('#bStart'); await W(800); for (let i = 0; i < 150 && await E(() => PAL.OP.stage !== 'gap'); i++) await W(200); await E(() => PAL.rewrite('opbridge', 'shape.bridge')); for (let i = 0; i < 100 && await E(() => !!PAL.OP.chasm); i++) await W(200); await E(() => PAL.tp(PAL.OP.R.cx, PAL.OP.R.cz - 9)); for (let i = 0; i < 150 && await E(() => PAL.S.room !== 'intro' || PAL.S.transit); i++) await W(200); await W(2500); for (let i = 0; i < 30 && await E(() => PAL.S.lock); i++) { await E(() => PAL.skipDialog()); await W(300); }
 const z0 = await E(() => PAL.P.z); await pg.keyboard.down('KeyW'); await W(1500); await pg.keyboard.up('KeyW'); const z1 = await E(() => PAL.P.z);
 check('tastiera: W muove in avanti', z1 < z0 - 1);
 await E(() => PAL.tp(0, -8.4)); await hold('KeyE'); await W(200); await E(() => PAL.skipDialog());

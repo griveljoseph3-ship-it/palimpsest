@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=1.5.0';
+import * as THREE from '../vendor/three.module.js?v=1.6.0';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');

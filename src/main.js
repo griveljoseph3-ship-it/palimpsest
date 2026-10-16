@@ -1,15 +1,15 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.5.0';
-import { EFFECTS } from './data.js?v=1.5.0';
-import { Grammar } from './resolver.js?v=1.5.0';
-import { Ink, INK } from './ink.js?v=1.5.0';
-import { Input } from './input.js?v=1.5.0';
-import { Sfx } from './audio.js?v=1.5.0';
-import { Tele } from './telemetry.js?v=1.5.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.5.0';
-import * as W from './world.js?v=1.5.0';
-import * as ST from './story.js?v=1.5.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.5.0';
+import * as THREE from '../vendor/three.module.js?v=1.6.0';
+import { EFFECTS } from './data.js?v=1.6.0';
+import { Grammar } from './resolver.js?v=1.6.0';
+import { Ink, INK } from './ink.js?v=1.6.0';
+import { Input } from './input.js?v=1.6.0';
+import { Sfx } from './audio.js?v=1.6.0';
+import { Tele } from './telemetry.js?v=1.6.0';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.6.0';
+import * as W from './world.js?v=1.6.0';
+import * as ST from './story.js?v=1.6.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.6.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -293,7 +293,7 @@ function bossC2Update(dt) {
   const v = dweights.filter((w) => !w.broken).length * 2 + (B.phase === 2 ? Math.max(0, damHeart.hp) : 8); $('bossBar').classList.toggle('hidden', S.roomT < 2.6); $('bossBar').querySelector('.bname').textContent = B.phase === 1 ? 'LA DIGA RILEGATA · ANCORE' : 'LA DIGA RILEGATA · CUORE'; setBar($('bossBar').querySelector('.hbar'), v / 14);
 }
 function ch2Update(dt) {
-  archiveUpdate(); cryptUpdate(); vialsUpdate(); swarmUpdate(dt); mazeUpdate(dt); extraWaves(dt); rilegUpdate(dt); bossC2Update(dt);
+  archiveUpdate(); cryptUpdate(); vialsUpdate(); swarmUpdate(dt); mazeUpdate(dt); v16Update(dt); extraWaves(dt); rilegUpdate(dt); bossC2Update(dt);
   if (!C2.crateDone && grammar.has('crate', 'weight.heavy')) { C2.crateDone = true; crate.mesh.position.y = 0.6; plateC2.position.y = 0.0; openGate('c2g1'); sfx.play('heavy'); S.shake = 0.4; toast('LA PIASTRA CEDE'); journal('Hai reso PESANTE la cassa: la piastra ha ceduto.'); }
   if (grammar.has('crate', 'weight.light')) crate.mesh.position.y = 0.75 + 0.3 + Math.sin(now * 2) * 0.08;
   const up = grammar.has('raft', 'weight.light'); if (up && !C2.raftUp) { C2.raftUp = true; unsolidRaft(true); sfx.play('page'); toast('LA ZATTERA RIAFFIORA'); if (!C2.rilegSpawned) { C2.rilegSpawned = true; rileg.alive = true; rileg.mesh.visible = true; rileg.x = 106; rileg.z = -10.5; S.encounter = 'rileg'; ink.encounterEnd(); sfx.tension(true); say([['narr', 'Dal fondo del canale sale una figura fatta di fili e colla.'], ['custode', 'Ciò che è affondato resta affondato.'], ['lumi', 'Il Rilegatore. Ricuce tutto quello che apri.']]); hint('Il Rilegatore vuole ricucire la zattera: CAUTO lo tiene lontano, PESANTE lo rallenta, FRAGILE + colpo forte spezza i fili'); } if (!rileg.alive) openGate('c2g2'); }
@@ -426,7 +426,7 @@ function aiUpdate(e, dt) {
       const hit = collide(e, c.r, true);
       if (hit) { S.shake = 0.6; sfx.play('hit'); particles.burst(e.x + e.dir.x * c.r, 1, e.z + e.dir.z * c.r, 18, 5, [0.85, 0.78, 0.62], 0.2);
         if (hit.pillar && !e.armorBroken) e.armorHP -= fragile ? 5 : 1; if (hit.pillar && e.armorHP <= 0 && !e.armorBroken) breakArmor(e, fragile ? 'fragile' : 'action'); else { e.st = 'stun'; e.t = hit.pillar ? 1.6 : 0.9; if (hit.pillar && fragile) { toastSmall('La corazza si incrina: ancora!'); dmgAt(e.x, 2.6, e.z, '-50', 'big'); } }
-        if (hit.pillar) hit.mesh.rotation.z = rnd(-0.06, 0.06);
+        if (hit.pillar) hit.mesh.rotation.z = rnd(-0.06, 0.06); if (hit.support) collapseSupport();
       } else if (e.t <= 0) { e.st = 'recover'; e.t = c.recover; }
       break; }
     case 'recover': case 'stun': if (e.t <= 0) { e.st = 'idle'; e.cd = cautious ? 2.5 : 0.8 + Math.random(); e.foldStun = false; } break;
@@ -454,7 +454,7 @@ function playerUpdate(dt) {
   if (P.st === 'dead') return;
   const ctl = !S.lock && !panel.open && S.phase === 'play' && !paused;
   const mx = ctl ? input.move.x : 0, mz = ctl ? input.move.y : 0; const ml = Math.hypot(mx, mz);
-  let sp = 5.6; if (P.st === 'attack') sp = 2; if (P.st === 'heavy') sp = 0.8; if (P.st === 'hurt') sp = 0;
+  let sp = 5.6 * (P.curse && P.curse.on ? 0.5 : 1); if (P.st === 'attack') sp = 2; if (P.st === 'heavy') sp = 0.8; if (P.st === 'hurt') sp = 0;
   if (P.st === 'dodge') { P.x += P.dx * 13 * dt; P.z += P.dz * 13 * dt; if (P.t <= 0) P.st = 'idle'; }
   else { const acc = ml > 0.1 ? 0.22 : 0.3; if (P.st === 'hurt') { P.vx *= 0.85; P.vz *= 0.85; } else { P.vx = lerp(P.vx, mx * sp, acc); P.vz = lerp(P.vz, mz * sp, acc); } P.x += P.vx * dt; P.z += P.vz * dt;
     if (ml > 0.15 && P.st !== 'heavy') P.face = lerpAng(P.face, Math.atan2(mx, mz), 0.25); }
@@ -520,7 +520,7 @@ function interactables() {
   if (S.room === 'door' && door.hasDoc && !door.docPlaced && !S.doorRoute) L.push({ x: -3.8, z: -98.8, r: 1.7, label: 'inserisci', fn: () => { door.docPlaced = true; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'reader' }); hint('La prova è nel lettore. Il relè pulsa già: dai alla piastra una strada'); } });
   if (S.room === 'door' && !S.doorRoute && !door.defense) L.push({ x: 0, z: -97.8, r: 2.0, label: 'parla', fn: talkElara });
   if (S.room === 'arena' && (arena.snapped || arena.window > 0) && !S.victory) L.push({ x: 0, z: -136.4, r: 1.8, label: 'tocca', fn: touchSeal });
-  cryptInteractables(L); ch2Interactables(L); mazeInteractables(L);
+  cryptInteractables(L); ch2Interactables(L); mazeInteractables(L); v16Interactables(L);
   return L;
 }
 function nearestInteract() { let b = null, bd = 1e9; for (const it of interactables()) { const d = Math.hypot(P.x - it.x, P.z - it.z); if (d < it.r && d < bd) { bd = d; b = it; } } return b; }
@@ -627,6 +627,9 @@ function confirmWord() {
   if (applyWord(e, w, 'panel')) { const b = panel.els[panel.sel]; if (b) b.classList.add('ripple'); if (FAST) closePanel(); else setTimeout(closePanel, 130); }
 }
 function applyWord(e, w, via) {
+  if (!PROG.skills.nib2 && grammar.active(e.id).some((a) => EFFECTS[a].slot !== EFFECTS[w].slot)) { sfx.play('deny'); toastSmall('Due parole insieme: serve il Pennino d\'acciaio (✦)'); return false; }
+  if (e.boss && C3.shieldT > 0 && w === C3.shieldWord) { sfx.play('deny'); toastSmall('«Conosco quel tratto.» Il Custode ha già letto ' + EFFECTS[w].word + ': usa un\'altra parola o il gommino'); dmgAt(e.x, 3.4, e.z, 'IMMUNE', 'block'); return false; }
+  S.wordUse[w] = (S.wordUse[w] || 0) + 1;
   const chk = grammar.canApply(e.id, w); if (!chk.ok) { sfx.play('deny'); toastSmall(chk.reason); Tele.log('rewrite_denied', { target: e.id, eff: w, reason: chk.reason }); return false; }
   const safe = zoneSafe();
   if (via === 'quick' && !safe && ink.v < INK.confirmCost) { sfx.play('deny'); toastSmall('Inchiostro secco: colpisci o schiva per recuperarlo'); return false; }
@@ -887,7 +890,7 @@ let introPlaying = false;
 function beginWithIntro(force) {
   if (S.phase !== 'title' || introPlaying) return; sfx.start(); sfx.setVol(opts.vol); sfx.setMusic(opts.mus);
   if (mem.runs > 0 && !force) { startGame(); return; }
-  introPlaying = true; $('title').classList.add('hidden'); Tele.log('intro_start'); playFilm();
+  startOpening();
 }
 const film = new Film(paper); film.resize(innerWidth, innerHeight); addEventListener('resize', () => film.resize(innerWidth, innerHeight));
 let voiceOn = localStorage.getItem('pal_voice') !== '0', itVoice = null;
@@ -945,7 +948,7 @@ function goEnd() {
   setTimeout(() => { P.x = 0; P.z = r.cz + 1.5; P.face = Math.PI; camera.position.set(0, 14, P.z + 11); $('fade').style.opacity = 0; enterRoom(r); lumi.on = true; lumi.mesh.visible = true; lumi.x = 2; lumi.z = -82;
     const rem = W.makeCustode(); rem.scale.setScalar(0.6); rem.position.set(5.6, 0, -165.6); rem.rotation.y = -0.5; rem.userData.armor.visible = !custode.armorBroken; scene.add(rem);
     if (S.doorRoute === 'forced') { elara2.userData.st.seam = true; elara2.userData.redraw(); }
-    say(ST.consequence(S, mem), { done: finish }); }, FAST ? 50 : 700);
+    say(ST.consequence(S, mem).concat([['narr', 'Elara si volta. La sua schiena si stacca come carta vecchia, e sotto c\'è un tratto più antico.'], ['lumi', 'Quel tratto… lo conosco. L\'ho fatto io, la prima volta che ho riprovato.'], ['narr', 'Poi, per un momento, il libro tace. Nessuno insegue nessuno.']]), { done: endingPage }); elara2.userData.st.torn = true; elara2.userData.redraw(); }, FAST ? 50 : 700);
 }
 function finish() {
   S.done = true; S.lock = false; Tele.log('slice_complete', { t: Math.round(S.time), door_route: S.doorRoute, plan: S.plan, deaths: S.deaths }); Tele.flush();
@@ -1036,7 +1039,7 @@ function visualUpdate(dt, rdt) {
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
   if (frame % 20 === 0) particles.emit(P.x + rnd(-8, 8), rnd(1, 4), P.z + rnd(-8, 4), rnd(-0.1, 0.1), 0.05, rnd(-0.1, 0.1), 4, 0.06, 0.95, 0.85, 0.6, 0); // pulviscolo di luce
   ghostUpdate(dt); particles.update(dt);
-  INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -124, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 16 : S.room === 'c2d' ? 11 : 12;
+  INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -124, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 16 : S.room === 'c2d' ? 11 : S.room === 'intro' ? 18 : S.room === 'maze' ? 14 : 12;
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
   const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.12 : 0.96; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
@@ -1079,11 +1082,11 @@ const SKILLS = [
   { id: 'well', name: 'Calamaio profondo', cost: 8, text: 'Recuperi più Inchiostro da colpi e schivate.' },
   { id: 'nib3', name: 'Pennino d\'oro', cost: 22, req: 'nib2', text: 'Sblocca il GOMMINO: cancella il 25% di vita, carica e velocità di tutti i nemici nella stanza.' },
 ];
-const nibMul = () => (PROG.skills.nib2 ? 1.5 : 1);
+const nibMul = () => (PROG.skills.nib2 ? 1.5 : 1) * (1 + 0.25 * (S.cursed || 0));
 function gainDrops(n) { PROG.drops += n; saveProg(); popInk('+' + n + ' gocce'); }
 function renderSkills() {
   const any = SKILLS.some((k) => !PROG.skills[k.id] && PROG.drops >= k.cost && (!k.req || PROG.skills[k.req])); $('bSkills').classList.toggle('has', any);
-  $('tErase').classList.toggle('hidden', !PROG.skills.nib3); $('tErase').classList.toggle('cd', ERASE.cd > 0);
+  $('tErase').classList.toggle('hidden', !PROG.skills.nib3 && !P.curse); $('tErase').classList.toggle('cd', ERASE.cd > 0);
   if ($('skills').classList.contains('hidden')) return;
   $('skDrops').textContent = 'Gocce d\'inchiostro: ' + PROG.drops + ' · si raccolgono sconfiggendo le macchie e i nemici';
   $('skList').innerHTML = SKILLS.map((k) => { const own = PROG.skills[k.id], lock = k.req && !PROG.skills[k.req];
@@ -1098,6 +1101,8 @@ $('bSkills').onclick = openSkills; $('skClose').onclick = closeSkills;
 // GOMMINO: −25% a tutte le statistiche dei nemici della stanza (una volta per nemico, ricarica 25 s)
 const ERASE = { cd: 0 };
 function useEraser() {
+  if (P.curse) { const was = P.curse.on; P.curse = null; $('curseTag').classList.add('hidden'); sfx.play('dry'); inkWave(P.x, P.z, 3, 0x3a2a4a); toast(was ? 'HAI CANCELLATO «LENTO»' : 'PAROLA CANCELLATA PRIMA CHE ATTECCHISSE'); if (!PROG.skills.nib3) { renderSkills(); return; } }
+  if (custode.alive && S.room === 'arena' && C3.shieldT > 0) { C3.shieldT = 0; toast('GOMMINO · LA LETTURA DEL CUSTODE SI CANCELLA'); }
   if (!PROG.skills.nib3) return; if (ERASE.cd > 0) { sfx.play('deny'); toastSmall('Il gommino è ancora consumato'); return; }
   ERASE.cd = 25; let n = 0; sfx.play('dry'); S.flash = opts.reduce ? 0 : 0.25; inkWave(P.x, P.z, 9, 0x3a2a4a);
   for (const e of [charger, custode]) { if (!e.alive || e.st === 'dead' || roomAt(e.x, e.z) !== roomAt(P.x, P.z) || e.erased) continue; e.erased = true; n++;
@@ -1152,10 +1157,10 @@ function buildMaze() {
   for (const [cx2, cz2] of [[2, 8], [8, 7], [3, 4], [7, 3], [1, 1], [9, 1], [5, 5]]) { const [x, z] = mzCell(cx2, cz2); const lm = W.makeLamp(); lm.position.set(x + 2.6, 0, z + 2.6); MZ.group.add(lm);
     const e = addEnt('mzlamp' + MZ.lamps.length, 'mzlamp', lm, x + 2.6, z + 2.6); e.mesh.userData.height = 2.2; const L = { m: lm, x: x + 2.6, y: lm.userData.ly, z: z + 2.6, r: 6, col: [1.3, 0.55, 0.35], base: [1.3, 0.55, 0.35], ph: r() * 10, kind: 'lamp' }; e.light = L; storyLights.push(L); MZ.lamps.push(e); }
   // macchie del labirinto (risvegliate dalla vicinanza o dalla luce)
-  for (let i = 0; i < 26; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 2)) + 1; if (cz2 >= N - 2 && Math.abs(cx2 - 5) < 2) cz2 = 4; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; }
+  for (let i = 0; i < 26; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 2)) + 1; if (cz2 >= N - 2 && Math.abs(cx2 - 5) < 2) cz2 = 4; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; if (i % 4 === 0) { o.scribe = true; const q = W.makeDoc(); q.scale.setScalar(0.5); q.position.y = 0.2; o.mesh.add(q); } }
   for (const [cx2, cz2] of [[0, 10], [10, 6], [0, 3], [10, 0]]) { const [x, z] = mzCell(cx2, cz2); spawnVial(x, z, true); }
   // pagine della guida (Ilde) lungo il percorso
-  MZ.notes = [[5, 9, 'enter'], [3, 6, 'buio'], [5, 2, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 2, 0, z); MZ.group.add(n); return { x: x - 2, z, id }; });
+  MZ.notes = [[5, 9, 'enter'], [3, 6, 'buio'], [5, 2, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 2, 0, z); MZ.group.add(n); return { x: x - 2, z, id }; }); buildMazeExtras(r);
 }
 function inkMasterLike(color) { const m = world.wallMat.clone(); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) } }; return m; }
 function mazeActivate(on) { if (MZ.active === on) return; MZ.active = on; MZ.group.visible = on;
@@ -1211,7 +1216,137 @@ function mazeUpdate(dt) {
   if (MZ.wire && MZ.done && frame % 30 === 0) pulseWire(MZ.wire);
 }
 
-window.PAL = { MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+
+// ================= v1.6 · prologo giocato, parola ostile LENTO, sostegno del Caricatore, pagine maledette, Elara giudice, Custode in 3 fasi, finale =================
+S.wordUse = {}; S.cursed = 0;
+const OP = { stage: null, t: 0, R: W.ROOMS.find((r) => r.id === 'open'), built: false, planks: [], subT: 0 };
+function opSub(t) { const el = $('opSub'); el.classList.remove('hidden'); el.style.opacity = 1; el.textContent = t; speak(t); }
+function buildOpening() { if (OP.built) return; OP.built = true; const R = OP.R;
+  OP.leaf = new THREE.Group(); OP.leaf.position.set(R.cx, 0.02, R.cz + 4); scene.add(OP.leaf);
+  const lm = inked(new THREE.BoxGeometry(R.w - 0.6, 0.08, 17), { color: 0xf1e8d4, ow: 0.02, texScale: 0.5 }); lm.position.z = 8.5; OP.leaf.add(lm);
+  const tx = (() => { const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const g = c.getContext('2d'); g.fillStyle = 'rgba(40,28,20,.8)'; g.font = 'italic 64px Georgia'; g.fillText('E qui il viaggiatore cadde.', 60, 280); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const words = new THREE.Mesh(new THREE.PlaneGeometry(13, 6.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false })); words.position.set(0, 0.06, 9); OP.leaf.add(words);
+  OP.chasm = { minX: R.cx - R.w / 2, maxX: R.cx + R.w / 2, minZ: R.cz - 1.8, maxZ: R.cz + 1.8 }; world.walls.push(OP.chasm);
+  const ch = new THREE.Mesh(new THREE.PlaneGeometry(R.w - 0.4, 3.6).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x07050a })); ch.position.set(R.cx, 0.02, R.cz); scene.add(ch);
+  const gtx = (() => { const c = document.createElement('canvas'); c.width = 1024; c.height = 256; const g = c.getContext('2d'); g.fillStyle = 'rgba(243,234,214,.85)'; g.font = 'italic 54px Georgia'; g.fillText('Tra le due sponde rimase soltanto ______', 30, 150); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const gw = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: gtx, transparent: true, depthWrite: false })); gw.position.set(R.cx, 0.04, R.cz); scene.add(gw); OP.gapWords = gw;
+  OP.bridge = addEnt('opbridge', 'opbridge', new THREE.Group(), R.cx, R.cz); OP.bridge.mesh.userData.height = 0.5;
+  for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(3, 0.14, 0.4), { color: 0xd8cbb0, ow: 0.02 }); pl.position.set(R.cx, -3, R.cz - 1.7 + i * 0.42); pl.visible = false; scene.add(pl); OP.planks.push(pl); }
+  for (const [x, z, k] of [[-5, 14, 'lamp'], [5, 6, 'candle'], [-5, -6, 'lamp'], [5, -14, 'lamp'], [0, -19, 'candle']]) { const m = k === 'lamp' ? W.makeLamp() : W.makeCandle(0.6); m.position.set(R.cx + x, 0, R.cz + z); scene.add(m); storyLights.push({ m, x: R.cx + x, y: m.userData.ly, z: R.cz + z, r: k === 'lamp' ? 6 : 3.6, col: k === 'lamp' ? [1.3, 0.95, 0.55] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: k }); }
+}
+function startOpening() {
+  if (S.phase !== 'title') return; $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); sfx.start(); S.phase = 'play'; S.lock = true; if (isTouch) input.mode = 'touch';
+  Tele.log('session_start', { runs: mem.runs, opening: true }); resetProg(); applySkills(); renderSkills(); buildOpening(); enterRoom(OP.R);
+  P.x = OP.R.cx; P.z = OP.R.cz + 19; P.face = Math.PI; camera.position.set(P.x, 15, P.z + 12); OP.stage = 'tilt'; OP.t = 0; P.inv = 1e9; opSub('E qui il viaggiatore cadde.');
+}
+function opUpdate(dt) {
+  if (!OP.stage) return; OP.t += dt; const R = OP.R;
+  if (OP.stage === 'tilt') { const k = clamp((OP.t - 1.2) / 2.6, 0, 1); OP.leaf.rotation.x = -0.32 * Math.sin(k * Math.PI * 0.5) * (k < 1 ? 1 : 1);
+    if (OP.t > 1.6) { const sk = clamp((OP.t - 1.6) / 2.4, 0, 1); P.z = lerp(R.cz + 19, R.cz + 2.6, sk * sk); P.x = R.cx + Math.sin(OP.t * 3) * 0.4 * (1 - sk); P.face = Math.PI; if (frame % 3 === 0) particles.emit(P.x, 0.2, P.z, rnd(-1, 1), 0.6, 1, 0.6, 0.15, 0.85, 0.78, 0.62, 3); }
+    if (OP.t > 4.2) { OP.stage = 'gap'; OP.t = 0; S.lock = false; S.shake = 0.5; sfx.play('tear'); S.discovered.add('shape.bridge'); opSub('Tra le due sponde rimase soltanto ______.'); hint(input.mode === 'touch' ? 'Tocca ✎ RISCRIVI e poi la parola PONTE' : input.mode === 'pad' ? 'Premi RB e scegli PONTE' : 'Premi Q e scegli PONTE'); $('tRewrite').classList.add('pulse'); } }
+  if (OP.stage === 'gap') { OP.leaf.rotation.x = lerp(OP.leaf.rotation.x, 0, 0.05); P.hp = P.max; if (grammar.has('opbridge', 'shape.bridge')) { OP.stage = 'build'; OP.t = 0; hint(''); $('tRewrite').classList.remove('pulse'); opSub('Tra le due sponde rimase soltanto un PONTE.'); sfx.play('page'); } }
+  if (OP.stage === 'build') { P.hp = P.max; OP.planks.forEach((pl, i) => { const t = clamp(OP.t * 1.1 - i * 0.1, 0, 1); pl.visible = t > 0; pl.position.y = lerp(4, 0.04, 1 - Math.pow(1 - t, 3)); pl.rotation.z = (1 - t) * 1.2; });
+    OP.gapWords.material.opacity = Math.max(0, 1 - OP.t); if (OP.t > 1.9 && OP.chasm) { world.walls = world.walls.filter((w) => w !== OP.chasm); OP.chasm = null; opSub('E il viaggiatore, che non sapeva ancora di scrivere, attraversò.'); }
+    if (P.z < R.cz - 8) { OP.stage = 'title'; OP.t = 0; S.lock = true; $('opSub').style.opacity = 0; $('opTitle').classList.remove('hidden'); sfx.play('seal'); } }
+  if (OP.stage === 'title' && OP.t > 3.4) { OP.stage = null; $('opTitle').classList.add('hidden'); P.inv = 0;
+    zoneTransition('build', 'Capitolo I · La tavola', () => { const r = W.ROOMS[0]; P.x = 0; P.z = r.cz + r.d / 2 - 1.6; P.face = Math.PI; camera.position.set(0, 15, P.z + 12); enterRoom(r); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
+      setTimeout(() => { S.lock = true; say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } }); }, 1600); }); }
+}
+// ---- parola ostile: LENTO sull'ombra ----
+function nearCover() { if (P.hidden || P.st === 'dodge') return true; for (const c of circles) if (c.pillar && Math.hypot(P.x - c.x, P.z - c.z) < c.r + 1.6) return true; return false; }
+function curseStart(src) { if (P.curse || P.st === 'dead') return; P.curse = { t: 0, on: false, src }; $('curseTag').classList.remove('hidden', 'on'); sfx.play('warn'); toastSmall(src + ' scrive LENTO sulla tua ombra: copriti (pilastro, buio, schivata)!'); renderSkills(); }
+function curseUpdate(dt) { const c = P.curse; const tag = $('curseTag'); if (!c) return;
+  if (!c.on) { c.t += dt; tag.textContent = 'LENTO'.slice(0, Math.ceil(c.t / 2.4 * 5)); if (nearCover()) { P.curse = null; tag.classList.add('hidden'); toast('TI SEI COPERTO · LA PAROLA NON ATTECCHISCE'); sfx.play('dry'); renderSkills(); return; }
+    if (c.t >= 2.4) { c.on = true; tag.classList.add('on'); tag.textContent = 'LENTO'; toast('SEI LENTO · CANCELLALO COL GOMMINO ◌'); hint('◌ GOMMINO cancella la parola ostile' + (input.mode === 'kb' ? ' (G)' : input.mode === 'pad' ? ' (LT)' : '')); } }
+  const p = toScreen(P.x, 0.05, P.z); if (p.ok) { tag.style.left = p.x + 'px'; tag.style.top = (p.y + 18) + 'px'; } }
+// ---- pagine maledette ----
+const CURSED = {}; function addCursed(id, x, z) { const m = W.makeDoc(); m.position.set(x, 0, z); m.userData.paper.material = m.userData.paper.material.clone(); setU(matsOf(m), 'ColorShift', 0.8); scene.add(m); CURSED[id] = { x, z, m, taken: false }; return CURSED[id]; }
+function takeCurse(id) { const c = CURSED[id]; if (!c || c.taken) return; c.taken = true; scene.remove(c.m); S.cursed++; sfx.play('tear'); S.flash = 0.4; S.shake = 0.6;
+  for (const e of [charger, custode]) { const cf = e.cfg = { ...e.cfg }; cf.speed *= 1.12; cf.charge *= 1.1; e.armorHP += 3; e.armorMax += 3; }
+  for (const m of swarm) if (m.alive) m.aggroR = (m.aggroR || 0) * 1.3 || m.aggroR;
+  toast('✠ PAGINA MALEDETTA · ' + S.cursed + ' · più forte, ma il capitolo si indurisce'); journal('Hai preso una pagina maledetta: il tuo pennino morde di più, ma i nemici ti cercano con più rabbia.'); Tele.log('cursed_page', { id, n: S.cursed }); }
+// ---- Caricatore: il sostegno che crolla (seconda soluzione) ----
+const SUP = { x: 10.6, z: -21.5, fallen: false, t: -1 };
+SUP.mesh = (() => { const g = new THREE.Group(); const col = inked(new THREE.CylinderGeometry(0.45, 0.55, 3.2, 8, 3), { color: 0xb8a684, shift: 0x9e2b1c, y0: 0, y1: 3.2 }); col.position.y = 1.6; g.add(col);
+  const cr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.05), new THREE.MeshBasicMaterial({ color: 0x1a120c })); cr.position.set(0.3, 1.4, 0.35); cr.rotation.z = 0.3; g.add(cr);
+  const balc = inked(new THREE.BoxGeometry(3.4, 0.25, 7), { color: 0x8a6a4a, ow: 0.025 }); balc.position.set(1.7, 3.25, 0); g.add(balc); g.userData = { col, balc }; g.position.set(SUP.x, 0, SUP.z); scene.add(g); return g; })();
+SUP.circle = { x: SUP.x, z: SUP.z, r: 0.6, pillar: true, support: true, mesh: SUP.mesh }; circles.push(SUP.circle);
+SUP.ramp = inked(new THREE.BoxGeometry(3.2, 0.25, 7.6), { color: 0x8a6a4a, ow: 0.025 }); SUP.ramp.visible = false; scene.add(SUP.ramp);
+function collapseSupport() { if (SUP.fallen) return; SUP.fallen = true; SUP.t = 0; const i = circles.indexOf(SUP.circle); if (i >= 0) circles.splice(i, 1); sfx.play('break'); S.shake = 1.2; S.hitstop = 0.15; particles.burst(SUP.x, 2, SUP.z, 40, 6, [0.85, 0.78, 0.62], 0.25);
+  toast('IL SOSTEGNO CROLLA · UNA RAMPA, UN\'ALTRA STRADA'); journal('Hai fatto crollare il ballatoio con la carica del Caricatore: la rampa porta oltre il cancello.'); Tele.log('charger_alt', {});
+  setTimeout(() => { openGate('r1'); if (S.encounter === 'charger') endEncounter('charger'); gainDrops(6); hint('Sali sulla rampa: il cancello nord è sfondato'); }, 900); }
+// ---- Elara giudice: la contraddizione ----
+const VERD = { x: -6.2, z: -95.5, solved: false, tries: 0 }; VERD.mesh = W.makeReader(); VERD.mesh.position.set(VERD.x, 0.55, VERD.z); scene.add(VERD.mesh); circles.push({ x: VERD.x, z: VERD.z, r: 0.4 });
+function readVerdict() { ink.interact(); sfx.play('page');
+  say([['narr', 'IL VERDETTO. «Elara è COLPEVOLE di aver aperto la Fenditura.»'], ['narr', '«Prova prima: quella notte la piastra della porta era ISOLANTE.»'], ['narr', '«Prova seconda: Elara scrisse una riga, e il suo inchiostro accese da solo il relè.»'], ['narr', '«Prova terza: il relè pulsa ogni tre secondi, da allora.»'], ['narr', 'Una delle tre prove contraddice una regola che conosci già.']],
+    { choices: [['La prima è falsa', () => wrongVerdict()], ['La seconda è falsa', () => solveVerdict()], ['La terza è falsa', () => wrongVerdict()]] }); }
+function wrongVerdict() { VERD.tries++; sfx.play('deny'); damagePlayer(1, { x: VERD.x, z: VERD.z }, 'verd' + VERD.tries); say([['elara', 'No. Quella è vera. Rileggi: cosa sai dell\'inchiostro e degli impulsi?']]); }
+function solveVerdict() { VERD.solved = true; sfx.play('seal'); S.flash = 0.4; elara.userData.st.verdict = ''; elara.userData.redraw();
+  say([['you', 'CONDUTTIVO non crea energia: la trasporta. Nessun inchiostro accende un relè da solo.'], ['elara', '…Allora qualcuno ha portato l\'impulso. Non io.'], ['elara', 'Il verdetto non regge. Passa, e cerca chi ha scritto quella riga.']], { done: () => setRoute('evidence') }); journal('Hai trovato la contraddizione nel verdetto di Elara.'); }
+// ---- Custode in tre fasi ----
+const C3 = { phase: 1, shieldT: 0, shieldWord: null, curseCd: 6 };
+function custodeSay(t) { say([['custode', t]]); }
+function custodePhases(dt) { if (S.room !== 'arena' || !custode.alive || S.victory) return; const c = custode;
+  if (C3.shieldT > 0) { C3.shieldT -= dt; c.mesh.userData.halo.material.color.setRGB(0.2, 0.35, 0.9); if (C3.shieldT <= 0) { c.mesh.userData.halo.material.color.set(0x8a1a10); toastSmall('La lettura del Custode svanisce'); } }
+  if (C3.phase === 1 && !c.armorBroken && c.armorHP < c.armorMax * 0.65) { C3.phase = 2; const top = Object.entries(S.wordUse).filter(([w]) => ['state.fragile', 'temperament.cautious', 'element.conductive'].includes(w)).sort((a, b) => b[1] - a[1])[0];
+    C3.shieldWord = top ? top[0] : 'state.fragile'; C3.shieldT = 12; grammar.resetPhrase('custode'); custodeSay('Conosco quel tratto. ' + EFFECTS[C3.shieldWord].word + ' non mi tocca più.'); toast('FASE 2 · IMMUNE A ' + EFFECTS[C3.shieldWord].word + ' (12 s) · cambia parola o usa il gommino'); }
+  if (C3.phase === 2 && C3.shieldT <= 0 && c.armorHP < c.armorMax * 0.65 && Math.random() < dt / 9) C3.shieldT = 8; // torna a leggerti
+  if (C3.phase < 3 && (c.armorBroken || c.armorHP < c.armorMax * 0.3)) { C3.phase = 3; custodeSay('Allora correggo te.'); toast('FASE 3 · IL CUSTODE SCRIVE SU DI TE'); C3.curseCd = 1.5; }
+  if (C3.phase === 3 && !arena.snapped) { C3.curseCd -= dt; if (C3.curseCd <= 0 && !P.curse) { C3.curseCd = 11; curseStart('Il Custode'); } }
+}
+const _touchSeal = touchSeal; touchSeal = function () { if (S.victory) return; say([['narr', 'Il legame si spezza. Dentro il Custode c\'è una sola riga, scritta di fretta:'], ['narr', '«Il viaggiatore non doveva arrivare fin qui, perché se avesse letto ______»'], ['narr', 'La frase finisce lì. Manca una parola.']]); journal('Dentro il Custode: una frase incompleta.'); _touchSeal(); };
+// ---- pagina finale ----
+function endingPage() { const el = $('endPage'); el.classList.remove('hidden'); const cv = $('endCv'), g = cv.getContext('2d'); g.fillStyle = '#efe5cf'; g.fillRect(0, 0, 900, 1100);
+  g.strokeStyle = 'rgba(40,28,20,.25)'; for (let i = 0; i < 26; i++) { g.beginPath(); g.moveTo(60, 120 + i * 36); g.lineTo(840, 120 + i * 36); g.stroke(); }
+  const ink = (f) => { g.save(); g.fillStyle = '#16100c'; g.strokeStyle = '#16100c'; g.lineCap = 'round'; f(); g.restore(); };
+  ink(() => { g.beginPath(); g.moveTo(450, 330); g.bezierCurveTo(360, 340, 330, 520, 300, 820); g.lineTo(600, 820); g.bezierCurveTo(570, 520, 540, 340, 450, 330); g.fill(); // mantello
+    g.beginPath(); g.arc(450, 300, 62, 0, Math.PI * 2); g.fill(); g.fillStyle = '#efe5cf'; g.beginPath(); g.arc(432, 305, 6, 0, 6.3); g.arc(468, 305, 6, 0, 6.3); g.fill();
+    g.fillStyle = '#8a2416'; g.fillRect(392, 370, 116, 22); g.fillRect(470, 380, 22, 120);
+    g.lineWidth = 9; g.beginPath(); g.moveTo(560, 520); g.lineTo(700, 400); g.stroke(); g.fillStyle = '#d8a63a'; g.beginPath(); g.moveTo(700, 400); g.lineTo(728, 382); g.lineTo(712, 410); g.fill();
+    for (let i = 0; i < 9; i++) { g.beginPath(); g.arc(310 + i * 35, 830 + (i % 3) * 14, 6 + (i % 2) * 4, 0, 6.3); g.fill(); } });
+  const q = 'A questo punto, il viaggiatore avrebbe dovuto posare la penna.'; let i = 0; $('endQ').innerHTML = ''; sfx.play('page');
+  const tick = setInterval(() => { i++; $('endQ').innerHTML = q.slice(0, i - 6) + '<span class="wet">' + q.slice(Math.max(0, i - 6), i) + '</span>'; if (i >= q.length + 6) clearInterval(tick); }, 70);
+  const done = () => { el.removeEventListener('pointerdown', done); clearInterval(tick); el.classList.add('hidden'); finish(); }; setTimeout(() => el.addEventListener('pointerdown', done), FAST ? 50 : 2500); if (FAST) setTimeout(done, 1500); window.__endDone = done; }
+// ---- dettagli del labirinto, pila di registri (parole composte), pagina maledetta ----
+function buildMazeExtras(r) {
+  const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
+  const books = new THREE.InstancedMesh(bg, inkMasterLike(0x8a5a3a), 220); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); const col = new THREE.Color();
+  for (let i = 0; i < 220; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const stack = i % 5; e.set(0, r() * 3, 0); q.setFromEuler(e); m4.compose(v.set(x + (r() < 0.5 ? -1 : 1) * (3.2 - r() * 0.4), stack * 0.18, z + (r() - 0.5) * 6), q, sc.set(0.6 + r() * 0.3, 0.17, 0.8 + r() * 0.2)); books.setMatrixAt(i, m4); books.setColorAt && books.setColorAt(i, col.setHSL(0.03 + r() * 0.08, 0.5, 0.3 + r() * 0.25)); }
+  books.frustumCulled = false; MZ.group.add(books);
+  for (let i = 0; i < 30; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const p = inked(new THREE.PlaneGeometry(0.5, 0.65), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set(x + (r() - 0.5) * 6, 0.9 + r() * 0.6, z - 3.7); p.rotation.z = (r() - 0.5) * 0.5; MZ.group.add(p); }
+  const [sx, sz] = mzCell(9, 4); MZ.stack = addEnt('mzstack', 'mzstack', inked(new THREE.BoxGeometry(2.6, 2.4, 1.6), { color: 0x6b4a2a, shift: 0x8a2416, y0: 0, y1: 2.4 }), sx, sz - 2.2); MZ.stack.mesh.position.y = 1.2; MZ.stack.mesh.userData.height = 2.4; MZ.group.add(MZ.stack.mesh);
+  MZ.stackBox = { minX: sx - 1.3, maxX: sx + 1.3, minZ: sz - 3, maxZ: sz - 1.4 }; MZ.walls.push(MZ.stackBox);
+  MZ.notes.push({ x: sx - 2.5, z: sz + 1.5, id: 'pesante' }); { const n = W.makeDoc(); n.position.set(sx - 2.5, 0, sz + 1.5); MZ.group.add(n); }
+  const [cx, cz] = mzCell(10, 10); MZ.curseAt = addCursed('mz', cx, cz); MZ.group.attach(MZ.curseAt.m);
+}
+function v16Interactables(L) {
+  for (const [id, c] of Object.entries(CURSED)) if (!c.taken && (id !== 'mz' || MZ.active)) L.push({ x: c.x, z: c.z, r: 1.8, label: 'leggi', fn: () => say([['narr', '✠ Una pagina maledetta. Le righe sono scritte al contrario e scottano.'], ['narr', 'Se la prendi, il tuo pennino morderà di più. Ma il libro se ne accorgerà, e ti renderà il capitolo più duro.']], { choices: [['Prendila', () => takeCurse(id)], ['Lasciala', () => {}]] }) });
+  if (S.room === 'door' && !S.doorRoute && !VERD.solved) L.push({ x: VERD.x, z: VERD.z, r: 1.8, label: 'esamina', fn: readVerdict });
+  if (S.room === 'maze' && MZ.guide && !MZ.guide.has('pesante')) { /* nota letta tramite mazeInteractables */ }
+}
+const _readGuide = readGuide; readGuide = function (id) { if (id === 'pesante') { MZ.guide.add(id); ink.interact(); sfx.play('page'); S.discovered.add('weight.heavy'); S.discovered.add('state.fragile');
+  say([['ilde', 'Questa pila di registri chiude un passaggio. Da sola una parola non basta.'], ['ilde', 'FRAGILE e PESANTE insieme: crolla sotto il proprio peso. Ma per comporre due parole serve il Pennino d\'acciaio.']]); journal('Hai trovato la parola PESANTE.'); return; } _readGuide(id); };
+addCursed('ch', 13, -18.5); // sul ballatoio del Caricatore (arrivi dalla rampa o con coraggio)
+const INTRO_SWAY = [];
+
+// ---- stanza I: corridoio più luminoso e pieno di dettagli ----
+(() => { const sh = new THREE.Group(); scene.add(sh); const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
+  for (const sd of [-1, 1]) { const frame = inked(new THREE.BoxGeometry(0.7, 2.6, 17), { color: 0x5a3e28, ow: 0.025, y0: 0, y1: 2.6 }); frame.position.set(sd * 11.4, 1.3, 0); sh.add(frame); circles.push(...[-6, -2, 2, 6].map((z) => ({ x: sd * 11.4, z, r: 0.5 }))); }
+  const n = 300, books = new THREE.InstancedMesh(bg, inkMasterLike(0x9a5a3a), n), m4 = new THREE.Matrix4(), col = new THREE.Color(); let k = 0;
+  for (const sd of [-1, 1]) for (let row = 0; row < 3; row++) for (let i = 0; i < 50; i++) { const z = -8.2 + i * 0.33, h = 0.45 + Math.random() * 0.25; m4.makeScale(0.42, h, 0.26 + Math.random() * 0.06); m4.setPosition(sd * 11.0, 0.2 + row * 0.82, z); books.setMatrixAt(k, m4); if (books.setColorAt) books.setColorAt(k, col.setHSL(Math.random() * 0.1, 0.45, 0.25 + Math.random() * 0.3)); k++; }
+  books.frustumCulled = false; sh.add(books);
+  for (let i = 0; i < 14; i++) { const p = inked(new THREE.PlaneGeometry(0.5, 0.7), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set((Math.random() - 0.5) * 16, 2.4 + Math.random() * 0.8, -8 + Math.random() * 16); p.rotation.set(Math.random(), Math.random() * 3, 0); p.userData.sw = Math.random() * 6; sh.add(p); INTRO_SWAY.push(p); }
+  for (const [x, z, kd] of [[-8, 7, 'lamp'], [8, 2, 'lamp'], [-8, -3, 'lamp'], [8, -7, 'lamp'], [-3, 8.5, 'candle'], [3, 8.5, 'candle']]) { const m = kd === 'lamp' ? W.makeLamp() : W.makeCandle(0.6); m.position.set(x, 0, z); scene.add(m); storyLights.push({ m, x, y: m.userData.ly, z, r: kd === 'lamp' ? 6 : 3.4, col: kd === 'lamp' ? [1.35, 1.0, 0.65] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: kd }); }
+})();
+function v16Update(dt) {
+  if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
+  opUpdate(dt); curseUpdate(dt); custodePhases(dt);
+  if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
+  if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
+  if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
+}
+
+window.PAL = { OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

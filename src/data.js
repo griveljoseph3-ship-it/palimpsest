@@ -63,3 +63,5 @@ EFFECTS['light.dark'] = { slot: 'light', word: 'BUIO', sound: 'breath', preview:
 ENTITY_DEFS.mzbridge = { name: 'Fenditura d\'inchiostro', supports: ['shape.bridge'], durations: { 'shape.bridge': null }, safe: true };
 ENTITY_DEFS.mzplate = { name: 'Piastra del filo', supports: ['element.conductive'], durations: { 'element.conductive': null }, safe: true };
 ENTITY_DEFS.mzlamp = { name: 'Lampada sentinella', supports: ['light.dark'], durations: { 'light.dark': 20 }, safe: true };
+ENTITY_DEFS.opbridge = { name: 'Le due sponde', supports: ['shape.bridge'], durations: { 'shape.bridge': null }, safe: true };
+ENTITY_DEFS.mzstack = { name: 'Pila di registri', supports: ['state.fragile', 'weight.heavy'], durations: { 'state.fragile': null, 'weight.heavy': null }, safe: true };

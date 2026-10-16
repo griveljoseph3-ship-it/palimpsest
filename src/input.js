@@ -7,8 +7,8 @@ export class Input {
     addEventListener('keydown', (e) => { if (e.repeat) return; this.keys.add(e.code); this.tapped.add(e.code); this.mode = 'kb'; if (['Space', 'Tab'].includes(e.code)) e.preventDefault(); });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
-    el.addEventListener('mousedown', (e) => { if (e.button === 0) { this.mouseBtn.attack = true; this.touchTap.attack = true; } if (e.button === 2) { this.mouseBtn.heavy = true; this.touchTap.heavy = true; } this.mode = 'kb'; });
-    addEventListener('mouseup', (e) => { if (e.button === 0) this.mouseBtn.attack = false; if (e.button === 2) this.mouseBtn.heavy = false; });
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') return; if (e.button === 0) { this.mouseBtn.attack = true; this.touchTap.attack = true; } if (e.button === 2) { this.mouseBtn.heavy = true; this.touchTap.heavy = true; } this.mode = 'kb'; });
+    addEventListener('pointerup', (e) => { if (e.pointerType !== 'mouse') return; if (e.button === 0) this.mouseBtn.attack = false; if (e.button === 2) this.mouseBtn.heavy = false; });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     this.rumbleOK = true;
   }

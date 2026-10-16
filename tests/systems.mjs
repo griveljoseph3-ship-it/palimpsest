@@ -9,7 +9,7 @@ const E = (f, a) => pg.evaluate(f, a); const W = (ms) => pg.waitForTimeout(ms); 
 const check = (name, v) => { (v ? ok : bad).push(name); console.log(v ? 'OK ' : 'XX ', name); };
 await pg.goto(BASE + '?fast'); await W(700);
 // tastiera: avvio con click, movimento WASD, interazione E, riscrittura Q + frecce + Invio, colpo forte K
-await pg.click('#bStart'); await W(500); await E(() => PAL.skipDialog()); await W(300);
+await pg.click('#bStart'); await W(800); await E(() => window.__cine && window.__cine.finish()); await W(1200); await E(() => PAL.skipDialog()); await W(300);
 const z0 = await E(() => PAL.P.z); await pg.keyboard.down('KeyW'); await W(1500); await pg.keyboard.up('KeyW'); const z1 = await E(() => PAL.P.z);
 check('tastiera: W muove in avanti', z1 < z0 - 1);
 await E(() => PAL.tp(0, -3.4)); await pg.keyboard.press('KeyE'); await W(200); await E(() => PAL.skipDialog());

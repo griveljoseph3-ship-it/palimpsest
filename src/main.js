@@ -9,6 +9,7 @@ import { Tele } from './telemetry.js';
 import { paperTexture, INK_UNIFORMS, Traces, Particles, Post } from './art.js';
 import * as W from './world.js';
 import * as ST from './story.js';
+import { playIntro } from './cine.js';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -522,16 +523,34 @@ function hint(t) { persistHint = t; if (tempHintT <= 0) $('hint').textContent = 
 function toastSmall(t) { $('hint').textContent = t; tempHintT = 2.6; }
 let toastT = 0; function toast(t) { $('toast').textContent = t; $('toast').classList.add('on'); toastT = 2.2; }
 function popInk(t) { const d = document.createElement('div'); d.textContent = t; d.className = 'inkpop'; document.body.appendChild(d); d.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-20px)' }], { duration: 900 }).onfinish = () => d.remove(); sfx.play('gain'); }
+function goalText() {
+  switch (S.room) {
+    case 'intro': return !S.discovered.has('state.fragile') ? 'Obiettivo: guarda la tavola lacerata' : !board.broken ? (grammar.has('board', 'state.fragile') ? 'Obiettivo: rompi la tavola con un colpo forte' : 'Obiettivo: scrivi FRAGILE sulla tavola (✎)') : 'Obiettivo: prosegui verso nord';
+    case 'charger': return charger.alive ? (charger.armorBroken ? 'Obiettivo: colpisci il nucleo rosso' : 'Obiettivo: rompi la corazza del Caricatore (FRAGILE + pilastro)') : 'Obiettivo: prosegui verso nord';
+    case 'conduct': return gates.r2.open ? 'Obiettivo: prosegui verso nord' : 'Obiettivo: fai passare l\'impulso della pressa fino al cancello (CONDUTTIVO sulla piastra)';
+    case 'door': return S.doorRoute ? 'Obiettivo: attraversa la porta' : door.defense ? 'Obiettivo: difendi Elara dalle macchie' : 'Obiettivo: apri la porta che giudica (3 modi: forza il relè · porta la prova · parla con Elara)';
+    case 'arena': return S.victory ? '' : (arena.snapped || arena.window > 0) ? 'Obiettivo: tocca il sigillo rosso a nord, ora!' : 'Obiettivo: spezza il legame tra il Custode e il nucleo, poi tocca il sigillo';
+    case 'end': return 'La storia ricorda come l\'hai riscritta';
+  } return '';
+}
 function hudUpdate(dt) {
+  if (frame % 10 === 0) { const g = goalText(); if ($('goal').textContent !== g) { $('goal').textContent = g; $('goal').classList.remove('flash'); void $('goal').offsetWidth; $('goal').classList.add('flash'); } }
   $('inkFill').style.width = ink.v + '%'; $('inkNum').textContent = Math.round(ink.v); $('inkWrap').classList.toggle('low', ink.v < 25 && !zoneSafe());
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
   const it = S.phase === 'play' && !panel.open && !S.lock ? nearestInteract() : null; $('tInteract').classList.toggle('hidden', !it); if (it) $('tInteractL').textContent = it.label;
-  $('touch').classList.toggle('hidden', !(input.mode === 'touch' && S.phase === 'play' && !S.done));
+  $('touch').classList.toggle('hidden', !((isTouch || input.mode === 'touch') && S.phase === 'play' && !S.done));
   if (tempHintT > 0) { tempHintT -= dt; if (tempHintT <= 0) $('hint').textContent = persistHint; }
   else if (it && input.mode !== 'touch') $('hint').textContent = (input.mode === 'pad' ? 'A' : 'E') + ' · ' + it.label; else $('hint').textContent = persistHint;
 }
 
 // ---------- intro e fine ----------
+let introPlaying = false;
+function beginWithIntro(force) {
+  if (S.phase !== 'title' || introPlaying) return; sfx.start(); sfx.setVol(opts.vol); sfx.setMusic(opts.mus);
+  if (mem.runs > 0 && !force) { startGame(); return; }
+  introPlaying = true; $('title').classList.add('hidden'); Tele.log('intro_start');
+  playIntro(input, sfx).then(() => { introPlaying = false; Tele.log('intro_end'); startGame(); });
+}
 function startGame() {
   if (S.phase !== 'title') return;
   $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); sfx.start(); sfx.setVol(opts.vol); sfx.setMusic(opts.mus); S.phase = 'play'; S.lock = true; renderHP();
@@ -569,7 +588,7 @@ let paused = false;
 function togglePause() { if (S.phase !== 'play') return; paused = !paused; $('pause').classList.toggle('hidden', !paused); if (paused) closePanel(); Tele.log(paused ? 'pause' : 'resume'); }
 function applyOpts() { document.body.classList.toggle('contrast', !!opts.contrast); document.body.classList.toggle('big', !!opts.big); post.comp.uniforms.reduce.value = opts.reduce ? 1 : 0; INK_UNIFORMS.uContrast.value = opts.contrast ? 1 : 0; }
 function bindUI() {
-  $('bStart').onclick = startGame; $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
+  $('bStart').onclick = () => beginWithIntro(false); $('bReplayIntro').onclick = () => beginWithIntro(true); if (!mem.runs) $('bReplayIntro').classList.add('hidden'); $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
   input.bindTouch($('stickZone'), $('stickKnob'), $('stickBase'), { attack: $('tAttack'), heavy: $('tHeavy'), dodge: $('tDodge'), rewrite: $('tRewrite'), quick: $('tQuick'), interact: $('tInteract'), reset: $('tReset') });
   $('bJournal').onclick = () => { $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') || '<p>Ancora niente.</p>'; $('journal').classList.toggle('hidden'); };
   document.querySelectorAll('[data-close]').forEach((b) => b.onclick = () => { b.closest('.panel').classList.add('hidden'); if (S.done) location.reload(); });
@@ -656,6 +675,7 @@ function visualUpdate(dt, rdt) {
 function loop() {
   requestAnimationFrame(loop); const t = performance.now(); const rawDt = Math.min(0.25, (t - last) / 1000); const rdt = Math.min(0.1, rawDt); last = t; frame++;
   try {
+    if (introPlaying) { post.render(scene, camera); return; }
     input.poll();
     if (input.pressed('pause') && S.phase === 'play' && !panel.open) togglePause();
     if (S.phase === 'play' && !paused) {
@@ -668,13 +688,13 @@ function loop() {
   } catch (err) { console.error(err); }
   renderer.info.reset(); post.render(scene, camera);
   fpsAcc += rdt; fpsN++; if (fpsAcc > 2) { const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps;
-    if (opts.q === 'auto' && S.phase === 'play') { if (fps < 50) { lowStreak++; if (lowStreak >= 2 && pr > 0.75) { pr = Math.max(0.75, pr - 0.15); resize(); lowStreak = 0; Tele.log('quality_drop', { pr }); } } else lowStreak = 0; } }
+    if (opts.q === 'auto' && S.phase === 'play') { if (fps < 50) { lowStreak++; if (lowStreak >= 2 && pr > 0.75) { pr = Math.max(0.75, pr - 0.15); resize(); lowStreak = 0; Tele.log('quality_drop', { pr }); } else if (lowStreak >= 3 && post.enabled && fps < 40) { post.enabled = false; lowStreak = 0; Tele.log('quality_drop', { post: false }); } } else lowStreak = 0; } }
 }
 
 // ---------- avvio + agganci di test ----------
 resize(); bindUI(); P.mesh.position.set(P.x, 0, P.z); requestAnimationFrame(loop);
 window.PAL = { S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
-  start: startGame, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
+  start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },
   interact, skipDialog: () => { let k = 0; while (dlg.active && !dlg.opt.choices && k++ < 50) { dlg.ch = 1e9; dlgNext(); } if (dlg.active && dlg.opt.choices) { dlg.i = dlg.lines.length - 1; dlg.ch = 1e9; } },

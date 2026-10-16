@@ -5,11 +5,11 @@ export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
   g.fillStyle = '#ece2cc'; g.fillRect(0, 0, size, size);
   const img = g.getImageData(0, 0, size, size), d = img.data;
-  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 18; d[i] += n; d[i + 1] += n; d[i + 2] += n * 0.8; }
+  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 5; d[i] += n; d[i + 1] += n; d[i + 2] += n * 0.8; }
   g.putImageData(img, 0, 0);
   g.globalAlpha = 0.05; for (let i = 0; i < 900; i++) { g.strokeStyle = Math.random() < 0.5 ? '#8a7350' : '#fff'; g.lineWidth = Math.random() * 1.2; g.beginPath(); const x = Math.random() * size, y = Math.random() * size, a = Math.random() * 6.28, l = 4 + Math.random() * 18; g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
   g.globalAlpha = 0.07; for (let i = 0; i < 40; i++) { const x = Math.random() * size, y = Math.random() * size, r = 20 + Math.random() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, '#a08458'); gr.addColorStop(1, 'rgba(160,132,88,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
 }
 export function splatTexture() {
   const S = 256, c = document.createElement('canvas'); c.width = S * 4; c.height = S; const g = c.getContext('2d');
@@ -177,7 +177,7 @@ export class Post {
           // bordi della pagina che si inchiostrano durante la lettura
           if(focus>.01){ float edge=smoothstep(.36,.75,r+fbm(uv*6.+time*.1)*.2)*focus; col=mix(col,vec3(.05,.035,.03),edge*.8); }
           col=mix(col,vec3(lum*.9+.1),sbiadito*.5);
-          col+=(vnoise(uv*res*.35)-.5)*.018;
+          col+=(vnoise(uv*res*.08)-.5)*.01;
           col=mix(col,vec3(.98,.95,.88),flash);
           gl_FragColor=vec4(col,1.);
           #include <colorspace_fragment>

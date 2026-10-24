@@ -13,7 +13,7 @@ Questo file dice **cosa è già fatto** e **cosa resta da fare**, in ordine. Chi
 
 ## Come si lancia tutto
 - Server: `npx http-server -p 8941 -c-1` dalla cartella del gioco (in questo ambiente servono il link `node_modules/playwright-core` → `/opt/node-tools/node_modules/playwright-core` e `/usr/bin/google-chrome` → `/opt/pw-browsers/chromium`).
-- Suite: `sh tests/all.sh` (+ `EXTRA="music.mjs boss.mjs map.mjs enemies.mjs quest.mjs ladro.mjs scenes.mjs shield.mjs archive.mjs crypt.mjs maze.mjs"`).
+- Suite: `sh tests/all.sh` (+ `EXTRA="plates.mjs music.mjs boss.mjs map.mjs enemies.mjs quest.mjs ladro.mjs scenes.mjs shield.mjs archive.mjs crypt.mjs maze.mjs"`).
 - **Non lanciare altri browser mentre gira la suite**: il rendering software è lento (≈0,5 s a fotogramma) e i test con tempi falliscono. Trucco usato: copiare il gioco in una cartella ferma (`/tmp/claude-0/snap`) e servire quella sulla 8941 mentre si lavora sui file veri su un'altra porta (8942, con `BASE=http://localhost:8942/`).
 - I comandi in background dell'ambiente si spengono dopo 2 ore: riavviare il server prima di una suite lunga.
 - Versione: `sh bump.sh X.Y.Z` (aggiorna i `?v=` e il titolo).
@@ -50,7 +50,7 @@ Passi (spuntare man mano, con commit):
 - [x] R2 · Ritratti dei dialoghi dalle tavole (al posto di quelli disegnati dal codice) — fatto: `portrait()` in main.js usa assets/ritratti, volti alternativi ilde-lacrime (lettera) ed elara-sorriso (LIBERA), riserva disegnata se l'immagine manca
 - [x] R3 · Pavimenti delle stanze = tavole, con shader che tiene la luce della lampada e le candele — fatto: blocco «v2.2 · le tavole di Joseph diventano il pavimento» in main.js (fusione moltiplica, `PAL.PLATES`), anche prologo (035) e labirinto (060 ripetuta)
 - [x] R4 · Muri con texture carta-mattoni (023) anche nel labirinto — fatto: uniform `uSkin` in inkMaster (art.js), caricata in buildWorld (world.js); libri ricolorati seppia
-- [ ] R5 · Scene a tutto schermo dalle tavole nei momenti della storia (prologo, labirinto, Ladro, tribunale, LIBERA, lettera, Custode, finale) + schermata del titolo con la copertina
+- [x] R5 · Scene a tutto schermo dalle tavole nei momenti della storia (prologo, labirinto, Ladro, tribunale, LIBERA, lettera, Custode, finale) + schermata del titolo con la copertina — fatto: `cinePlate(nome, didascalia, done)` (intermezzo, pausa, una volta per partita, saltato con ?fast) e `backPlate` (3º elemento delle righe di say) in main.js; agganciati: caduta, ponte, tribunale, Custode, labirinto, fuga, capitolo 2; sfondi: verdetto, LIBERA, Ladro, lettera (lettera/fiume/fenditura/verdetto), diario di Ilde, finale. Test `tests/plates.mjs`
 - [ ] R6 · Figure di carta: Elara, Ilde?, Tipografo, giurato, Lumi, macchie/acari, Ladro, Copista, Custode, Caricatore
 - [ ] R7 · Icone degli oggetti nella borsa dalle tavole
 - [ ] R8 · Giocatore 3D ricolorato come le tavole (mantello sfrangiato nero, sciarpa rossa lunga, occhi dorati)

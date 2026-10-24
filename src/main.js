@@ -335,7 +335,7 @@ function ch2Update(dt) {
   if (S.room === 'c2e' && P.z < -69.5 && Math.abs(P.x - X) < 2.6 && !C2.done && !S.lock) { C2.done = true; S.lock = true; say(ST.C2_END, { done: () => { S.lock = false; finishChapter2(); } }); }
 }
 function startChapter2() {
-  S.chapter = 2; for (const w of ['state.fragile', 'temperament.cautious', 'element.conductive']) S.discovered.add(w);
+  cinePlate('capitolo2', 'Capitolo II · Il fiume'); S.chapter = 2; for (const w of ['state.fragile', 'temperament.cautious', 'element.conductive']) S.discovered.add(w);
   P.x = X; P.z = 3.4; P.face = Math.PI; P.spawn = { x: X, z: 3.4 }; enterRoom(W.ROOMS.find((r) => r.id === 'c2a'));
   say(ST.C2_INTRO, { done: () => { S.lock = false; } });
 }
@@ -615,7 +615,7 @@ function setRoute(r) {
 function elaraTwist() { if (S.twistSeen) return; S.twistSeen = true; S.lock = true; S.camFocus = { x: 0, z: -99.4, t: 9 }; if (!opts.reduce) slowmo(0.8);
   say([['elara', 'Aspetta. Quella voce che ti guidava laggiù, nel labirinto… la sentivo anch\'io, attraverso la carta.'], ['elara', 'Conosco quella voce. Mi cantava sopra il fiume. È mia madre. È Ilde.']], { done: () => {
     const st = elara.userData.st; let k = 0; sfx.play('tear'); const flake = setInterval(() => { k++; for (let i = 0; i < 6; i++) particles.emit(rnd(-0.9, 0.9), 2 + rnd(-0.2, 0.3), -99.2, rnd(-0.6, 0.6), rnd(0.5, 2), rnd(0.3, 1), 1.4, rnd(0.08, 0.16), 0.55, 0.1, 0.06, 2); if (k === 18) { st.verdict = 'LIBERA'; st.vcol = '#1b5a7a'; st.mouth = 12; st.eyes = 190; elara.userData.redraw(); sfx.sting('secret'); S.flash = 0.5; } if (k > 30) clearInterval(flake); }, 60);
-    setTimeout(() => say([['narr', 'Sotto COLPEVOLE il rosso si sfoglia come vernice vecchia. Sotto, scritta con un\'altra mano, più tremante: LIBERA.'], ['elara-sorriso', 'LIBERA. Era questo che voleva scrivere. Allora perché non l\'ha fatto?'], ['lumi', 'Forse aveva paura di quello che sarebbe successo dopo. La paura scrive sempre più forte.']], { done: () => { S.lock = false; journal('Alla porta, Elara ha riconosciuto la voce di Ilde. Sotto il verdetto c\'era scritto LIBERA.'); Tele.log('twist_elara'); } }), FAST ? 50 : 2400); } }); }
+    setTimeout(() => say([['narr', 'Sotto COLPEVOLE il rosso si sfoglia come vernice vecchia. Sotto, scritta con un\'altra mano, più tremante: LIBERA.', 'libera'], ['elara-sorriso', 'LIBERA. Era questo che voleva scrivere. Allora perché non l\'ha fatto?'], ['lumi', 'Forse aveva paura di quello che sarebbe successo dopo. La paura scrive sempre più forte.']], { done: () => { S.lock = false; journal('Alla porta, Elara ha riconosciuto la voce di Ilde. Sotto il verdetto c\'era scritto LIBERA.'); Tele.log('twist_elara'); } }), FAST ? 50 : 2400); } }); }
 
 // ---------- Parole Fluttuanti (S3) ----------
 const panel = { open: false, target: null, cands: [], words: [], sel: 0, els: [], wasFaded: false };
@@ -791,8 +791,8 @@ function enterRoom(r) {
     say([['narr', 'Il Caricatore è VIGILE. Sempre vigile. Ma anche la vigilanza è solo una parola.'], ['narr', 'Sotto, scritta a matita: CAUTO.']]); hint(ST.HINTS.charger); journal('Hai trovato la parola CAUTO.'); }
   if (r.id === 'conduct' && !S.discovered.has('element.conductive')) { S.discovered.add('element.conductive'); grammar.snapshot('conduct', ['plate'], () => ({}));
     say([['narr', 'La piastra di rame dice ISOLANTE. Qualcuno ha cancellato male: si legge ancora CONDUTTIVO.']]); hint(ST.HINTS.press); journal('Hai trovato la parola CONDUTTIVO.'); }
-  if (r.id === 'door' && prev !== 'door' && !S.doorRoute) { grammar.snapshot('door', ['relay', 'evplate'], () => ({ hasDoc: door.hasDoc, docPlaced: door.docPlaced })); say(ST.elaraDoor(mem).slice(0, 2)); hint(ST.HINTS.door); }
-  if (r.id === 'arena' && S.encounter !== 'arena' && !S.victory) { S.encounter = 'arena'; ink.encounterEnd(); sfx.tension(true); if (!S.arenaIntro) { S.arenaIntro = true; custode.rise = 2.6; S.lock = true; S.camFocus = { x: custode.x, z: custode.z, t: 3 }; sfx.sting('phase'); sfx.play('tear'); setTimeout(() => { S.lock = false; say(ST.custodeLines(S.arenaDeaths, mem)); }, FAST ? 100 : 2700); } else say(ST.custodeLines(S.arenaDeaths, mem)); hint(ST.HINTS.arena); Tele.log('encounter_start', { id: 'arena' }); }
+  if (r.id === 'door' && prev !== 'door' && !S.doorRoute) { cinePlate('tribunale', 'IV · La porta che giudica'); grammar.snapshot('door', ['relay', 'evplate'], () => ({ hasDoc: door.hasDoc, docPlaced: door.docPlaced })); say(ST.elaraDoor(mem).slice(0, 2)); hint(ST.HINTS.door); }
+  if (r.id === 'arena' && S.encounter !== 'arena' && !S.victory) { S.encounter = 'arena'; ink.encounterEnd(); sfx.tension(true); if (!S.arenaIntro) { S.arenaIntro = true; S.lock = true; cinePlate('custode', 'V · Il Custode della Fenditura', () => { custode.rise = 2.6; S.camFocus = { x: custode.x, z: custode.z, t: 3 }; sfx.sting('phase'); sfx.play('tear'); setTimeout(() => { S.lock = false; say(ST.custodeLines(S.arenaDeaths, mem)); }, FAST ? 100 : 2700); }); } else say(ST.custodeLines(S.arenaDeaths, mem)); hint(ST.HINTS.arena); Tele.log('encounter_start', { id: 'arena' }); }
 }
 function endEncounter(id) { if (S.encounter && !opts.reduce) { slowmo(0.45); S.flash = Math.max(S.flash, 0.15); } S.encounter = null; ink.encounterEnd(); sfx.tension(false); Tele.log('encounter_end', { id }); popInk('Inchiostro pieno'); }
 function die() {
@@ -842,11 +842,28 @@ function drawnFace(who) { if (FACES[who]) return FACES[who]; const c = document.
   else if (who === 'custode') { g.fillStyle = '#3a2c24'; g.fillRect(22, 26, 84, 90); g.fillStyle = K; g.fillRect(30, 18, 68, 30); for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(34 + i * 15, 18); g.lineTo(40 + i * 15, 2); g.lineTo(46 + i * 15, 18); g.fill(); } g.fillStyle = '#ff3a20'; g.fillRect(40, 62, 48, 8); g.fillStyle = 'rgba(255,58,32,.35)'; g.fillRect(34, 58, 60, 16); }
   else { blob(64, 72, 38, '#2c2420'); g.fillStyle = K; g.beginPath(); g.ellipse(64, 74, 22, 26, 0, 0, 6.3); g.fill(); g.fillStyle = '#f6e3b0'; g.beginPath(); g.arc(56, 74, 3, 0, 6.3); g.arc(72, 74, 3, 0, 6.3); g.fill(); g.fillStyle = R; g.fillRect(36, 106, 56, 10); }
   g.strokeStyle = K; g.lineWidth = 5; g.strokeRect(3, 3, 122, 122); return (FACES[who] = c.toDataURL()); }
+// ---------- v2.2 · Tavole a tutto schermo: le illustrazioni di Joseph nei momenti della storia ----------
+// cinePlate: intermezzo (il gioco si ferma, un tocco lo salta, una volta per partita) · backPlate: sfondo dietro i dialoghi (3º elemento di una riga di say)
+const PLATE = { el: null, seen: new Set(), back: null, shown: [] };
+function plateEl() { if (PLATE.el) return PLATE.el; const el = document.createElement('div'); el.id = 'plate'; el.className = 'hidden'; el.innerHTML = '<div class="pimg"></div><div class="pcap"></div><div class="pskip">tocca per continuare ▸</div>'; document.body.appendChild(el); return (PLATE.el = el); }
+function loadPlate(name) { return new Promise((res) => { const im = new Image(); const t = setTimeout(() => res(im.complete && im.naturalWidth ? im : null), 2500); im.onload = () => { clearTimeout(t); res(im); }; im.onerror = () => { clearTimeout(t); res(null); }; im.src = 'assets/scene/' + name + '.jpg'; }); }
+function plateShow(el, src, cap) { const old = el.querySelector('.pimg'), n = old.cloneNode(); n.style.backgroundImage = `url(${src})`; old.replaceWith(n); el.querySelector('.pcap').textContent = cap || ''; PLATE.shown.push(src.split('/').pop()); }
+function cinePlate(name, cap, done, ms = 7000) {
+  if ((FAST && !PLATE.force) || opts.noPlates || PLATE.seen.has(name)) { if (done) done(); return; } PLATE.seen.add(name); const el = plateEl(); paused = true;
+  loadPlate(name).then((im) => { if (!im) { paused = false; if (done) done(); return; } plateShow(el, im.src, cap); el.className = 'cine'; void el.offsetWidth; el.classList.add('on'); sfx.play('page');
+    let closed = false; const t0 = performance.now();
+    const close = (ev) => { if (closed || (ev && performance.now() - t0 < 900)) return; if (ev) { ev.stopPropagation(); ev.preventDefault(); } closed = true; el.classList.remove('on'); removeEventListener('pointerdown', close, true); removeEventListener('keydown', close, true); clearInterval(pad);
+      setTimeout(() => { el.className = 'hidden'; paused = false; if (done) done(); }, 550); };
+    const pad = setInterval(() => { for (const g of (navigator.getGamepads ? navigator.getGamepads() : [])) if (g && g.buttons.some((b) => b.pressed)) close({ stopPropagation() {}, preventDefault() {} }); }, 120); /* controller: un tasto qualsiasi */
+    addEventListener('pointerdown', close, true); addEventListener('keydown', close, true); setTimeout(() => close(), ms); }); }
+function backPlate(name) { const el = plateEl(); if (name === PLATE.back) return; PLATE.back = name; if (el.classList.contains('cine')) return;
+  if (!name) { el.classList.remove('on'); setTimeout(() => { if (!PLATE.back && !el.classList.contains('cine')) el.className = 'hidden'; }, 700); return; }
+  loadPlate(name).then((im) => { if (!im || PLATE.back !== name) return; plateShow(el, im.src, ''); el.className = 'back'; void el.offsetWidth; el.classList.add('on'); }); }
 const dlg = { active: false, lines: [], i: 0, t: 0, opt: {}, choiceI: 0, full: '', ch: 0 };
 function say(lines, o = {}) { if (!lines.length) { if (o.done) o.done(); return; } dlg.lines = lines.slice(); dlg.i = 0; dlg.opt = o; dlg.active = true; dlg.choiceI = 0; showLine(); }
 function showLine() {
   const [who, text] = dlg.lines[dlg.i]; $('dialog').classList.remove('hidden'); $('dWho').textContent = ST.WHO[who] || ST.WHO[who.split('-')[0]] || who; $('dText').textContent = ''; dlg.full = text; dlg.ch = 0; dlg.t = 0;
-  $('dialog').dataset.who = who.split('-')[0]; $('dFace').onerror = () => { $('dFace').onerror = null; $('dFace').src = drawnFace(who.split('-')[0]); }; $('dFace').src = portrait(who); sfx.play('voice', who === 'custode' ? 0.3 : who === 'lumi' ? 1.6 : 1); renderChoices(false);
+  if (dlg.lines[dlg.i][2] !== undefined) backPlate(dlg.lines[dlg.i][2]); $('dialog').dataset.who = who.split('-')[0]; $('dFace').onerror = () => { $('dFace').onerror = null; $('dFace').src = drawnFace(who.split('-')[0]); }; $('dFace').src = portrait(who); sfx.play('voice', who === 'custode' ? 0.3 : who === 'lumi' ? 1.6 : 1); renderChoices(false);
 }
 function renderChoices(show) { let box = $('dChoices'); if (box) box.remove(); if (!show || !dlg.opt.choices) return; box = document.createElement('div'); box.id = 'dChoices';
   dlg.opt.choices.forEach(([lab], i) => { const b = document.createElement('button'); b.className = 'pbtn' + (i === dlg.choiceI ? ' sel' : ''); b.textContent = lab; b.onpointerdown = (e) => { e.stopPropagation(); pickChoice(i); }; box.appendChild(b); }); $('dialog').appendChild(box); }
@@ -857,7 +874,7 @@ function dlgNext() {
   if (dlg.opt.choices) { if (!$('dChoices')) { renderChoices(true); return; } pickChoice(dlg.choiceI); return; }
   endDialog();
 }
-function endDialog() { dlg.active = false; renderChoices(false); $('dialog').classList.add('hidden'); const d = dlg.opt.done; dlg.opt = {}; if (d) d(); }
+function endDialog() { dlg.active = false; if (PLATE.back) backPlate(null); renderChoices(false); $('dialog').classList.add('hidden'); const d = dlg.opt.done; dlg.opt = {}; if (d) d(); }
 function dlgUpdate(dt) {
   if (!dlg.active) return; dlg.t += dt; const speed = FAST ? 400 : 45 * (opts.textK || 1); const n = Math.min(dlg.full.length, Math.floor(dlg.t * speed)); if (n > dlg.ch) { dlg.ch = n; $('dText').textContent = dlg.full.slice(0, n); }
   if ($('dChoices')) { if (input.pressed('left') || input.pressed('up')) { dlg.choiceI = 0; renderChoices(true); } if (input.pressed('right') || input.pressed('down')) { dlg.choiceI = dlg.opt.choices.length - 1; renderChoices(true); } if (input.pressed('confirm')) pickChoice(dlg.choiceI); return; }
@@ -1044,7 +1061,7 @@ function goEnd() {
   setTimeout(() => { P.x = 0; P.z = r.cz + 1.5; P.face = Math.PI; camera.position.set(0, 14, P.z + 11); $('fade').style.opacity = 0; enterRoom(r); lumi.on = true; lumi.mesh.visible = true; lumi.x = 2; lumi.z = -82;
     const rem = W.makeCustode(); rem.scale.setScalar(0.6); rem.position.set(5.6, 0, -165.6); rem.rotation.y = -0.5; rem.userData.armor.visible = !custode.armorBroken; scene.add(rem);
     if (S.doorRoute === 'forced') { elara2.userData.st.seam = true; elara2.userData.redraw(); }
-    say(ST.consequence(S, mem).concat([['narr', 'Elara si volta. La sua schiena si stacca come carta vecchia, e sotto c\'è un tratto più antico.'], ['lumi', 'Quel tratto… lo conosco. L\'ho fatto io, la prima volta che ho riprovato.'], ['narr', 'Poi, per un momento, il libro tace. Nessuno insegue nessuno.']]), { done: endingPage }); elara2.userData.st.torn = true; elara2.userData.redraw(); }, FAST ? 50 : 700);
+    say(ST.consequence(S, mem).concat([['narr', 'Elara si volta. La sua schiena si stacca come carta vecchia, e sotto c\'è un tratto più antico.'], ['lumi', 'Quel tratto… lo conosco. L\'ho fatto io, la prima volta che ho riprovato.'], ['narr', 'Poi, per un momento, il libro tace. Nessuno insegue nessuno.', 'finale']]), { done: endingPage }); elara2.userData.st.torn = true; elara2.userData.redraw(); }, FAST ? 50 : 700);
 }
 function finish() {
   S.done = true; S.lock = false; Tele.log('slice_complete', { t: Math.round(S.time), door_route: S.doorRoute, plan: S.plan, deaths: S.deaths }); Tele.flush();
@@ -1293,7 +1310,7 @@ function zoneTransition(kind, text, mid) { // anima e nasconde il caricamento: p
   if (S.transit) return; S.transit = true; S.lock = true; const el = $('pageTurn'); $('ptText').textContent = text; el.className = kind; el.classList.remove('hidden'); sfx.play('page');
   setTimeout(() => { try { mid(); } catch (e) { console.error(e); } }, 700);
   setTimeout(() => { el.className = 'hidden'; S.lock = false; S.transit = false; }, 2250); }
-function enterMaze() { zoneTransition('turn', 'Il vortice ti trascina giù, fra le pagine cadute.', () => { buildMaze(); mazeActivate(true); startMazeFilm(); const [x, z] = mzCell(MZ.EX, MZ.N - 1); P.x = x; P.z = z + 2; P.face = Math.PI; camera.position.set(P.x, 15, P.z + 12); enterRoom(MZ.R); hint('');
+function enterMaze() { cinePlate('labirinto', 'III · Il labirinto del filo'); zoneTransition('turn', 'Il vortice ti trascina giù, fra le pagine cadute.', () => { buildMaze(); mazeActivate(true); startMazeFilm(); const [x, z] = mzCell(MZ.EX, MZ.N - 1); P.x = x; P.z = z + 2; P.face = Math.PI; camera.position.set(P.x, 15, P.z + 12); enterRoom(MZ.R); hint('');
   if (!MZ.guide.has('in')) { MZ.guide.add('in'); MZ.afterFilm = () => say([['ilde', 'Sono Ilde. Ho scritto io queste pareti, tanto tempo fa. Ti guido io.'], ['ilde', 'Le macchie dormono finché non ti sentono. Vicino alle lampade accese ti vedono da lontano.'], ['ilde', 'In fondo, a nord, c\'è la piastra del filo. Scrivici CONDUTTIVO.']]); } }); }
 function exitMaze() { zoneTransition('rise', 'La scala si scrive gradino dopo gradino e ti riporta alla pressa.', () => { mazeActivate(false); P.x = 0; P.z = -62.5; P.face = Math.PI; S.snapCam = true; enterRoom(W.ROOMS[2]); openGate('r2'); pulseWire(wireA); pulseWire(wireB); toast('IL CANCELLO SI APRE'); journal('Hai riacceso il filo nel labirinto: l\'impulso ora arriva al cancello.'); }); }
 function mazeInteractables(L) {
@@ -1326,7 +1343,7 @@ function drawMap() { const cv = $('mapCv'), g = cv.getContext('2d'), W2 = cv.wid
 function toggleMap(on) { const el = $('mapPanel'); const open = on ?? el.classList.contains('hidden'); if (open && (S.room !== 'maze' || !MZ.built || paused)) return; el.classList.toggle('hidden', !open); paused = open; if (open) { drawMap(); sfx.play('page'); Tele.log('map_open', { seen: MZ.seen.size }); } }
 $('bMap').onclick = () => toggleMap(); $('mapClose').onclick = () => toggleMap(false);
 // ---- la fuga: dalla Fenditura sale l'inchiostro, i muri si sbriciolano alle tue spalle ----
-function floodStart() { if (MZ.flood) return; const R = MZ.R; const z0 = R.cz - R.d / 2;
+function floodStart() { if (MZ.flood) return; cinePlate('fuga', 'Il labirinto si riempie d\'inchiostro. Corri.', null, 4500); const R = MZ.R; const z0 = R.cz - R.d / 2;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ uniforms: { uTime: INK_UNIFORMS.uTime }, transparent: true,
     vertexShader: 'varying vec2 vU; void main(){ vU=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
     fragmentShader: 'uniform float uTime; varying vec2 vU; void main(){ float w=sin(vU.x*60.+uTime*3.)*.5+sin(vU.x*23.-uTime*2.1)*.5; float edge=smoothstep(.0,.06,vU.y); vec3 c=mix(vec3(.02,.015,.025),vec3(.16,.04,.05),(w*.5+.5)*.35+(1.-edge)*.5); gl_FragColor=vec4(c,.93); }' }));
@@ -1390,7 +1407,7 @@ function buildOpening() { if (OP.built) return; OP.built = true; const R = OP.R;
 function startOpening() {
   if (S.phase !== 'title') return; $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); sfx.start(); S.phase = 'play'; S.lock = true; if (isTouch) input.mode = 'touch';
   Tele.log('session_start', { runs: mem.runs, opening: true }); resetProg(); applySkills(); renderSkills(); buildOpening(); enterRoom(OP.R);
-  P.x = OP.R.cx; P.z = OP.R.cz + 19; P.face = Math.PI; S.snapCam = true; OP.stage = 'tilt'; OP.t = 0; P.inv = 1e9; opSub('E qui il viaggiatore cadde.');
+  P.x = OP.R.cx; P.z = OP.R.cz + 19; P.face = Math.PI; S.snapCam = true; OP.stage = 'tilt'; OP.t = 0; P.inv = 1e9; opSub('E qui il viaggiatore cadde.'); cinePlate('caduta', 'E qui il viaggiatore cadde.');
 }
 function opUpdate(dt) {
   document.body.classList.toggle('cine', !!OP.stage); document.body.classList.toggle('cine-gap', OP.stage === 'gap');
@@ -1401,7 +1418,7 @@ function opUpdate(dt) {
   if (OP.stage === 'tilt') { const k = clamp((OP.t - 1.2) / 2.6, 0, 1); OP.leaf.rotation.x = -0.32 * Math.sin(k * Math.PI * 0.5) * (k < 1 ? 1 : 1);
     if (OP.t > 1.6) { const sk = clamp((OP.t - 1.6) / 2.4, 0, 1); P.z = lerp(R.cz + 19, R.cz + 2.6, sk * sk); P.x = R.cx + Math.sin(OP.t * 3) * 0.4 * (1 - sk); P.face = Math.PI; if (frame % 3 === 0) particles.emit(P.x, 0.2, P.z, rnd(-1, 1), 0.6, 1, 0.6, 0.15, 0.85, 0.78, 0.62, 3); }
     if (OP.t > 4.2) { OP.stage = 'gap'; OP.t = 0; S.lock = false; S.shake = 0.5; sfx.play('tear'); S.discovered.add('shape.bridge'); opSub('Tra le due sponde rimase soltanto ______.'); hint(input.mode === 'touch' ? 'Tocca ✎ RISCRIVI e poi la parola PONTE' : input.mode === 'pad' ? 'Premi RB e scegli PONTE' : 'Premi Q e scegli PONTE'); $('tRewrite').classList.add('pulse'); } }
-  if (OP.stage === 'gap') { OP.leaf.rotation.x = lerp(OP.leaf.rotation.x, 0, 0.05); P.hp = P.max; if (grammar.has('opbridge', 'shape.bridge')) { OP.stage = 'build'; OP.t = 0; hint(''); $('tRewrite').classList.remove('pulse'); opSub('Tra le due sponde rimase soltanto un PONTE.'); sfx.play('page'); } }
+  if (OP.stage === 'gap') { OP.leaf.rotation.x = lerp(OP.leaf.rotation.x, 0, 0.05); P.hp = P.max; if (grammar.has('opbridge', 'shape.bridge')) { OP.stage = 'build'; OP.t = 0; hint(''); $('tRewrite').classList.remove('pulse'); opSub('Tra le due sponde rimase soltanto un PONTE.'); sfx.play('page'); cinePlate('ponte', 'Tra le due sponde rimase soltanto un PONTE.'); } }
   if (OP.stage === 'build') { P.hp = P.max; OP.planks.forEach((pl, i) => { const t = clamp(OP.t * 1.1 - i * 0.1, 0, 1); pl.visible = t > 0; pl.position.y = lerp(4, 0.04, 1 - Math.pow(1 - t, 3)); pl.rotation.z = (1 - t) * 1.2; });
     OP.gapWords.material.opacity = Math.max(0, 1 - OP.t); if (OP.t > 1.9 && OP.chasm) { world.walls = world.walls.filter((w) => w !== OP.chasm); OP.chasm = null; opSub('E il viaggiatore, che non sapeva ancora di scrivere, attraversò.'); }
     if (P.z < R.cz - 8) { OP.stage = 'title'; OP.t = 0; S.lock = true; $('opSub').style.opacity = 0; $('opTitle').classList.remove('hidden'); sfx.play('seal'); } }
@@ -1435,7 +1452,7 @@ function collapseSupport() { if (SUP.fallen) return; SUP.fallen = true; SUP.t = 
 // ---- Elara giudice: la contraddizione ----
 const VERD = { x: -6.2, z: -95.5, solved: false, tries: 0 }; VERD.mesh = W.makeReader(); VERD.mesh.position.set(VERD.x, 0.55, VERD.z); scene.add(VERD.mesh); circles.push({ x: VERD.x, z: VERD.z, r: 0.4 });
 function readVerdict() { ink.interact(); sfx.play('page');
-  say([['narr', 'IL VERDETTO. «Elara è COLPEVOLE di aver aperto la Fenditura.»'], ['narr', '«Prova prima: quella notte la piastra della porta era ISOLANTE.»'], ['narr', '«Prova seconda: Elara scrisse una riga, e il suo inchiostro accese da solo il relè.»'], ['narr', '«Prova terza: il relè pulsa ogni tre secondi, da allora.»'], ['narr', 'Una delle tre prove contraddice una regola che conosci già.']],
+  say([['narr', 'IL VERDETTO. «Elara è COLPEVOLE di aver aperto la Fenditura.»', 'elara-verdetto'], ['narr', '«Prova prima: quella notte la piastra della porta era ISOLANTE.»'], ['narr', '«Prova seconda: Elara scrisse una riga, e il suo inchiostro accese da solo il relè.»'], ['narr', '«Prova terza: il relè pulsa ogni tre secondi, da allora.»'], ['narr', 'Una delle tre prove contraddice una regola che conosci già.']],
     { choices: [['La prima è falsa', () => wrongVerdict()], ['La seconda è falsa', () => solveVerdict()], ['La terza è falsa', () => wrongVerdict()]] }); }
 function wrongVerdict() { VERD.tries++; sfx.play('deny'); damagePlayer(1, { x: VERD.x, z: VERD.z }, 'verd' + VERD.tries); say([['elara', 'No. Quella è vera. Rileggi: cosa sai dell\'inchiostro e degli impulsi?']]); }
 function solveVerdict() { VERD.solved = true; sfx.play('seal'); S.flash = 0.4; elara.userData.st.verdict = ''; elara.userData.redraw();
@@ -1710,7 +1727,7 @@ LD.ent = addEnt('ladro', 'ladro', (() => { const g = new THREE.Group(); const bo
 const ldTether = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 6), new THREE.MeshBasicMaterial({ color: 0x0b0806 })); ldTether.visible = false; scene.add(ldTether);
 const ldBar = (() => { const b = document.createElement('div'); b.id = 'ladroBar'; b.innerHTML = '<div class="bname">IL LADRO D\'INCHIOSTRO</div><div class="hbar"><i></i></div><div class="sack"><i></i></div>'; b.style.display = 'none'; document.body.appendChild(b); return b; })();
 function ladroAwake() { if (LD.awake) return; LD.awake = true; LD.alive = true; LD.ent.alive = true; LD.ent.mesh.visible = true; LD.st = 'rise'; LD.t = 2.2; LD.ent.mesh.position.set(LD.x, -2.4, LD.z); S.lock = true; sfx.play('splat'); sfx.play('tear');
-  setTimeout(() => { say([['ladro', 'Shhh. Non svegliare l\'archivio. Sto bevendo.'], ['ladro', 'Tutto l\'inchiostro che Ilde ha versato qui sotto… e adesso anche il tuo. Quello vivo ha un sapore migliore.']], { done: () => { S.lock = false; bossBeat('IL LADRO D\'INCHIOSTRO', 'beve l\'inchiostro vivo e lo usa contro di te', LD); hint('Schiva per strappare il filo · colpisci la sacca quando è gonfia · CONDUTTIVO mentre beve…'); } }); }, FAST ? 100 : 1600); }
+  setTimeout(() => { say([['ladro', 'Shhh. Non svegliare l\'archivio. Sto bevendo.', 'archivio'], ['ladro', 'Tutto l\'inchiostro che Ilde ha versato qui sotto… e adesso anche il tuo. Quello vivo ha un sapore migliore.']], { done: () => { S.lock = false; bossBeat('IL LADRO D\'INCHIOSTRO', 'beve l\'inchiostro vivo e lo usa contro di te', LD); hint('Schiva per strappare il filo · colpisci la sacca quando è gonfia · CONDUTTIVO mentre beve…'); } }); }, FAST ? 100 : 1600); }
 function ladroUpdate(dt) { if (!LD.alive) { ldTether.visible = false; ldBar.style.display = 'none'; return; } const e = LD, m = e.ent.mesh, u = m.userData;
   ldBar.style.display = S.room === 'archive' && e.st !== 'rise' ? 'block' : 'none'; ldBar.querySelector('.hbar i').style.width = (e.hp / e.max * 100) + '%'; ldBar.querySelector('.sack i').style.width = e.sack + '%';
   if (S.room !== 'archive' || S.lock) { ldTether.visible = e.st === 'siphon'; return; }
@@ -1765,7 +1782,7 @@ function picksUpdate(dt) { for (const k in PICKS) { const p = PICKS[k]; p.sheet.
     if (Math.hypot(P.x - p.x, P.z - p.z) < 1.3) { scene.remove(p.g); delete PICKS[k]; (PROG.quests.picked || (PROG.quests.picked = {}))[k] = true; saveProg(); sfx.sting('secret'); particles.burst(p.x, 1, p.z, 24, 3, [1, 0.85, 0.45], 0.15); onPick(k); } } }
 function onPick(k) { if (k === 'volto') { const q = Qs('giuria'); toast('UN VOLTO DI CARTA'); if (q.step < 1) q.step = 1; questAdvance('giuria', 2, 'Riporta il volto al giurato nel tribunale'); }
   if (k.startsWith('lettera')) { const q = Qs('lettera'); if (q.step < 0) questAdvance('lettera', 0); q.n++; saveProg(); toast('PEZZO DELLA LETTERA DI ILDE · ' + q.n + '/3'); renderBag(); if (q.n >= 3) setTimeout(readLetter, 600); } }
-function readLetter() { S.lock = true; showLetterPage(); say([['ilde', '«Elara, se leggi questo, il libro si è riaperto. Non so chi tiene la penna. Spero che abbia la mano più gentile della mia.»'], ['ilde-lacrime', '«La notte del fiume eri così piccola. L\'acqua ti teneva più forte di me. Allora ho riscritto il fiume… e il fiume si è spaccato.»'], ['ilde', '«Chi apre una Fenditura viene cancellato. Così ho scritto COLPEVOLE su di te, perché un verdetto ti tenesse dentro la storia.»'], ['ilde-lacrime', '«Meglio colpevole che cancellata. Perdonami, se puoi. Io non ci sono riuscita.»'], ['narr', 'In fondo al foglio, piccolissima, una firma: «la tua mamma».']],
+function readLetter() { S.lock = true; showLetterPage(); say([['ilde', '«Elara, se leggi questo, il libro si è riaperto. Non so chi tiene la penna. Spero che abbia la mano più gentile della mia.»', 'lettera'], ['ilde-lacrime', '«La notte del fiume eri così piccola. L\'acqua ti teneva più forte di me. Allora ho riscritto il fiume… e il fiume si è spaccato.»', 'fiume'], ['ilde', '«Chi apre una Fenditura viene cancellato. Così ho scritto COLPEVOLE su di te, perché un verdetto ti tenesse dentro la storia.»', 'fenditura'], ['ilde-lacrime', '«Meglio colpevole che cancellata. Perdonami, se puoi. Io non ci sono riuscita.»', 'verdetto'], ['narr', 'In fondo al foglio, piccolissima, una firma: «la tua mamma».']],
   { done: () => { S.lock = false; hideLetterPage(); questAdvance('lettera', 2); } }); }
 function showLetterPage() { let el = $('letterPage'); if (!el) { el = document.createElement('div'); el.id = 'letterPage'; el.innerHTML = '<canvas width="700" height="900"></canvas>'; document.body.appendChild(el); } const g = el.querySelector('canvas').getContext('2d'); g.fillStyle = '#f1e7cf'; g.fillRect(0, 0, 700, 900);
   g.strokeStyle = 'rgba(40,28,20,.18)'; for (let i = 0; i < 24; i++) { g.beginPath(); g.moveTo(50, 90 + i * 32); g.lineTo(650, 90 + i * 32); g.stroke(); } g.fillStyle = '#2a1d16'; g.font = 'italic 28px Georgia';
@@ -1856,7 +1873,7 @@ function questUpdate(dt) {
   if (PROG.items.seppia && !panel.open && ink.v < 50 && S.phase === 'play') ink.v = Math.min(50, ink.v + dt * 2);
   if (tipo.visible) tipo.userData.card.rotation.y = Math.atan2(P.x - tipo.position.x, P.z - tipo.position.z) * 0.3;
 }
-window.PAL = { PLATES, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

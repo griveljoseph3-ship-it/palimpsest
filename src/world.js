@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.js?v=1.9.0';
 import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
 import * as CH from './chars.js?v=1.9.0';
-export const { makePlayer, makeElara, makeLumi, makeMite } = CH;
+export const { makePlayer, makeElara, makeLumi, makeMite, makeCustode } = CH;
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -117,33 +117,6 @@ export function makeCharger() {
   grp.userData = { body, core, armor, r: 0.85, height: 1.6 }; return grp;
 }
 const lathe = (pts, seg = 18) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
-export function makeCustode() {
-  // Il Custode: una statua d'inchiostro indurito, curva, coperta di pagine incollate come armatura.
-  const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
-  const core = inked(new THREE.OctahedronGeometry(0.42, 1), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.set(0, 1.55, 0.05); body.add(core);
-  const armor = new THREE.Group(); body.add(armor);
-  // busto massiccio a goccia rovesciata, inclinato in avanti
-  const torso = inked(lathe([[0, 0], [0.55, 0.05], [0.8, 0.45], [0.95, 0.95], [0.9, 1.3], [0.6, 1.55], [0, 1.62]], 20), { color: 0xcdbd98, shift: 0x9e2b1c, y0: 0.7, y1: 2.6 });
-  torso.position.y = 0.85; torso.rotation.x = 0.18; torso.scale.set(1.15, 1, 0.85); armor.add(torso);
-  // pagine incollate sul petto (armatura a scaglie)
-  for (let i = 0; i < 9; i++) { const pg = inked(new THREE.PlaneGeometry(0.42, 0.55), { color: 0xd8cbb0, outline: true, ow: 0.015 }); pg.material.side = THREE.DoubleSide;
-    const a = (i % 3 - 1) * 0.55, row = Math.floor(i / 3); pg.position.set(Math.sin(a) * 0.98, 1.25 + row * 0.38, Math.cos(a) * 0.82 + 0.08); pg.rotation.set(-0.2 + row * 0.05, a, (Math.random() - 0.5) * 0.35); armor.add(pg); }
-  // testa: cappuccio a punta con una sola riga rossa
-  const head = inked(lathe([[0, 0], [0.38, 0.05], [0.42, 0.3], [0.3, 0.6], [0, 0.85]], 14), { color: 0x2a201a, y0: 2.3, y1: 3.2 }); head.position.set(0, 2.35, 0.25); armor.add(head);
-  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const sp = inked(new THREE.ConeGeometry(0.09, 0.55, 4), { color: 0xefe5cf, ow: 0.02 }); sp.position.set(Math.cos(a) * 0.3, 2.95, 0.25 + Math.sin(a) * 0.3); sp.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); armor.add(sp); }
-  // spalle sferiche schiacciate e braccia lunghe con pugni enormi
-  for (const sd of [-1, 1]) { const sh = inked(new THREE.SphereGeometry(0.5, 14, 10), { color: 0xe6d8b8, shift: 0x9e2b1c }); sh.scale.set(1, 0.8, 1); sh.position.set(sd * 1.05, 2.15, 0.05); armor.add(sh);
-    const arm = new THREE.Group(); arm.position.set(sd * 1.15, 2.05, 0.1); armor.add(arm); arm.userData.side = sd; armor.userData['arm' + sd] = arm;
-    const up = inked(lathe([[0.22, 0], [0.26, -0.4], [0.2, -0.9], [0.17, -1.1]], 10), { color: 0xb5a37f }); arm.add(up);
-    const fist = inked(new THREE.DodecahedronGeometry(0.36, 0), { color: 0xbfae8c, shift: 0x9e2b1c }); fist.position.y = -1.3; fist.scale.set(1, 1.1, 1); arm.add(fist); }
-  // gambe corte e pesanti
-  for (const sd of [-1, 1]) { const lg = inked(lathe([[0.3, 0], [0.34, 0.4], [0.26, 0.85]], 10), { color: 0x1d1611 }); lg.position.set(sd * 0.42, 0, 0); body.add(lg); }
-  // catene d'inchiostro che pendono
-  for (let i = 0; i < 4; i++) { const ch = inked(new THREE.TorusGeometry(0.09, 0.025, 4, 8), { color: 0x120c0a, outline: false }); ch.position.set(-0.5 + i * 0.33, 0.95 - (i % 2) * 0.1, 0.72); ch.rotation.y = i % 2 ? Math.PI / 2 : 0; armor.add(ch); }
-  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); eye.position.set(0, 2.62, 0.62); armor.add(eye);
-  const halo = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.45, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8a1a10, transparent: true, opacity: 0.7, depthWrite: false })); halo.position.y = 0.03; grp.add(halo);
-  body.scale.setScalar(1.2); grp.userData.halo = halo; Object.assign(grp.userData, { body, core, armor, r: 0.9, height: 3.4, eye }); return grp;
-}
 export function makeElaraPage(guilty = true) {
   const grp = new THREE.Group();
   const draw = (state) => { const c = document.createElement('canvas'); c.width = 512; c.height = 768; const g = c.getContext('2d');

@@ -201,3 +201,52 @@ export function makeMite() {
   m.userData.eyes = eyes; m.userData.eyeGlow = eg;
   m.scale.setScalar(1.15); return m;
 }
+
+// ============================ IL CUSTODE ============================
+// Tavole 040/049 (e 037): golem fatto di libri e tavole chiodate, elmo-libro aperto con una corona di pennini,
+// fessura degli occhi rossa, spallacci a pile di pagine, catene in vita, pugni squadrati, palla al piede sulla catena.
+// Stessi agganci di gameplay: body, armor (componente FRAGILE), armor.userData.arm1/arm-1, core, eye, halo.
+export function makeCustode() {
+  const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
+  const WOOD = 0x4e4036, PAGE = 0xd6c8a8, IRON = 0x2a2522, STAIN = 0x7a1f14;
+  const core = inked(new THREE.OctahedronGeometry(0.34, 1), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.set(0, 1.72, 0.08); body.add(core);
+  // gambe a blocchi (restano anche quando la corazza si rompe)
+  const legs = []; for (const sd of [-1, 1]) legs.push(xf(new THREE.BoxGeometry(0.44, 0.42, 0.44), [sd * 0.36, 0.86, 0], [0, 0, sd * 0.04]), xf(new THREE.BoxGeometry(0.5, 0.48, 0.5), [sd * 0.38, 0.42, 0.02]),
+    xf(new THREE.BoxGeometry(0.56, 0.2, 0.72), [sd * 0.39, 0.1, 0.1]), xf(new THREE.BoxGeometry(0.54, 0.08, 0.54), [sd * 0.38, 0.62, 0.02]));
+  body.add(inked(merge(legs), { color: 0x3a2f28, shift: STAIN, y0: 0, y1: 1.1, ow: 0.022 }));
+  const armor = new THREE.Group(); body.add(armor);
+  // busto: petto squadrato, ventre, elmo a scatola; coperte scure dei libri sugli spallacci
+  const plates = [xf(new THREE.BoxGeometry(1.34, 0.86, 0.86), [0, 1.78, 0], [0.1, 0, 0]), xf(new THREE.BoxGeometry(1.05, 0.5, 0.72), [0, 1.18, 0.02]),
+    xf(new THREE.BoxGeometry(0.74, 0.62, 0.68), [0, 2.52, 0.12], [0.08, 0, 0]), xf(new THREE.BoxGeometry(0.7, 0.12, 0.5), [0, 2.25, 0.05])];
+  for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) plates.push(xf(new THREE.BoxGeometry(0.62 - k * 0.06, 0.07, 0.72 - k * 0.04), [sd * (0.86 + k * 0.03), 2.2 - k * 0.2, 0.04], [0, 0, sd * (-0.35 - k * 0.08)]));
+  // elmo-libro: due coperte a V sopra l'elmo
+  plates.push(xf(new THREE.BoxGeometry(0.06, 0.46, 0.7), [-0.22, 2.92, 0.12], [0, 0, 0.75]), xf(new THREE.BoxGeometry(0.06, 0.46, 0.7), [0.22, 2.92, 0.12], [0, 0, -0.75]));
+  armor.add(inked(merge(plates), { color: WOOD, shift: STAIN, y0: 0.7, y1: 3.2, ow: 0.03 }));
+  // blocchi di pagine color crema (spallacci, visiera del libro, fascia del petto)
+  const pages = []; for (const sd of [-1, 1]) for (let k = 0; k < 2; k++) pages.push(xf(new THREE.BoxGeometry(0.55 - k * 0.06, 0.12, 0.66 - k * 0.04), [sd * (0.88 + k * 0.03), 2.1 - k * 0.2, 0.04], [0, 0, sd * (-0.38 - k * 0.08)]));
+  pages.push(xf(new THREE.BoxGeometry(0.03, 0.4, 0.64), [-0.13, 2.92, 0.12], [0, 0, 0.5]), xf(new THREE.BoxGeometry(0.03, 0.4, 0.64), [0.13, 2.92, 0.12], [0, 0, -0.5]), xf(new THREE.BoxGeometry(1.1, 0.1, 0.05), [0, 2.02, 0.45], [0.1, 0, 0]));
+  armor.add(inked(merge(pages), { color: PAGE, y0: 0.7, y1: 3.2, ow: 0.016 }));
+  // macchie rosse sulle tavole (come le pennellate della tavola 040)
+  const st = []; [[0.35, 1.9, 0.44, 0.22, 0.18], [-0.4, 1.6, 0.44, 0.16, 0.2], [0.2, 1.22, 0.39, 0.18, 0.12], [0.42, 1.12, 0.38, 0.1, 0.14]].forEach(([x, y, z, w, h], i) => st.push(xf(new THREE.CircleGeometry(1, 7), [x, y, z], [0.1, 0, hash(i) * 3], [w, h, 1])));
+  armor.add(new THREE.Mesh(merge(st), basic(STAIN, { side: THREE.DoubleSide })));
+  // corona di pennini sull'elmo
+  const nibs = []; for (let i = 0; i < 9; i++) { const a = (i - 4) * 0.11; const L = 0.62 - Math.abs(i - 4) * 0.06; const c = new THREE.ConeGeometry(0.055, L, 4); c.scale(1, 1, 0.45); xf(c, [(i - 4) * 0.085 + Math.sin(a) * L / 2, 3.08 + L / 2 * Math.cos(a), 0.0 + (i % 2) * 0.14], [0.1 - (i % 2) * 0.2, 0, -a]); nibs.push(c); }
+  armor.add(inked(merge(nibs), { color: IRON, y0: 2.8, y1: 3.6, ow: 0.016 }));
+  // catene e borchie (ferro scuro)
+  const ch = []; for (const [yy, sag] of [[1.06, 0.05], [1.26, 0.09]]) for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2; ch.push(xf(new THREE.TorusGeometry(0.07, 0.022, 4, 8), [Math.sin(a) * 0.6, yy - Math.max(0, Math.cos(a)) * sag, Math.cos(a) * 0.43], [0, a + Math.PI / 2 + (i % 2) * Math.PI / 2, 0])); }
+  for (const y of [1.6, 1.95]) ch.push(xf(new THREE.BoxGeometry(1.3, 0.025, 0.02), [0, y, 0.44 + (y - 1.78) * 0.1], [0.1, 0, 0]));
+  ch.push(xf(new THREE.BoxGeometry(0.66, 0.15, 0.04), [0, 2.52, 0.45], [0.08, 0, 0]));
+  [[-0.55, 2.1], [0.55, 2.1], [-0.55, 1.45], [0.55, 1.45], [-0.3, 2.74], [0.3, 2.74], [-0.3, 2.3], [0.3, 2.3]].forEach(([x, y]) => ch.push(xf(new THREE.SphereGeometry(0.035, 5, 4), [x, y, y > 2.2 ? 0.48 : 0.46])));
+  armor.add(new THREE.Mesh(merge(ch), basic(0x15100c)));
+  // braccia: spallaccio, braccio a fasce, guanto, pugno squadrato; la sinistra trascina la palla al piede
+  for (const sd of [-1, 1]) { const arm = new THREE.Group(); arm.position.set(sd * 0.98, 2.08, 0.06); armor.add(arm); arm.userData.side = sd; armor.userData['arm' + sd] = arm;
+    arm.add(inked(merge([xf(new THREE.BoxGeometry(0.36, 0.55, 0.36), [0, -0.35, 0]), xf(new THREE.BoxGeometry(0.44, 0.12, 0.44), [0, -0.66, 0]), xf(new THREE.BoxGeometry(0.46, 0.55, 0.46), [0, -0.98, 0.02]),
+      xf(new THREE.BoxGeometry(0.5, 0.42, 0.5), [0, -1.42, 0.04]), xf(new THREE.BoxGeometry(0.14, 0.2, 0.3), [-sd * 0.27, -1.36, 0.1])]), { color: 0x45392f, shift: STAIN, y0: 0.6, y1: 2.2, ow: 0.022 }));
+    if (sd < 0) { const links = []; for (let i = 0; i < 2; i++) links.push(xf(new THREE.TorusGeometry(0.07, 0.022, 4, 8), [0, -1.66 - i * 0.1, 0.05], [0, (i % 2) * Math.PI / 2, 0]));
+      arm.add(new THREE.Mesh(merge(links), basic(0x15100c)));
+      const ball = inked(new THREE.IcosahedronGeometry(0.32, 1), { color: 0x2c3440, shift: 0x3fc1ff, y0: 0, y1: 0.7, ow: 0.02 }); ball.position.set(0, -1.86, 0.05); arm.add(ball); } }
+  const eye = new THREE.Mesh(merge([-1, 1].map((sd) => xf(new THREE.BoxGeometry(0.15, 0.055, 0.02), [sd * 0.13, 0, 0], [0, 0, sd * 0.12]))), basic(0x8a1a10)); eye.position.set(0, 2.52, 0.48); armor.add(eye);
+  const eg = glow(0xff3010, 0.7, 0.25, 0.45); eg.position.set(0, 2.52, 0.55); armor.add(eg);
+  const halo = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.45, 40).rotateX(-Math.PI / 2), basic(0x8a1a10, { transparent: true, opacity: 0.7, depthWrite: false })); halo.position.y = 0.03; grp.add(halo);
+  body.scale.setScalar(1.12); grp.userData.halo = halo; Object.assign(grp.userData, { body, core, armor, r: 0.9, height: 3.4, eye }); return grp;
+}

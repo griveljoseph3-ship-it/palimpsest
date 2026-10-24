@@ -35,7 +35,7 @@ await studio('studio-cast', `
   return { tick(t){} };`, [1.1, 2.6, 12.5], [1.1, 1.2, 0]);
 await studio('studio-correttore', `const p=W.makePlayer(); p.rotation.y=0.45; p.userData.quill.visible=true; sc.add(p); const q=W.makePlayer(); q.position.x=1.4; q.rotation.y=Math.PI-0.5; sc.add(q);`, [0.7, 1.6, 6.2], [0.7, 1.0, 0]);
 await studio('studio-elara', `const e=W.makeElara(); e.rotation.y=0.3; sc.add(e); const f=W.makeElara(); f.position.x=1.1; f.rotation.y=-1.3; sc.add(f);`, [0.55, 1.3, 5.2], [0.55, 0.85, 0]);
-await studio('studio-lumi-acari', `const l=W.makeLumi(); l.position.set(-0.6,0.8,0); l.rotation.y=0.3; sc.add(l); for(let i=0;i<3;i++){const m=W.makeMite(); m.position.set(0.3+i*0.65,0.3,(i%2)*0.4); m.rotation.y=-0.3-i*0.3; if(i==2) m.scale.multiplyScalar(1.45); sc.add(m);} `, [0.4, 1.3, 3.6], [0.4, 0.5, 0]);
+await studio('studio-lumi-acari', `const l=W.makeLumi(); l.position.set(-0.6,0.8,0); l.rotation.y=0.3; sc.add(l); for(let i=0;i<3;i++){const m=W.makeMite(); m.position.set(0.3+i*0.65,0.3,(i%2)*0.4); m.rotation.y=-0.3-i*0.3; if(i==2) m.scale.multiplyScalar(1.45); sc.add(m);} `, [0.5, 1.5, 5.2], [0.5, 0.5, 0]);
 await studio('studio-custode', `const c=W.makeCustode(); c.rotation.y=0.35; sc.add(c);`, [0.6, 2.6, 9.0], [0, 1.9, 0]);
 await studio('studio-charger', `const c=W.makeCharger(); c.rotation.y=0.5; c.scale.setScalar(1.4); sc.add(c);`, [0.5, 1.8, 5.5], [0, 0.9, 0]);
 // in partita

@@ -1004,6 +1004,8 @@ function visualUpdate(dt, rdt) {
   const u = P.mesh.userData, sp = Math.hypot(P.vx, P.vz); P.mesh.position.set(P.x, 0, P.z); P.mesh.rotation.y = P.face;
   u.body.rotation.x = lerp(u.body.rotation.x, sp * 0.03 + (P.st === 'dodge' ? 0.5 : 0), 0.2); u.body.position.y = Math.abs(Math.sin(now * 11)) * 0.05 * Math.min(1, sp / 4);
   if (u.anim) u.anim(now, sp);
+  for (const m of swarm) if (m.alive && m.mesh.userData.anim && (m.room === S.room || m.boss)) m.mesh.userData.anim(now, m);
+  for (const m of door.mites) if (m.alive && m.mesh.userData.anim) m.mesh.userData.anim(now, m);
   u.cloak.scale.set(1 + Math.sin(now * 9) * 0.03 * sp / 5, 1, 1 + sp * 0.03); const sq = P.st === 'heavy' && P.t > P.hitAt ? 0.9 : 1; u.body.scale.set(2 - sq, sq, 2 - sq);
   if (P.st === 'attack') u.quillPivot.rotation.y = lerp(1.6, -1.6, clamp(1 - (P.t - 0.05) / 0.27, 0, 1)); else if (P.st === 'heavy') { u.quillPivot.rotation.x = P.t > P.hitAt ? -1.2 : 0.6; u.quillPivot.rotation.y = 0; } else { u.quillPivot.rotation.y = lerp(u.quillPivot.rotation.y, 0.3, 0.2); u.quillPivot.rotation.x = lerp(u.quillPivot.rotation.x, 0, 0.2); }
   if (!P.mats) P.mats = matsOf(P.mesh); setU(P.mats, 'DissolveAmount', P.st === 'dead' ? clamp(1.05 - P.t / 1.4 * 1.05, 0, 1.05) : 0);
@@ -1033,7 +1035,7 @@ function visualUpdate(dt, rdt) {
   for (const g of Object.values(gates)) if (g.mesh && g.open && g.mesh.position.y > -2) g.mesh.position.y -= dt * 2;
   if (door.open != null && door.open < 1) { door.open = Math.min(1, door.open + dt * 0.6); elara.rotation.y = door.open * (S.doorRoute === 'forced' ? 1.5 : 1.2); elara.position.x = -door.open * 1.3; }
   if (frame % 240 === 0 && S.room === 'door') { const st = elara.userData.st, e0 = st.eyes; st.eyes = 200; elara.userData.redraw(); setTimeout(() => { st.eyes = e0; elara.userData.redraw(); }, 140); }
-  elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; for (const f of [elaraFig, elaraFig2]) { const u = f.userData; u.body.position.y = 0.06 + Math.sin(now * 1.6) * 0.05; u.orbit.rotation.y = now * 0.35; u.head.rotation.y = Math.sin(now * 0.5) * 0.25; } elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
+  elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; for (const f of [elaraFig, elaraFig2]) { const u = f.userData; u.body.position.y = 0.025 + Math.sin(now * 1.6) * 0.02; if (u.hair) { u.hair.rotation.z = Math.sin(now * 1.1) * 0.03; u.bow.rotation.z = Math.sin(now * 1.7) * 0.08; } u.orbit.rotation.y = now * 0.35; u.head.rotation.y = Math.sin(now * 0.5) * 0.25; } elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
   if (lumi.on) { lumi.x = lerp(lumi.x, P.x + 1.2, 0.03); lumi.z = lerp(lumi.z, P.z + 0.8, 0.03); lumi.mesh.position.set(lumi.x, 1.2 + Math.sin(now * 2) * 0.15, lumi.z); if (frame % 6 === 0) particles.emit(lumi.x, 1.1, lumi.z, rnd(-0.2, 0.2), -0.3, rnd(-0.2, 0.2), 1, 0.12, 0.05, 0.03, 0.04, 3); }
   for (const l of lumiTraces) l.position.y = 0.25 + Math.sin(now * 1.5 + l.position.x) * 0.06;
   for (let i = waves.length - 1; i >= 0; i--) { const w = waves[i]; w.t += rdt; const k = w.t / 0.55; w.m.scale.setScalar(0.3 + k * w.maxR); w.m.material.opacity = 0.85 * (1 - k); if (k >= 1) { scene.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); waves.splice(i, 1); } }

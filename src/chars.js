@@ -15,6 +15,7 @@ const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return
 // Trasforma una geometria (posizione, rotazione XYZ, scala) e la restituisce.
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
 export function xf(geo, p = [0, 0, 0], r = [0, 0, 0], s = [1, 1, 1]) {
+  if (!Array.isArray(r)) r = [0, 0, 0];
   _q.setFromEuler(_e.set(r[0], r[1], r[2])); _m.compose(new V3(...p), _q, new V3(...(typeof s === 'number' ? [s, s, s] : s))); geo.applyMatrix4(_m); return geo;
 }
 // Fonde più geometrie in una sola (solo posizione + normali: è tutto ciò che servono InkMaster e contorno).
@@ -98,4 +99,105 @@ export function makePlayer() {
     tail2.rotation.x = 0.15 + k * 0.85 + Math.sin(t * 2.7 + 1) * (0.07 + k * 0.12); tail2.rotation.z = Math.sin(t * 1.9) * 0.08;
     fringe.rotation.x = k * 0.06 + Math.sin(t * 5) * 0.012; fringe.scale.y = 1 + Math.sin(t * 2.2) * 0.02; eyeGlow.material.opacity = 0.25 + Math.sin(t * 1.7) * 0.06; };
   grp.userData = { body, cloak, head, quillPivot, quill, tail, nib, nibGlow, nibWorld: new THREE.Vector3(), r: 0.38, anim }; return grp;
+}
+
+// ============================ ELARA ============================
+// Tavole 031/057/071: caschetto nero con frangia, abito lungo color crema a vita alta con pieghe, maniche lunghe a sbuffo,
+// fiocco rosso al collo, biglietto appuntato sul petto, stivaletti neri, macchie d'inchiostro blu sull'orlo.
+export function makeElara() {
+  const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
+  const CREAM = 0xebe1c9, SKIN = 0xf5ead7, HAIR = 0x110b09, RED = 0x8a2416;
+  // abito: gonna con pieghe verticali + corpetto
+  const dg = lathe([[0.36, 0.13], [0.355, 0.2], [0.3, 0.5], [0.22, 0.82], [0.16, 0.94], [0.15, 0.98], [0.16, 1.08], [0.155, 1.18], [0.08, 1.25]], 30);
+  { const p = dg.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y > 0.95) continue; const a = Math.atan2(p.getX(i), p.getZ(i)); const k = 1 + 0.045 * Math.sin(a * 14) * (1 - y / 0.95); p.setX(i, p.getX(i) * k); p.setZ(i, p.getZ(i) * k * 0.86); } dg.computeVertexNormals(); }
+  const dress = inked(dg, { color: CREAM, shift: RED, y0: 0, y1: 1.25, texScale: 0.6, ow: 0.016 }); dress.material.side = THREE.DoubleSide; body.add(dress);
+  // cucitura in vita, colletto alto, stivaletti (scuri)
+  const darks = new THREE.Mesh(merge([xf(new THREE.TorusGeometry(0.153, 0.007, 4, 24), [0, 0.95, 0], [Math.PI / 2, 0, 0], [1, 0.86, 1]),
+    xf(new THREE.SphereGeometry(0.075, 8, 6), [-0.08, 0.06, 0.05], 0, [0.9, 0.85, 1.4]), xf(new THREE.SphereGeometry(0.075, 8, 6), [0.08, 0.06, 0.05], 0, [0.9, 0.85, 1.4]),
+    xf(new THREE.CylinderGeometry(0.05, 0.055, 0.12, 8), [-0.08, 0.12, 0.02]), xf(new THREE.CylinderGeometry(0.05, 0.055, 0.12, 8), [0.08, 0.12, 0.02])]), basic(0x1b130e)); body.add(darks);
+  // tratti a matita delle pieghe (tavola 071): linee sottili dalla vita all'orlo, un solo mesh
+  const folds = []; for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2 + hash(i) * 0.2; const y0 = 0.9 - hash(i + 1) * 0.15, y1 = 0.15 + hash(i + 2) * 0.08; const r0 = 0.165 + (0.9 - y0) * 0.55, r1 = 0.37;
+    const p0 = new V3(Math.sin(a) * r0, y0, Math.cos(a) * r0 * 0.86), p1 = new V3(Math.sin(a) * r1, y1, Math.cos(a) * r1 * 0.86); const d = p1.clone().sub(p0); const L = d.length();
+    const c = new THREE.BoxGeometry(0.004, L, 0.004); c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), d.normalize())); c.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2); folds.push(c); }
+  body.add(new THREE.Mesh(merge(folds), basic(0x8a7a62)));
+  const collar = inked(new THREE.CylinderGeometry(0.06, 0.075, 0.07, 12), { color: CREAM, ow: 0.01 }); collar.position.y = 1.27; body.add(collar);
+  // macchie d'inchiostro blu sull'orlo (come nella tavola 071)
+  const stains = new THREE.Mesh(merge([0, 1, 2, 3].map((i) => { const a = 0.4 + i * 1.3 + hash(i) * 0.5; const y = 0.2 + hash(i + 4) * 0.25; const r = 0.35 - (y - 0.13) * 0.28; return xf(new THREE.CircleGeometry(0.035 + hash(i + 2) * 0.03, 7), [Math.sin(a) * r * 1.02, y, Math.cos(a) * r * 0.88], [0, a, 0]); })), basic(0x2c4a80, { transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })); body.add(stains);
+  // braccia lungo i fianchi: manica a sbuffo, polsino, mano
+  for (const sd of [-1, 1]) { const arm = new THREE.Group(); arm.position.set(sd * 0.155, 1.17, 0); arm.rotation.set(-0.08, 0, sd * 0.13); body.add(arm);
+    const sl = inked(lathe([[0.05, -0.45], [0.075, -0.4], [0.06, -0.32], [0.07, -0.06], [0.045, 0.02], [0.02, 0.04]], 10), { color: 0xe4d9c0, ow: 0.012 }); arm.add(sl);
+    const hand = inked(new THREE.SphereGeometry(0.038, 8, 6), { color: SKIN, outline: false }); hand.scale.set(0.8, 1.2, 0.8); hand.position.y = -0.49; arm.add(hand); }
+  // testa e volto (occhi grandi e tristi, sopracciglia inclinate, guance)
+  const head = inked(new THREE.SphereGeometry(0.165, 18, 14), { color: SKIN, y0: 1.25, y1: 1.62, ow: 0.016 }); head.scale.set(0.95, 1.04, 0.95); head.position.y = 1.44; body.add(head);
+  const face = new THREE.Group(); head.add(face);
+  face.add(new THREE.Mesh(merge([-1, 1].flatMap((sd) => [xf(new THREE.SphereGeometry(0.026, 8, 6), [sd * 0.058, 0.0, 0.148], 0, [1, 1.15, 0.5]), xf(new THREE.BoxGeometry(0.055, 0.008, 0.01), [sd * 0.06, 0.05, 0.155], [0, 0, sd * -0.22])])), basic(0x1b130e)));
+  face.add(new THREE.Mesh(merge([-1, 1].map((sd) => xf(new THREE.SphereGeometry(0.008, 6, 4), [sd * 0.052, 0.008, 0.162]))), basic(0xfff8ea)));
+  face.add(new THREE.Mesh(merge([-1, 1].map((sd) => xf(new THREE.CircleGeometry(0.025, 8), [sd * 0.088, -0.045, 0.142], [0, sd * 0.5, 0]))), basic(0xd88a70, { transparent: true, opacity: 0.4 })));
+  face.add(new THREE.Mesh(xf(new THREE.BoxGeometry(0.035, 0.007, 0.01), [0, -0.075, 0.152]), basic(0x8a2416)));
+  // caschetto: calotta + lati e nuca tagliati dritti all'altezza del mento, frangia sulla fronte, punte irregolari
+  const PI = Math.PI, back = new THREE.SphereGeometry(0.19, 24, 12, PI / 2 + 0.66, PI * 2 - 1.32, 0, PI * 0.68);
+  const fringeG = new THREE.SphereGeometry(0.186, 16, 6, PI / 2 - 0.74, 1.48, 0, PI * 0.36);
+  for (const [geo, fq, amp] of [[back, 23, 0.03], [fringeG, 37, 0.008]]) { const p = geo.attributes.position; let ymin = 1; for (let i = 0; i < p.count; i++) ymin = Math.min(ymin, p.getY(i)); for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y < ymin + 0.01) { const a = Math.atan2(p.getX(i), p.getZ(i)); p.setY(i, y - Math.abs(Math.sin(a * fq)) * amp); } } geo.computeVertexNormals(); }
+  const hair = inked(merge([xf(back, [0, 0.02, -0.01], 0, [1.12, 1.05, 1.08]), xf(fringeG, [0, 0.025, 0.01], 0, [1.04, 1.0, 1.04])]), { color: HAIR, y0: 1.25, y1: 1.65, ow: 0.016 }); hair.material.side = THREE.DoubleSide; head.add(hair);
+  // fiocco rosso: due asole, nodo, due code
+  const bow = inked(merge([xf(new THREE.TorusGeometry(0.035, 0.013, 5, 10), [-0.04, 0, 0], [0, 0, 0.3], [1.2, 0.75, 0.6]), xf(new THREE.TorusGeometry(0.035, 0.013, 5, 10), [0.04, 0, 0], [0, 0, -0.3], [1.2, 0.75, 0.6]),
+    xf(new THREE.SphereGeometry(0.018, 6, 5), [0, 0, 0.005]), xf(new THREE.BoxGeometry(0.022, 0.13, 0.008), [-0.025, -0.07, 0], [0, 0, -0.3]), xf(new THREE.BoxGeometry(0.022, 0.13, 0.008), [0.025, -0.07, 0], [0, 0, 0.3])]), { color: RED, shift: 0xc8321e, ow: 0.007 });
+  bow.position.set(0, 1.235, 0.1); bow.rotation.x = -0.15; bow.scale.setScalar(1.45); body.add(bow);
+  // biglietto appuntato sul petto (la sua "riga")
+  const note = inked(new THREE.BoxGeometry(0.09, 0.1, 0.005), { color: 0xf6efdf, ow: 0.006 }); note.position.set(0.055, 1.05, 0.145); note.rotation.set(-0.12, 0.05, 0.08); body.add(note);
+  // fogli che le girano intorno (un solo mesh) e alone tenue
+  const glowS = glow(0xffe2b0, 1.4, 2.2, 0.14); glowS.position.y = 0.95; g.add(glowS);
+  const orbit = new THREE.Group(); g.add(orbit);
+  const sheets = inked(merge([0, 1, 2, 3, 4].map((i) => { const a = i / 5 * PI * 2; return xf(new THREE.PlaneGeometry(0.15, 0.19), [Math.cos(a) * 0.75, 0.6 + (i % 3) * 0.35, Math.sin(a) * 0.75], [0.4, a, 0.3]); })), { color: 0xf3ead6, outline: false }); sheets.material.side = THREE.DoubleSide; orbit.add(sheets);
+  g.userData = { body, orbit, head, hair, bow }; return g;
+}
+
+// ============================ LUMI ============================
+// Tavola 048: una goccia d'inchiostro con la punta piegata, occhi grandi che guardano in su, sopracciglia preoccupate,
+// macchia rossa e blu sul fondo. Tratteggio a penna nel materiale (shader proprio, con l'ondeggiare di prima).
+export function makeLumi() {
+  const grp = new THREE.Group();
+  const lg = lathe([[0, -0.27], [0.13, -0.255], [0.23, -0.18], [0.28, -0.04], [0.27, 0.08], [0.21, 0.2], [0.13, 0.31], [0.06, 0.42], [0.015, 0.5], [0, 0.53]], 22, Math.PI);
+  { const p = lg.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); if (y > 0.1) p.setX(i, p.getX(i) + (y - 0.1) ** 2 * 0.5); } lg.computeVertexNormals(); }
+  const blob = new THREE.Mesh(lg, new THREE.ShaderMaterial({ uniforms: { uTime: INK_UNIFORMS.uTime },
+    vertexShader: `uniform float uTime; varying float vF; varying vec3 vP; varying float vL; void main(){ vec3 p=position; float w=sin(p.y*9.+uTime*4.)*.035+sin(p.x*7.-uTime*3.)*.03; p+=normal*w*smoothstep(.45,.1,p.y); vP=position;
+      vec3 n=normalize(normalMatrix*normal); vF=pow(1.-abs(n.z),2.); vL=dot(n,normalize(vec3(-.4,.7,.6))); gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
+    fragmentShader: `varying float vF; varying vec3 vP; varying float vL; void main(){
+      vec2 sp=gl_FragCoord.xy; float h=step(.55,fract((sp.x+sp.y)*.11)); float h2=step(.6,fract((sp.x-sp.y)*.09));
+      float tone=clamp(vL*.5+.5,0.,1.); vec3 c=mix(vec3(.03,.025,.025),vec3(.2,.19,.19),tone*tone);
+      c*=mix(1.,.62,h*(1.-tone)); c*=mix(1.,.75,h2*smoothstep(.5,.1,tone));
+      float red=smoothstep(.12,.0,length(vP.xy-vec2(-.17,-.13))-.04); c=mix(c,vec3(.62,.1,.07),red*.75);
+      float blue=smoothstep(.1,.0,length(vP.xy-vec2(.15,-.2))-.03); c=mix(c,vec3(.25,.33,.5),blue*.55);
+      c=mix(c,vec3(.02,.015,.015),vF*.7); gl_FragColor=vec4(c,1.); }` }));
+  grp.add(blob);
+  // occhi: bianchi grandi + pupille che guardano in alto + sopracciglia preoccupate
+  const whites = new THREE.Mesh(merge([-1, 1].map((sd) => xf(new THREE.SphereGeometry(0.068, 12, 8), [sd * 0.085, 0.02, 0.255], 0, [1, 1.05, 0.6]))), basic(0xf3ead6)); grp.add(whites);
+  const pupils = new THREE.Mesh(merge([...[-1, 1].map((sd) => xf(new THREE.SphereGeometry(0.032, 8, 6), [sd * 0.08, 0.05, 0.29], 0, [1, 1, 0.5])),
+    ...[-1, 1].map((sd) => xf(new THREE.BoxGeometry(0.075, 0.012, 0.01), [sd * 0.088, 0.12, 0.275], [0, 0, -sd * 0.35]))]), basic(0x0c0806)); grp.add(pupils);
+  grp.userData.blob = blob; grp.userData.eyes = whites; return grp;
+}
+
+// ============================ ACARI D'INCHIOSTRO ============================
+// Tavole 019/028: palle d'inchiostro pelose, nere, con due occhi bianchi luminosi e colature che pendono sotto.
+// Prima: ~25 draw call per acaro; ora 6. Gli occhi diventano rossi quando l'acaro sta per scattare (telegrafo leggibile).
+export function makeMite() {
+  const bg = new THREE.SphereGeometry(0.3, 16, 12); { const p = bg.attributes.position; const v = new V3(); for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const d = v.clone().normalize();
+    const n = Math.sin(d.x * 13 + d.y * 7) * Math.sin(d.z * 11 - d.y * 5) * 0.06 + Math.sin(d.x * 31 + d.z * 23) * 0.025; let k = 1 + n; if (d.y < -0.4) k *= 1 + (-0.4 - d.y) * 0.25; v.multiplyScalar(k); v.y *= 0.95; p.setXYZ(i, v.x, v.y, v.z); } bg.computeVertexNormals(); }
+  const m = inked(bg, { color: 0x0d0907, shift: 0x7a1f14, ow: 0.022 }); m.position.y = 0.3;
+  // pelo/inchiostro arruffato + due riccioli in testa
+  const fur = []; for (let i = 0; i < 64; i++) { const a = i * 2.39996, b = Math.acos(1 - 2 * (i + 0.5) / 64); if (Math.cos(b) < -0.5) continue; const d = new V3(Math.sin(b) * Math.cos(a), Math.cos(b), Math.sin(b) * Math.sin(a)); if (d.z > 0.55 && Math.abs(d.y) < 0.45) continue;
+    const L = 0.05 + hash(i) * 0.1; const c = new THREE.ConeGeometry(0.013, L, 3); c.translate(0, L / 2, 0); c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), d)); c.translate(d.x * 0.28, d.y * 0.28, d.z * 0.28); fur.push(c); }
+  { const c = new THREE.TorusGeometry(0.05, 0.007, 3, 10, Math.PI * 1.4); xf(c, [0.05, 0.37, -0.04], [0, Math.PI / 2, 0.5]); fur.push(c); }
+  const furM = new THREE.Mesh(merge(fur), basic(0x0c0806)); m.add(furM);
+  // colature d'inchiostro sotto il corpo
+  const dr = []; for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + hash(i) * 0.5, r = 0.12 + hash(i + 3) * 0.12, L = 0.05 + hash(i + 7) * 0.12; dr.push(xf(new THREE.CylinderGeometry(0.008, 0.024, L, 4), [Math.sin(a) * r, -0.24 - L / 2, Math.cos(a) * r]));
+    dr.push(xf(new THREE.SphereGeometry(0.02, 5, 4), [Math.sin(a) * r, -0.24 - L, Math.cos(a) * r], 0, [1, 1.5, 1])); }
+  const drips = new THREE.Mesh(merge(dr), basic(0x0c0806)); m.add(drips);
+  const eyeMat = basic(0xfff4dc); const eyes = new THREE.Mesh(merge([-1, 1].map((sd) => xf(new THREE.SphereGeometry(0.06, 10, 8), [sd * 0.105, 0.05, 0.25], 0, [1, 1.1, 0.55]))), eyeMat); m.add(eyes);
+  const eg = glow(0xfff0d0, 0.34, 0.15, 0.35); eg.position.set(0, 0.05, 0.3); m.add(eg);
+  const seed = Math.random() * 10; const WHITE = new THREE.Color(0xfff4dc), REDC = new THREE.Color(0xff3a20);
+  m.userData.anim = (t, o) => { const angry = o && (o.tell > 0 || o.lunge > 0 || o.boss); eyeMat.color.copy(angry ? REDC : WHITE); eg.material.color.setHex(angry ? 0xff3a20 : 0xfff0d0);
+    const bl = ((t + seed) % 4.2) < 0.12; eyes.scale.y = bl ? 0.15 : 1; drips.scale.y = 1 + Math.sin(t * 3.3 + seed) * 0.18; furM.rotation.y = Math.sin(t * 2 + seed) * 0.06; };
+  m.userData.eyes = eyes; m.userData.eyeGlow = eg;
+  m.scale.setScalar(1.15); return m;
 }

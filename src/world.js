@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.js?v=1.9.0';
 import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
 import * as CH from './chars.js?v=1.9.0';
-export const makePlayer = CH.makePlayer;
+export const { makePlayer, makeElara, makeLumi, makeMite } = CH;
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -144,14 +144,6 @@ export function makeCustode() {
   const halo = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.45, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8a1a10, transparent: true, opacity: 0.7, depthWrite: false })); halo.position.y = 0.03; grp.add(halo);
   body.scale.setScalar(1.2); grp.userData.halo = halo; Object.assign(grp.userData, { body, core, armor, r: 0.9, height: 3.4, eye }); return grp;
 }
-export function makeLumi() {
-  const grp = new THREE.Group();
-  const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 3), new THREE.ShaderMaterial({ uniforms: { uTime: INK_UNIFORMS.uTime },
-    vertexShader: `uniform float uTime; varying float vF; void main(){ vec3 p=position; float w=sin(p.y*9.+uTime*4.)*.07+sin(p.x*7.-uTime*3.)*.06; p+=normal*w; vF=pow(1.-abs(normalize(normalMatrix*normal).z),2.); gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
-    fragmentShader: `varying float vF; void main(){ gl_FragColor=vec4(mix(vec3(.03,.02,.03),vec3(.55,.12,.08),vF),1.); }` }));
-  grp.add(blob); const e1 = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 4), new THREE.MeshBasicMaterial({ color: 0xf3ead6 })); e1.position.set(-0.09, 0.05, 0.24); const e2 = e1.clone(); e2.position.x = 0.09; grp.add(e1, e2);
-  grp.userData.blob = blob; return grp;
-}
 export function makeElaraPage(guilty = true) {
   const grp = new THREE.Group();
   const draw = (state) => { const c = document.createElement('canvas'); c.width = 512; c.height = 768; const g = c.getContext('2d');
@@ -200,15 +192,6 @@ export function makeSeal() {
   const stand = inked(new THREE.BoxGeometry(0.3, 1.0, 0.3), { color: 0x2b221b }); stand.position.y = 0.5; grp.add(stand); grp.userData.disc = disc; return grp;
 }
 export function makeMonolith() { const m = inked(new THREE.CylinderGeometry(0.45, 0.6, 1.2, 6), { color: 0x2b221b, shift: 0x9e2b1c, y0: 0, y1: 1.2 }); m.position.y = 0.6; return m; }
-export function makeMite() { const m = inked(new THREE.IcosahedronGeometry(0.3, 1), { color: 0x120c0a, shift: 0x7a1f14, ow: 0.02 }); m.position.y = 0.3;
-  const sg = new THREE.ConeGeometry(0.06, 0.32, 4); const sm = new THREE.MeshBasicMaterial({ color: 0x1b120e }); for (let i = 0; i < 9; i++) { const a = i * 2.4, b = Math.acos(1 - 2 * (i + 0.5) / 9); const d = new THREE.Vector3(Math.sin(b) * Math.cos(a), Math.cos(b), Math.sin(b) * Math.sin(a)); const sp = new THREE.Mesh(sg, sm); sp.position.copy(d).multiplyScalar(0.32); sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); m.add(sp); }
-  for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff3a20 })); e.position.set(sd * 0.1, 0.06, 0.26); m.add(e); }
-  const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.02, 4, 10, Math.PI), new THREE.MeshBasicMaterial({ color: 0xc8321e })); mouth.position.set(0, -0.08, 0.27); mouth.rotation.z = Math.PI; m.add(mouth); const lg = new THREE.CylinderGeometry(0.02, 0.012, 0.34, 4); const lm = new THREE.MeshBasicMaterial({ color: 0x0c0806 });
-  for (let i = 0; i < 6; i++) { const sd = i < 3 ? -1 : 1, k = i % 3; const leg = new THREE.Mesh(lg, lm); leg.position.set(sd * 0.3, -0.16, -0.12 + k * 0.13); leg.rotation.set((k - 1) * 0.4, 0, sd * 1.0); m.add(leg); }
-  const jg = new THREE.ConeGeometry(0.035, 0.22, 4); const jm = new THREE.MeshBasicMaterial({ color: 0xe8dcc0 });
-  for (const sd of [-1, 1]) { const j = new THREE.Mesh(jg, jm); j.position.set(sd * 0.08, -0.06, 0.36); j.rotation.set(Math.PI / 2, 0, sd * 0.55); m.add(j);
-    const eg = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xff3a20, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false })); eg.scale.setScalar(0.16); eg.position.set(sd * 0.1, 0.07, 0.3); m.add(eg); }
-  m.scale.setScalar(1.15); return m; }
 export function makeDoc() { const g = new THREE.Group(); const p = inked(new THREE.BoxGeometry(0.5, 0.04, 0.65), { color: 0xf5ecd8, ow: 0.02 }); p.position.y = 0.95; p.rotation.y = 0.3; g.add(p);
   const st = inked(new THREE.CylinderGeometry(0.1, 0.2, 0.9, 6), { color: 0x2b221b }); st.position.y = 0.45; g.add(st); g.userData.paper = p; return g; }
 export function makeReader() { // leggio d'inchiostro con libro aperto (prima era una scatola scura)
@@ -378,33 +361,3 @@ export function buildStory(scene) {
   return out;
 }
 
-// ELARA in 3D: una ragazza fatta di carta e inchiostro, accanto alla sua pagina.
-export function makeElara() {
-  const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
-  const dress = inked(lathe([[0.5, 0], [0.47, 0.1], [0.36, 0.55], [0.24, 0.95], [0.17, 1.15], [0.12, 1.22]], 18), { color: 0xefe5cf, shift: 0x8a2416, y0: 0, y1: 1.25, texScale: 0.6 }); dress.material.side = THREE.DoubleSide; body.add(dress);
-  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; const fr = inked(new THREE.ConeGeometry(0.06, 0.2, 3), { color: 0xd8cbb0, outline: false }); fr.position.set(Math.sin(a) * 0.48, 0.02, Math.cos(a) * 0.48); fr.rotation.set(Math.PI, a, 0); body.add(fr); }
-  const lines = new THREE.Group(); body.add(lines); for (let i = 0; i < 6; i++) { const r = 0.45 - i * 0.045; const ln = new THREE.Mesh(new THREE.TorusGeometry(r, 0.006, 3, 30), new THREE.MeshBasicMaterial({ color: 0x3a2a20 })); ln.rotation.x = Math.PI / 2; ln.position.y = 0.12 + i * 0.13; lines.add(ln); }
-  const sash = inked(new THREE.TorusGeometry(0.2, 0.035, 6, 16), { color: 0x8a2416, outline: false }); sash.rotation.x = Math.PI / 2; sash.position.y = 0.92; body.add(sash);
-  const ribbon = inked(new THREE.PlaneGeometry(0.08, 0.45, 1, 3), { color: 0x8a2416, outline: false }); ribbon.material.side = THREE.DoubleSide; ribbon.position.set(0.09, 0.7, 0.2); ribbon.rotation.set(-0.15, 0, 0.12); body.add(ribbon);
-  const collar = inked(new THREE.TorusGeometry(0.12, 0.03, 6, 14), { color: 0xf6efe0, ow: 0.012 }); collar.rotation.x = Math.PI / 2; collar.position.y = 1.2; body.add(collar);
-  const neck = inked(new THREE.CylinderGeometry(0.05, 0.06, 0.12, 8), { color: 0xf3e9d4, outline: false }); neck.position.y = 1.27; body.add(neck);
-  const head = inked(new THREE.SphereGeometry(0.17, 18, 14), { color: 0xf6eddb, y0: 1.25, y1: 1.6, ow: 0.018 }); head.scale.set(0.92, 1.05, 0.95); head.position.y = 1.45; body.add(head);
-  const hair = inked(new THREE.SphereGeometry(0.19, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.58), { color: 0x120c0a, ow: 0.018 }); hair.position.set(0, 1.47, -0.02); hair.rotation.x = -0.25; body.add(hair);
-  const back = inked(lathe([[0.17, 0], [0.2, -0.25], [0.18, -0.55], [0.1, -0.7]], 14), { color: 0x120c0a, outline: false }); back.position.set(0, 1.5, -0.06); back.scale.z = 0.7; body.add(back);
-  for (let i = 0; i < 7; i++) { const a = -1.2 + i * 0.4; const len = 0.12 + (i * 37 % 5) * 0.05; const d = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, len, 4), new THREE.MeshBasicMaterial({ color: 0x120c0a })); d.position.set(Math.sin(a + Math.PI) * 0.15, 0.8 - len / 2, Math.cos(a + Math.PI) * 0.1 - 0.05); body.add(d);
-    const dr = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 4), new THREE.MeshBasicMaterial({ color: 0x120c0a })); dr.scale.y = 1.4; dr.position.set(d.position.x, 0.8 - len, d.position.z); body.add(dr); }
-  for (const sd of [-1, 1]) { const ey = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshBasicMaterial({ color: 0x1b130e })); ey.scale.set(1, 0.7, 0.5); ey.position.set(sd * 0.06, 1.47, 0.15); body.add(ey);
-    const br = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.008, 0.01), new THREE.MeshBasicMaterial({ color: 0x1b130e })); br.position.set(sd * 0.06, 1.515, 0.155); br.rotation.z = sd * -0.15; body.add(br);
-    const ch = new THREE.Mesh(new THREE.CircleGeometry(0.025, 8), new THREE.MeshBasicMaterial({ color: 0xd88a70, transparent: true, opacity: 0.45 })); ch.position.set(sd * 0.085, 1.42, 0.16); body.add(ch);
-    const arm = new THREE.Group(); arm.position.set(sd * 0.17, 1.14, 0); arm.rotation.set(-0.5, 0, sd * 0.18); body.add(arm);
-    const sl = inked(lathe([[0.05, 0], [0.07, -0.25], [0.09, -0.45]], 10), { color: 0xe6dcc6, ow: 0.012 }); arm.add(sl);
-    const hand = inked(new THREE.SphereGeometry(0.04, 8, 6), { color: 0xf6eddb, outline: false }); hand.position.y = -0.48; arm.add(hand); }
-  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.008, 0.01), new THREE.MeshBasicMaterial({ color: 0x8a2416 })); mouth.position.set(0, 1.38, 0.16); body.add(mouth);
-  // libro di sentenze stretto al petto
-  const bk = inked(new THREE.BoxGeometry(0.26, 0.32, 0.06), { color: 0x6b2318, ow: 0.015 }); bk.position.set(0, 0.92, 0.3); bk.rotation.x = -0.3; body.add(bk);
-  const bp = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.29, 0.065), new THREE.MeshBasicMaterial({ color: 0xefe5cf })); bp.position.set(0.012, 0.92, 0.3); bp.rotation.x = -0.3; body.add(bp);
-  // alone e fogli che le girano intorno
-  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xffe2b0, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })); glow.scale.set(1.6, 2.4, 1); glow.position.y = 0.95; g.add(glow);
-  const orbit = new THREE.Group(); g.add(orbit); for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; const sh = inked(new THREE.PlaneGeometry(0.16, 0.2), { color: 0xf3ead6, outline: false }); sh.material.side = THREE.DoubleSide; sh.position.set(Math.cos(a) * 0.75, 0.6 + (i % 3) * 0.35, Math.sin(a) * 0.75); sh.rotation.set(0.4, a, 0.3); orbit.add(sh); }
-  g.userData = { body, orbit, head }; return g;
-}

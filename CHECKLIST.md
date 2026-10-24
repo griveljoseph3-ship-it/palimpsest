@@ -46,7 +46,7 @@ Mappa delle tavole → uso nel gioco (`docs/concept-art/immagini/tavola-NNN.jpg`
 | Non ancora usate | 001/024 (figura velata), 010 (maschera a becco: personaggio da decidere con Joseph), 016 (Elara riccia?), 027 |
 
 Passi (spuntare man mano, con commit):
-- [ ] R1 · Cartella `assets/` con le tavole ottimizzate per l'iPad (jpg ridotte, ritagli dei ritratti, figure scontornate in png) generate da `tools/make-assets.py` (riproducibile)
+- [x] R1 · Cartella `assets/` con le tavole ottimizzate per l'iPad (jpg ridotte, ritagli dei ritratti, figure scontornate in png) generate da `tools/make-assets.py` (riproducibile) — fatto: 5,1 MB in tutto (figure in WebP con trasparenza, 628 KB)
 - [ ] R2 · Ritratti dei dialoghi dalle tavole (al posto di quelli disegnati dal codice)
 - [ ] R3 · Pavimenti delle stanze = tavole, con shader che tiene la luce della lampada e le candele
 - [ ] R4 · Muri con texture carta-mattoni (023) anche nel labirinto

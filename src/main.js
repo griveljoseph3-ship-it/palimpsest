@@ -1,17 +1,17 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=2.1.0';
-import { EFFECTS } from './data.js?v=2.1.0';
-import { Grammar } from './resolver.js?v=2.1.0';
-import { Ink, INK } from './ink.js?v=2.1.0';
-import { Input } from './input.js?v=2.1.0';
-import { Sfx } from './audio.js?v=2.1.0';
-import { Tele } from './telemetry.js?v=2.1.0';
-import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG } from './art.js?v=2.1.0';
+import * as THREE from '../vendor/three.module.js?v=2.2.0';
+import { EFFECTS } from './data.js?v=2.2.0';
+import { Grammar } from './resolver.js?v=2.2.0';
+import { Ink, INK } from './ink.js?v=2.2.0';
+import { Input } from './input.js?v=2.2.0';
+import { Sfx } from './audio.js?v=2.2.0';
+import { Tele } from './telemetry.js?v=2.2.0';
+import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG } from './art.js?v=2.2.0';
 const FIG_READY = (k) => FIG[k] && FIG[k].ready, FIGT = (k) => FIG[k].tex;
 loadFigures(['acaro', 'acaro-bruto', 'acaro-sputo', 'copista', 'tipo', 'giurato', 'giurato-volto', 'lumi']); // v2.2: figure di carta dalle tavole
-import * as W from './world.js?v=2.1.0';
-import * as ST from './story.js?v=2.1.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=2.1.0';
+import * as W from './world.js?v=2.2.0';
+import * as ST from './story.js?v=2.2.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=2.2.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');

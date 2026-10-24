@@ -57,6 +57,12 @@ Passi (spuntare man mano, con commit):
 - [ ] R9 · Misura prestazioni (draw call, memoria texture) e test; `CREDITS.md` aggiornato (tavole di Joseph)
 - [ ] R10 · Report a Joseph con schermate prima/dopo
 
+Note del giro 3 per chi riprende:
+- `/tmp/claude-0/snap.sh` (se lo si ricrea) deve copiare anche `assets/`.
+- Le tavole sono in fusione «moltiplica» (pavimenti) e le figure sono ShaderMaterial con `userData.ink` (così `matsOf`/`setU` le trattano come i corpi 3D). Una sagoma specchiata va disegnata DoubleSide (altrimenti sparisce).
+- Memoria grafica stimata: pavimenti ≈ 26 MB, figure ≈ 8 MB, mattoni ≈ 1,4 MB (si caricano sulla scheda grafica solo quando la stanza viene vista). Draw call uguali o minori (una sagoma = 1 draw call contro 2 del corpo 3D con contorno); nel labirinto il test misura 2,2 fps contro 1,7 prima (rendering software).
+- Prossimi passi grafici: figure anche per Ladro (tavole 059/047), Custode (040/049), Caricatore (002), Elara (071) mantenendo le parti che si rompono; animare le sagome (respiro, inclinazione quando attaccano); tavole 001/024/010/016/027 ancora da usare (chiedere a Joseph chi è la maschera a becco).
+
 ## Dopo il giro 3 (da fare, in ordine di impatto)
 - [ ] Enigmi nuovi con vero «aha» (circuiti CONDUTTIVO a catena, specchi, ordine delle parole)
 - [ ] Tutorial più corto (8 → 4-5 passi, insegnare col mondo)

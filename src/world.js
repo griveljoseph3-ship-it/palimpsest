@@ -1,6 +1,6 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=2.1.0';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=2.1.0';
+import * as THREE from '../vendor/three.module.js?v=2.2.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=2.2.0';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },

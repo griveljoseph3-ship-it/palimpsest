@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.js?v=1.9.0';
 import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
 import * as CH from './chars.js?v=1.9.0';
-export const { makePlayer, makeElara, makeLumi, makeMite, makeCustode, makeRilegatore, makeCopistaExtras } = CH;
+export const { makePlayer, makeElara, makeLumi, makeMite, makeCustode, makeRilegatore, makeCopistaExtras, makeCharger } = CH;
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -98,23 +98,6 @@ export function makeBoard() {
   const board = inked(new THREE.BoxGeometry(GAP + 0.2, 1.6, 0.18, 6, 4, 1), { color: 0xcdb48a, y0: 0, y1: 1.6, ow: 0.03 }); board.position.y = 0.8; grp.add(board);
   const tear = inked(new THREE.PlaneGeometry(0.5, 1.1), { color: 0x120c0a, outline: false }); tear.position.set(0.3, 0.9, 0.1); tear.rotation.z = 0.2; grp.add(tear);
   grp.userData.body = board; return grp;
-}
-export function makeCharger() {
-  const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
-  const core = inked(new THREE.IcosahedronGeometry(0.38, 1), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.set(0, 0.8, -0.1); body.add(core);
-  const armor = new THREE.Group(); body.add(armor);
-  for (let i = 0; i < 3; i++) { const sh = inked(new THREE.SphereGeometry(0.78 - i * 0.08, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), { color: i === 1 ? 0xd2c3a0 : 0xbfae8a, y0: 0.2, y1: 1.5, ow: 0.03 });
-    sh.scale.set(1, 0.85, 0.75); sh.position.set(0, 0.45 + i * 0.05, -0.55 + i * 0.5); sh.rotation.x = -0.35 + i * 0.25; armor.add(sh); }
-  const head = inked(new THREE.BoxGeometry(0.7, 0.45, 0.45), { color: 0x2a211a }); head.position.set(0, 0.6, 0.95); body.add(head);
-  for (const s of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff5530 })); eye.position.set(s * 0.18, 0.68, 1.18); body.add(eye);
-    const horn = inked(new THREE.ConeGeometry(0.09, 0.55, 5), { color: 0xe8dcc0 }); horn.rotation.x = Math.PI / 2.3; horn.rotation.z = s * -0.4; horn.position.set(s * 0.28, 0.82, 1.2); body.add(horn);
-    for (const z of [0.5, -0.1, -0.6]) { const leg = inked(new THREE.CylinderGeometry(0.07, 0.04, 0.55, 5), { color: 0x2a211a, ow: 0.02 }); leg.position.set(s * 0.62, 0.22, z); leg.rotation.z = s * 0.5; body.add(leg); } }
-  // più minaccioso: mandibole, spine dorsali, occhi incandescenti, crepe rosse
-  for (const sd of [-1, 1]) { const md = inked(new THREE.ConeGeometry(0.07, 0.5, 5), { color: 0xe8dcc0, ow: 0.02 }); md.position.set(sd * 0.2, 0.42, 1.3); md.rotation.set(Math.PI / 2, 0, sd * 0.6); body.add(md);
-    const eg = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xff3a20, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); eg.scale.setScalar(0.22); eg.position.set(sd * 0.18, 0.68, 1.22); body.add(eg); }
-  for (let i = 0; i < 6; i++) { const sp = inked(new THREE.ConeGeometry(0.08, 0.38 - Math.abs(i - 2.5) * 0.04, 5), { color: 0x2a211a, ow: 0.02 }); sp.position.set(0, 1.12 - Math.abs(i - 2.5) * 0.05, -0.75 + i * 0.32); sp.rotation.x = -0.35; armor.add(sp); }
-  for (let i = 0; i < 4; i++) { const cr = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 0.5), new THREE.MeshBasicMaterial({ color: 0xc8321e })); cr.position.set(-0.45 + i * 0.3, 0.98 - Math.abs(i - 1.5) * 0.08, -0.1 + (i % 2) * 0.3); cr.rotation.y = (i - 1.5) * 0.4; armor.add(cr); }
-  grp.userData = { body, core, armor, r: 0.85, height: 1.6 }; return grp;
 }
 const lathe = (pts, seg = 18) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
 export function makeElaraPage(guilty = true) {

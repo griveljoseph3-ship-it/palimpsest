@@ -54,45 +54,41 @@ export function makePlayer() {
   const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
   const BLACK = 0x1c1715, DEEP = 0x100c0a;
   const cg = raggedHem(lathe([[0.45, 0], [0.45, 0.08], [0.42, 0.4], [0.39, 0.8], [0.4, 1.05], [0.43, 1.17], [0.35, 1.26], [0.2, 1.32], [0.08, 1.35]], 28), 0.45, 0.24, 11, 2);
-  cg.scale(1, 1, 0.82); const cloak = inked(cg, { color: BLACK, shift: 0x7a1f14, y0: 0, y1: 1.45, ow: 0.03 }); cloak.material.side = THREE.DoubleSide; body.add(cloak);
+  cg.scale(1, 1, 0.82);
   // fili d'inchiostro che colano dall'orlo e dalla mantellina (un solo mesh)
   const fr = merge([...strands(46, 0.38, 0.45, 0.5, 0.32, 0.58, 0.022, 3, Math.PI * 2, 0, 0.82), ...strands(22, 0.42, 0.47, 1.08, 0.2, 0.42, 0.02, 7, Math.PI * 2, 0, 0.82)]);
-  const fringe = new THREE.Mesh(fr, basic(DEEP)); body.add(fringe);
+  const fringe = new THREE.Mesh(merge([fr, xf(new THREE.SphereGeometry(0.1, 8, 6), [-0.13, 0.05, 0.14], 0, [1, 0.6, 1.5]), xf(new THREE.SphereGeometry(0.1, 8, 6), [0.13, 0.05, 0.14], 0, [1, 0.6, 1.5])]), basic(DEEP)); body.add(fringe);
   // mantellina sulle spalle, sfrangiata
   const capG = raggedHem(lathe([[0.52, 0], [0.5, 0.1], [0.43, 0.22], [0.26, 0.32]], 24), 0.14, 0.12, 9, 5); capG.scale(1, 1, 0.85); capG.translate(0, 1.0, 0);
-  const capelet = inked(capG, { color: 0x252020, shift: 0x7a1f14, y0: 1, y1: 1.4, ow: 0.022 }); capelet.material.side = THREE.DoubleSide; body.add(capelet);
   // cappuccio a punta, piegato all'indietro, con bordo attorno al volto nero
   const hg = lathe([[0.25, 0], [0.28, 0.14], [0.26, 0.3], [0.19, 0.42], [0.1, 0.5], [0.02, 0.56]], 18, 0.7, Math.PI * 2 - 1.4); { const p = hg.attributes.position; for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setZ(i, p.getZ(i) - (y / 0.56) ** 2 * 0.2); } hg.computeVertexNormals(); }
-  const hood = inked(hg, { color: 0x2a2320, y0: 1.3, y1: 2, ow: 0.025 }); hood.material.side = THREE.DoubleSide; hood.position.set(0, 1.32, -0.02); body.add(hood);
+  hg.translate(0, 1.32, -0.02);
+  // mantello + mantellina + cappuccio in un solo mesh (2 draw call invece di 6)
+  const cloak = inked(merge([cg, capG, hg]), { color: BLACK, shift: 0x7a1f14, y0: 0, y1: 1.95, ow: 0.026 }); cloak.material.side = THREE.DoubleSide; body.add(cloak);
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 10), basic(0x030201)); head.scale.set(0.95, 1.15, 0.7); head.position.set(0, 1.5, 0.06); body.add(head);
     const eyes = new THREE.Mesh(merge([xf(new THREE.SphereGeometry(0.03, 8, 6), [-0.062, 1.53, 0.17], [0, 0, 0.15], [1.3, 0.75, 0.5]), xf(new THREE.SphereGeometry(0.03, 8, 6), [0.062, 1.53, 0.17], [0, 0, -0.15], [1.3, 0.75, 0.5])]), basic(0xffd45a)); body.add(eyes);
   const eyeGlow = glow(0xffb030, 0.24, 0.09, 0.28); eyeGlow.position.set(0, 1.53, 0.2); body.add(eyeGlow);
   // sciarpa rossa: due giri attorno al collo + due code sfrangiate (una sulla spalla, una sulla schiena)
   const RED = 0x8a2416;
-  const scarf = inked(merge([xf(new THREE.TorusGeometry(0.22, 0.085, 7, 18), [0, 1.36, 0.01], [Math.PI / 2 + 0.12, 0, 0], [1, 0.9, 1]), xf(new THREE.TorusGeometry(0.3, 0.07, 6, 20), [0, 1.27, 0], [Math.PI / 2 - 0.12, 0.2, 0.08], [1, 0.85, 1])]), { color: RED, shift: 0xc8321e, y0: 1.1, y1: 1.4, ow: 0.018 }); body.add(scarf);
+  const scarf = inked(merge([xf(new THREE.TorusGeometry(0.22, 0.085, 7, 18), [0, 1.36, 0.01], [Math.PI / 2 + 0.12, 0, 0], [1, 0.9, 1]), xf(new THREE.TorusGeometry(0.3, 0.07, 6, 20), [0, 1.27, 0], [Math.PI / 2 - 0.12, 0.2, 0.08], [1, 0.85, 1])]), { color: RED, shift: 0xc8321e, y0: 1.1, y1: 1.4, outline: false }); body.add(scarf);
   const tail = new THREE.Group(); tail.position.set(0.17, 1.3, 0.19); body.add(tail);
   const t1 = inked(ribbonGeo(0.15, 0.72, 0.12, 0.14, 8, 2), { color: RED, outline: false }); t1.material.side = THREE.DoubleSide; t1.rotation.set(-0.15, 0.35, 0.18); tail.add(t1);
   const tail2 = new THREE.Group(); tail2.position.set(-0.12, 1.3, -0.24); body.add(tail2);
   const t2 = inked(ribbonGeo(0.17, 0.9, -0.22, 0.16, 9, 5), { color: 0x7a1f14, outline: false }); t2.material.side = THREE.DoubleSide; t2.rotation.set(0.25, 0.2, -0.1); tail2.add(t2);
-  const rs = new THREE.Mesh(merge([...strands(7, 0, 0.06, -0.66, 0.1, 0.22, 0.012, 4, Math.PI * 2)].map((g) => g)), basic(0x6a160e)); t1.add(rs);
   // cintura, borse, boccetta, tracolla, stivali (un mesh marrone)
   const leather = inked(merge([xf(new THREE.TorusGeometry(0.38, 0.03, 4, 22), [0, 0.74, 0], [Math.PI / 2, 0, 0], [1, 0.82, 1]),
     xf(new THREE.BoxGeometry(0.13, 0.15, 0.08), [0.27, 0.64, 0.22], [0, 0.6, 0]), xf(new THREE.BoxGeometry(0.11, 0.13, 0.07), [-0.3, 0.65, 0.17], [0, -0.7, 0]),
-    xf(new THREE.BoxGeometry(0.06, 0.95, 0.03), [0, 1.0, -0.3], [0.12, 0, 0.62]), xf(new THREE.BoxGeometry(0.2, 0.18, 0.09), [0.22, 0.7, -0.29], [0, 0.4, 0])]), { color: 0x5a3e26, ow: 0.012 }); body.add(leather);
-  const vial = inked(new THREE.CylinderGeometry(0.04, 0.045, 0.14, 8), { color: 0x1b2a3a, shift: 0x3fc1ff, ow: 0.012 }); vial.position.set(-0.36, 0.64, -0.08); body.add(vial);
-  const boots = new THREE.Mesh(merge([xf(new THREE.SphereGeometry(0.1, 8, 6), [-0.13, 0.05, 0.14], 0, [1, 0.6, 1.5]), xf(new THREE.SphereGeometry(0.1, 8, 6), [0.13, 0.05, 0.14], 0, [1, 0.6, 1.5])]), basic(0x0c0806)); body.add(boots);
+    xf(new THREE.BoxGeometry(0.06, 0.95, 0.03), [0, 1.0, -0.3], [0.12, 0, 0.62]), xf(new THREE.BoxGeometry(0.2, 0.18, 0.09), [0.22, 0.7, -0.29], [0, 0.4, 0]), xf(new THREE.CylinderGeometry(0.04, 0.045, 0.14, 8), [-0.36, 0.64, -0.08])]), { color: 0x5a3e26, outline: false }); body.add(leather); // boccetta inclusa
   // LA PENNA (stessa forma e stessi punti d'aggancio di prima: nib, nibGlow, quill, quillPivot)
   const quillPivot = new THREE.Group(); quillPivot.position.set(0.36, 1.0, 0.05); body.add(quillPivot);
   const quill = new THREE.Group(); quill.scale.setScalar(1.7); quillPivot.add(quill);
-  const barrel = inked(new THREE.CylinderGeometry(0.045, 0.055, 0.62, 10).rotateX(Math.PI / 2), { color: 0x120c0a, shift: 0x8a2416, ow: 0.015 }); barrel.position.z = 0.42; quill.add(barrel);
+  const barrel = inked(merge([xf(new THREE.CylinderGeometry(0.045, 0.055, 0.62, 10).rotateX(Math.PI / 2), [0, 0, 0.42]), xf(new THREE.CylinderGeometry(0.058, 0.05, 0.3, 12).rotateX(Math.PI / 2), [0, 0, -0.02])]), { color: 0x120c0a, shift: 0x8a2416, ow: 0.012 }); quill.add(barrel);
   const gold = basic(0xd8a63a);
   quill.add(new THREE.Mesh(merge([xf(new THREE.TorusGeometry(0.056, 0.014, 6, 14), [0, 0, 0.16]), xf(new THREE.TorusGeometry(0.056, 0.014, 6, 14), [0, 0, 0.7]), xf(new THREE.SphereGeometry(0.05, 10, 6), [0, 0, -0.17], 0, [1, 1, 0.6])]), gold));
-  const grip = inked(new THREE.CylinderGeometry(0.05, 0.034, 0.18, 10).rotateX(Math.PI / 2), { color: 0x8a2416, ow: 0.012 }); grip.position.z = 0.82; quill.add(grip);
+  const grip = inked(new THREE.CylinderGeometry(0.05, 0.034, 0.18, 10).rotateX(Math.PI / 2), { color: 0x8a2416, outline: false }); grip.position.z = 0.82; quill.add(grip);
   const nibGeo = new THREE.ConeGeometry(0.036, 0.22, 4).rotateX(Math.PI / 2); nibGeo.scale(1.7, 0.4, 1.25); const nibM = new THREE.Mesh(merge([xf(nibGeo, [0, 0, 1.01]), xf(new THREE.BoxGeometry(0.018, 0.012, 0.3), [0, 0.068, 0.02]), xf(new THREE.SphereGeometry(0.018, 6, 4), [0, 0.07, 0.17])]), basic(0xe8be55)); quill.add(nibM);
-  const slit = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.02, 0.12), basic(0x120c0a)); slit.position.set(0, 0.012, 1.04); quill.add(slit);
   const drop = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), basic(0x8a1a10)); drop.scale.y = 1.4; drop.position.set(0, -0.04, 1.12); quill.add(drop);
   const nibGlow = glow(0xff5a30, 0.35, 0.35, 1); nibGlow.position.z = 1.1; quill.add(nibGlow);
-  const cap = inked(new THREE.CylinderGeometry(0.058, 0.05, 0.3, 12).rotateX(Math.PI / 2), { color: 0x120c0a, shift: 0x8a2416, ow: 0.015 }); cap.position.z = -0.02; quill.add(cap);
   const nib = new THREE.Object3D(); nib.position.z = 1.12; quill.add(nib);
   // movimento secondario: code della sciarpa e frange seguono la corsa
   const anim = (t, sp = 0) => { const k = Math.min(1, sp / 5); tail.rotation.x = -0.1 - k * 0.5 + Math.sin(t * 3.1) * (0.06 + k * 0.08); tail.rotation.z = Math.sin(t * 2.3) * 0.05;
@@ -120,20 +116,19 @@ export function makeElara() {
     const p0 = new V3(Math.sin(a) * r0, y0, Math.cos(a) * r0 * 0.86), p1 = new V3(Math.sin(a) * r1, y1, Math.cos(a) * r1 * 0.86); const d = p1.clone().sub(p0); const L = d.length();
     const c = new THREE.BoxGeometry(0.004, L, 0.004); c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), d.normalize())); c.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2); folds.push(c); }
   body.add(new THREE.Mesh(merge(folds), basic(0x8a7a62)));
-  const collar = inked(new THREE.CylinderGeometry(0.06, 0.075, 0.07, 12), { color: CREAM, ow: 0.01 }); collar.position.y = 1.27; body.add(collar);
+  const collar = inked(new THREE.CylinderGeometry(0.06, 0.075, 0.07, 12), { color: CREAM, outline: false }); collar.position.y = 1.27; body.add(collar);
   // macchie d'inchiostro blu sull'orlo (come nella tavola 071)
   const stains = new THREE.Mesh(merge([0, 1, 2, 3].map((i) => { const a = 0.4 + i * 1.3 + hash(i) * 0.5; const y = 0.2 + hash(i + 4) * 0.25; const r = 0.35 - (y - 0.13) * 0.28; return xf(new THREE.CircleGeometry(0.035 + hash(i + 2) * 0.03, 7), [Math.sin(a) * r * 1.02, y, Math.cos(a) * r * 0.88], [0, a, 0]); })), basic(0x2c4a80, { transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })); body.add(stains);
   // braccia lungo i fianchi: manica a sbuffo, polsino, mano
-  for (const sd of [-1, 1]) { const arm = new THREE.Group(); arm.position.set(sd * 0.155, 1.17, 0); arm.rotation.set(-0.08, 0, sd * 0.13); body.add(arm);
-    const sl = inked(lathe([[0.05, -0.45], [0.075, -0.4], [0.06, -0.32], [0.07, -0.06], [0.045, 0.02], [0.02, 0.04]], 10), { color: 0xe4d9c0, ow: 0.012 }); arm.add(sl);
-    const hand = inked(new THREE.SphereGeometry(0.038, 8, 6), { color: SKIN, outline: false }); hand.scale.set(0.8, 1.2, 0.8); hand.position.y = -0.49; arm.add(hand); }
+  // braccia lungo i fianchi (manica a sbuffo, polsino, mano): due mesh in tutto
+  const slv = [], hnd = []; for (const sd of [-1, 1]) { const at = (g) => xf(xf(g, [0, 0, 0], [-0.08, 0, sd * 0.13]), [sd * 0.155, 1.17, 0]);
+    slv.push(at(lathe([[0.05, -0.45], [0.075, -0.4], [0.06, -0.32], [0.07, -0.06], [0.045, 0.02], [0.02, 0.04]], 10))); hnd.push(at(xf(new THREE.SphereGeometry(0.038, 8, 6), [0, -0.49, 0], 0, [0.8, 1.2, 0.8]))); }
+  body.add(inked(merge(slv), { color: 0xe4d9c0, ow: 0.012 })); body.add(inked(merge(hnd), { color: SKIN, outline: false }));
   // testa e volto (occhi grandi e tristi, sopracciglia inclinate, guance)
   const head = inked(new THREE.SphereGeometry(0.165, 18, 14), { color: SKIN, y0: 1.25, y1: 1.62, ow: 0.016 }); head.scale.set(0.95, 1.04, 0.95); head.position.y = 1.44; body.add(head);
   const face = new THREE.Group(); head.add(face);
-  face.add(new THREE.Mesh(merge([-1, 1].flatMap((sd) => [xf(new THREE.SphereGeometry(0.026, 8, 6), [sd * 0.058, 0.0, 0.148], 0, [1, 1.15, 0.5]), xf(new THREE.BoxGeometry(0.055, 0.008, 0.01), [sd * 0.06, 0.05, 0.155], [0, 0, sd * -0.22])])), basic(0x1b130e)));
-  face.add(new THREE.Mesh(merge([-1, 1].map((sd) => xf(new THREE.SphereGeometry(0.008, 6, 4), [sd * 0.052, 0.008, 0.162]))), basic(0xfff8ea)));
+  face.add(new THREE.Mesh(merge([-1, 1].flatMap((sd) => [xf(new THREE.SphereGeometry(0.026, 8, 6), [sd * 0.058, 0.0, 0.148], 0, [1, 1.15, 0.5]), xf(new THREE.BoxGeometry(0.055, 0.008, 0.01), [sd * 0.06, 0.05, 0.155], [0, 0, sd * -0.22])]).concat([xf(new THREE.BoxGeometry(0.035, 0.007, 0.01), [0, -0.075, 0.152])])), basic(0x3a1a12)));
   face.add(new THREE.Mesh(merge([-1, 1].map((sd) => xf(new THREE.CircleGeometry(0.025, 8), [sd * 0.088, -0.045, 0.142], [0, sd * 0.5, 0]))), basic(0xd88a70, { transparent: true, opacity: 0.4 })));
-  face.add(new THREE.Mesh(xf(new THREE.BoxGeometry(0.035, 0.007, 0.01), [0, -0.075, 0.152]), basic(0x8a2416)));
   // caschetto: calotta + lati e nuca tagliati dritti all'altezza del mento, frangia sulla fronte, punte irregolari
   const PI = Math.PI, back = new THREE.SphereGeometry(0.19, 24, 12, PI / 2 + 0.66, PI * 2 - 1.32, 0, PI * 0.68);
   const fringeG = new THREE.SphereGeometry(0.186, 16, 6, PI / 2 - 0.74, 1.48, 0, PI * 0.36);
@@ -144,7 +139,7 @@ export function makeElara() {
     xf(new THREE.SphereGeometry(0.018, 6, 5), [0, 0, 0.005]), xf(new THREE.BoxGeometry(0.022, 0.13, 0.008), [-0.025, -0.07, 0], [0, 0, -0.3]), xf(new THREE.BoxGeometry(0.022, 0.13, 0.008), [0.025, -0.07, 0], [0, 0, 0.3])]), { color: RED, shift: 0xc8321e, ow: 0.007 });
   bow.position.set(0, 1.235, 0.1); bow.rotation.x = -0.15; bow.scale.setScalar(1.45); body.add(bow);
   // biglietto appuntato sul petto (la sua "riga")
-  const note = inked(new THREE.BoxGeometry(0.09, 0.1, 0.005), { color: 0xf6efdf, ow: 0.006 }); note.position.set(0.055, 1.05, 0.145); note.rotation.set(-0.12, 0.05, 0.08); body.add(note);
+  const note = inked(new THREE.BoxGeometry(0.09, 0.1, 0.005), { color: 0xf6efdf, outline: false }); note.position.set(0.055, 1.05, 0.145); note.rotation.set(-0.12, 0.05, 0.08); body.add(note);
   // fogli che le girano intorno (un solo mesh) e alone tenue
   const glowS = glow(0xffe2b0, 1.4, 2.2, 0.14); glowS.position.y = 0.95; g.add(glowS);
   const orbit = new THREE.Group(); g.add(orbit);
@@ -311,4 +306,25 @@ export function makeIldeFace() { // occhiali tondi con ponte, naso, occhi socchi
     xf(new THREE.BoxGeometry(0.11, 0.015, 0.015), [-0.17, -0.0, 0.48], [0, 0, 0.12]), xf(new THREE.BoxGeometry(0.11, 0.015, 0.015), [0.17, -0.0, 0.48], [0, 0, -0.12]), xf(new THREE.BoxGeometry(0.16, 0.012, 0.012), [0, -0.27, 0.45])]), basic(0x16110d)));
   const nose = inked(new THREE.ConeGeometry(0.06, 0.18, 6), { color: 0xe2d4ba, outline: false }); nose.position.set(0, -0.08, 0.5); nose.rotation.x = 0.4; g.add(nose);
   return g;
+}
+
+// ============================ IL CARICATORE ============================
+// Stessa forma di prima (guscio a tre piastre, testa scura, corna, mandibole, sei zampe, spine e crepe rosse),
+// ma con le parti dello stesso materiale fuse: ~16 draw call invece di ~48. Agganci invariati: body, core, armor.
+export function makeCharger() {
+  const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
+  const core = inked(new THREE.IcosahedronGeometry(0.38, 1), { color: 0x9e2b1c, shift: 0xff5530, ow: 0.02 }); core.position.set(0, 0.8, -0.1); body.add(core);
+  const armor = new THREE.Group(); body.add(armor);
+  armor.add(inked(merge([0, 1, 2].map((i) => xf(new THREE.SphereGeometry(0.78 - i * 0.08, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), [0, 0.45 + i * 0.05, -0.55 + i * 0.5], [-0.35 + i * 0.25, 0, 0], [1, 0.85, 0.75]))), { color: 0xc8b995, y0: 0.2, y1: 1.5, ow: 0.03 }));
+  armor.add(inked(merge([0, 1, 2, 3, 4, 5].map((i) => xf(new THREE.ConeGeometry(0.08, 0.38 - Math.abs(i - 2.5) * 0.04, 5), [0, 1.12 - Math.abs(i - 2.5) * 0.05, -0.75 + i * 0.32], [-0.35, 0, 0]))), { color: 0x2a211a, outline: false }));
+  armor.add(new THREE.Mesh(merge([0, 1, 2, 3].map((i) => xf(new THREE.BoxGeometry(0.03, 0.02, 0.5), [-0.45 + i * 0.3, 0.98 - Math.abs(i - 1.5) * 0.08, -0.1 + (i % 2) * 0.3], [0, (i - 1.5) * 0.4, 0]))), basic(0xc8321e)));
+  const head = inked(new THREE.BoxGeometry(0.7, 0.45, 0.45), { color: 0x2a211a, outline: false }); head.position.set(0, 0.6, 0.95); body.add(head);
+  const legs = [], bone = [], eyes = [];
+  for (const s of [-1, 1]) { eyes.push(xf(new THREE.SphereGeometry(0.07, 8, 6), [s * 0.18, 0.68, 1.18]));
+    bone.push(xf(new THREE.ConeGeometry(0.09, 0.55, 5), [s * 0.28, 0.82, 1.2], [Math.PI / 2.3, 0, s * -0.4]), xf(new THREE.ConeGeometry(0.07, 0.5, 5), [s * 0.2, 0.42, 1.3], [Math.PI / 2, 0, s * 0.6]));
+    for (const z of [0.5, -0.1, -0.6]) legs.push(xf(new THREE.CylinderGeometry(0.07, 0.04, 0.55, 5), [s * 0.62, 0.22, z], [0, 0, s * 0.5]));
+  }
+  const eg = glow(0xff3a20, 0.6, 0.22, 0.8); eg.position.set(0, 0.68, 1.22); body.add(eg);
+  body.add(inked(merge(legs), { color: 0x2a211a, outline: false })); body.add(inked(merge(bone), { color: 0xe8dcc0, ow: 0.015 })); body.add(new THREE.Mesh(merge(eyes), basic(0xff5530)));
+  grp.userData = { body, core, armor, r: 0.85, height: 1.6 }; return grp;
 }

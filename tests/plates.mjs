@@ -37,5 +37,8 @@ await E(() => { PAL.PLATE.force = false; });
 const fig = await E(() => { const a = PAL.spawnMite(0, 2), b2 = PAL.spawnSpitter(1, 2), c = PAL.spawnShield(-1, 2); const r = [a, b2, c].map((o) => !!o.mesh.userData.card && !o.mesh.children[0].visible); for (const o of [a, b2, c]) { o.alive = false; PAL.scene.remove(o.mesh); } return r; });
 check('acari, sputacchio e Risguardo sono figure di carta (corpo 3D nascosto)', fig.every(Boolean));
 check('Tipografo, giurato e Lumi dalle tavole', await until(() => !!(PAL.tipo.userData.paper && PAL.juror.userData.paper && PAL.lumi.mesh.userData.paper), 10000));
+await E(() => { PAL.giveItem('sacca'); PAL.toggleBag(true); });
+check('icona dell\'oggetto dalla tavola nella borsa', await until(() => { const im = document.querySelector('#bag .item img'); return im && im.src.includes('assets/icone/sack.jpg') && im.naturalWidth === 160; }, 10000));
+await W(800); await shot('plate-bag'); await E(() => PAL.toggleBag(false));
 check('nessuna immagine mancante', await E(() => !performance.getEntriesByType('resource').some((r) => r.name.includes('/assets/') && r.responseStatus >= 400)));
 console.log('ERRORS', errs); if (bad || errs.length) { console.log('FAIL'); process.exitCode = 1; } else console.log('PASS plates'); await b.close();

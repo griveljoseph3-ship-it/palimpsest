@@ -10,19 +10,23 @@ await pg.goto(`http://localhost:${PORT}/?fast`); await pg.waitForTimeout(900); a
 const V = await pg.evaluate(() => [...document.querySelectorAll('script[type=module]')].map((s) => s.src).join(' ') + ' ' + (performance.getEntriesByType('resource').map((r) => r.name).find((n) => n.includes('world.js')) || ''));
 const ver = (V.match(/world\.js\?v=([\d.]+)/) || [])[1] || '1.9.0';
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
-async function studio(name, build, cam, look) {
+async function studio(name, build, cam, look, extra = {}) {
   if (ONLY && !ONLY.includes(name)) return;
-  const url = await pg.evaluate(async ([ver, build, cam, look]) => {
-    const THREE = await import(`/vendor/three.module.js?v=${ver}`); const W = await import(`/src/world.js?v=${ver}`); const A = await import(`/src/art.js?v=${ver}`); const C = await import(`/src/chars.js?v=${ver}`);
+  const url = await pg.evaluate(async ([ver, build, cam, look, extra]) => {
+    const THREE = await import(`/vendor/three.module.js?v=${ver}`); const W = await import(`/src/world.js?v=${ver}`); const A = await import(`/src/art.js?v=${ver}`); let C = {}; try { C = await import(`/src/chars.js?v=${ver}`); } catch (e) {}
     const r = PAL.renderer; const sc = new THREE.Scene(); sc.background = new THREE.Color(0xe9dfc8);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2), A.inkMaster({ color: 0xe6dabf, texBlend: 0.9 })); A.withMask(floor.geometry, 0); sc.add(floor);
-    const objs = new Function('W', 'THREE', 'sc', 'C', 'A', build)(W, THREE, sc, C, A);
+    if (extra.film) { const FM = await import(`/src/film.js?v=${ver}`); const f = window.__studioFilm || (window.__studioFilm = new FM.Film(A.paperTexture())); f.resize(innerWidth, innerHeight); f.start({ sub() {}, cut() {}, progress() {} });
+      const [i, off] = extra.film; f.t = FM.SHOTS.slice(0, i).reduce((a, s) => a + s.dur, 0) + off; f.update(0.001); const post = window.__studioPost || (window.__studioPost = new A.Post(r)); const sz = r.getDrawingBufferSize(new THREE.Vector2()); post.setSize(sz.x, sz.y);
+      return await new Promise((res) => { let n = 0; const step = () => requestAnimationFrame(() => { const U = A.INK_UNIFORMS; const lp = U.uLamp.value.clone(), lr = U.uLampR.value; f.update(0.016); post.render(f.scene, f.camera); const d = r.domElement.toDataURL('image/png'); U.uLamp.value.copy(lp); U.uLampR.value = lr; if (++n < 3) step(); else res(d); }); step(); }); }
+    let objs; try { objs = new Function('W', 'THREE', 'sc', 'C', 'A', build)(W, THREE, sc, C, A); } catch (e) { return null; }
     const c = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 100); c.position.set(...cam); c.lookAt(...look);
     const post = window.__studioPost || (window.__studioPost = new A.Post(r)); const sz = r.getDrawingBufferSize(new THREE.Vector2()); post.setSize(sz.x, sz.y);
     return await new Promise((res) => { let n = 0; const step = () => { requestAnimationFrame(() => { const U = A.INK_UNIFORMS; const lp = U.uLamp.value.clone(), lr = U.uLampR.value; const pl = U.uPL.value.map((v) => v.clone());
       U.uLamp.value.set(look[0], 0, look[2]); U.uLampR.value = 30; U.uPL.value.forEach((v) => v.set(0, -99, 0, 1)); U.uPL.value[0].set(look[0] - 2, 2.5, look[2] + 2.5, 7); U.uPC.value[0].set(0.5, 0.35, 0.2);
       if (objs && objs.tick) objs.tick(n / 30); post.render(sc, c); const d = r.domElement.toDataURL('image/png'); U.uLamp.value.copy(lp); U.uLampR.value = lr; pl.forEach((v, i) => U.uPL.value[i].copy(v));
-      if (++n < 3) step(); else res(d); }); }; step(); }); }, [ver, build, cam, look]);
+      if (++n < 3) step(); else res(d); }); }; step(); }); }, [ver, build, cam, look, extra]);
+  if (!url) { console.log('skip', name); return; }
   fs.writeFileSync(`${OUT}/${PFX}-${name}.png`, Buffer.from(url.split(',')[1], 'base64')); console.log('studio', name);
 }
 await studio('studio-cast', `
@@ -39,16 +43,16 @@ await studio('studio-lumi-acari', `const l=W.makeLumi(); l.position.set(-0.6,0.8
 await studio('studio-custode', `const c=W.makeCustode(); c.rotation.y=0.35; sc.add(c);`, [0.6, 2.6, 9.0], [0, 1.9, 0]);
 await studio('studio-charger', `const c=W.makeCharger(); c.rotation.y=0.5; c.scale.setScalar(1.4); sc.add(c);`, [0.5, 1.8, 5.5], [0, 0.9, 0]);
 await studio('studio-rilegatore', `const r=W.makeRilegatore(); r.rotation.y=0.5; sc.add(r); const q=W.makeRilegatore(); q.position.x=1.7; q.rotation.y=-1.2; sc.add(q);`, [0.85, 2.0, 7.2], [0.85, 1.1, 0]);
-await studio('studio-copista', `const m=W.makeMite(); m.scale.setScalar(3.1); m.position.y=0.95; m.rotation.y=0.3; m.add(W.makeCopistaExtras()); m.userData.anim(0,{boss:true}); sc.add(m);`, [0.3, 2.0, 6.5], [0, 0.9, 0]);
+await studio('studio-copista', `const m=W.makeMite(); m.scale.setScalar(3.1); m.position.y=0.95; m.rotation.y=0.3; if (W.makeCopistaExtras) { m.add(W.makeCopistaExtras()); m.userData.anim(0,{boss:true}); } else { const q=W.makeDoc(); q.scale.setScalar(0.6); q.position.set(0,0.3,-0.2); m.add(q); } sc.add(m);`, [0.3, 2.0, 6.5], [0, 0.9, 0]);
 await studio('studio-ilde', `const g=new THREE.Group(); g.add(C.makeIldeParts()); const h=A.inked(new THREE.SphereGeometry(0.5,20,16),{color:0xeadfc8,y0:3,y1:4.2}); h.scale.set(0.9,1.08,0.95); h.position.set(0,3.6,0.2); h.add(C.makeIldeFace()); g.add(h); g.scale.setScalar(0.42); g.rotation.y=0.35; sc.add(g);`, [0.3, 1.3, 5.2], [0, 0.95, 0]);
+// Il prologo (Film con Ilde alla scrivania) non parte più dal menu: lo rendiamo direttamente con la sua camera
+for (const [i, off, n] of [[0, 2.5, 'film-ilde'], [1, 1.5, 'film-ilde2'], [7, 1.5, 'film-cast']]) await studio(n, '', [0, 0, 0], [0, 0, 0], { film: [i, off] });
 // in partita
 if (ONLY && !ONLY.includes('game')) { console.log('errors', JSON.stringify(errs)); await b.close(); process.exit(0); }
 async function shot(name) { await pg.waitForTimeout(1600); await pg.screenshot({ path: `${OUT}/${PFX}-${name}.png` }); console.log('shot', name); }
 await pg.evaluate(() => { PAL.tp(0, 4); PAL.P.face = 0.6; }); await shot('game-correttore');
 await pg.evaluate(() => { PAL.tp(1.2, -95.8); PAL.P.face = 2.6; }); await pg.waitForTimeout(800); await pg.evaluate(() => PAL.skipDialog()); await shot('game-elara');
 await pg.evaluate(() => { PAL.tp(0, -112); }); await pg.waitForTimeout(800); await pg.evaluate(() => PAL.skipDialog()); await shot('game-custode');
-await pg.evaluate(() => { PAL.tp(40, -16); }); await pg.waitForTimeout(1500); await pg.evaluate(() => PAL.skipDialog()); await shot('game-acari');
-// Ilde nel film iniziale
-await pg.goto(`http://localhost:${PORT}/`); await pg.waitForTimeout(800); await pg.click('#bReplayIntro').catch(() => pg.click('#bStart')); await pg.waitForTimeout(1200);
-for (const [t, n] of [[5, 'film-ilde'], [30, 'film-elara'], [52, 'film-cast']]) { await pg.evaluate((t) => window.__film && __film.seek(t), t); await pg.waitForTimeout(1500); await pg.screenshot({ path: `${OUT}/${PFX}-${n}.png` }); console.log('shot', n); }
+await pg.evaluate(() => { PAL.tp(40, -16); }); await pg.waitForTimeout(1500); await pg.evaluate(() => { PAL.skipDialog(); PAL.tp(40, -24); PAL.P.hp = PAL.P.max; let k = 0; for (const m of PAL.swarm) if (m.alive && k < 4) { m.x = 38.6 + k * 0.9; m.z = -26.2 - (k % 2) * 0.6; k++; } }); await pg.waitForTimeout(500); await shot('game-acari');
+await pg.evaluate(() => { const r = PAL.rileg; r.alive = true; r.mesh.visible = true; r.x = 103.5; r.z = -12.5; r.mesh.position.set(103.5, 0, -12.5); PAL.tp(101, -6.5); PAL.P.face = 2.6; }); await pg.waitForTimeout(600); await pg.evaluate(() => PAL.skipDialog()); await shot('game-rilegatore');
 console.log('errors', JSON.stringify(errs)); await b.close();

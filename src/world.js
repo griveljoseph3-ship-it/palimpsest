@@ -124,16 +124,18 @@ export function makeElaraPage(guilty = true) {
     g.fillStyle = 'rgba(40,28,20,.35)'; g.font = 'italic 22px Georgia'; for (let i = 0; i < 16; i++) g.fillText('elara elara non ha scritto questa riga'.slice(0, 20 + (i * 7) % 18), 40, 360 + i * 24);
     // ritratto a inchiostro: capelli come una macchia che cola, volto pallido, spalle
     g.fillStyle = '#e8dcc0'; g.fillRect(30, 30, 452, 470); g.strokeStyle = 'rgba(40,28,20,.25)'; g.lineWidth = 1; for (let i = 0; i < 70; i++) { g.beginPath(); g.moveTo(30 + i * 7, 30); g.lineTo(30, 30 + i * 7); g.stroke(); }
-    g.fillStyle = '#1b130e'; g.beginPath(); g.moveTo(256, 60); g.bezierCurveTo(120, 60, 110, 200, 120, 300); g.bezierCurveTo(125, 400, 90, 470, 110, 500); g.lineTo(402, 500); g.bezierCurveTo(420, 470, 387, 400, 392, 300); g.bezierCurveTo(402, 200, 392, 60, 256, 60); g.fill();
-    for (let i = 0; i < 6; i++) { g.fillRect(118 + i * 55, 480, 7, 30 + (i * 17) % 40); g.beginPath(); g.arc(121 + i * 55, 512 + (i * 17) % 40, 6, 0, 6.3); g.fill(); }
-    g.fillStyle = '#f3e9d4'; g.beginPath(); g.ellipse(256, 230, 78, 100, 0, 0, Math.PI * 2); g.fill();
-    g.beginPath(); g.moveTo(215, 320); g.lineTo(297, 320); g.lineTo(330, 420); g.lineTo(182, 420); g.fill();
-    g.fillStyle = '#1b130e'; g.beginPath(); g.moveTo(180, 175); g.quadraticCurveTo(256, 120, 334, 175); g.quadraticCurveTo(300, 130, 256, 132); g.quadraticCurveTo(205, 132, 180, 175); g.fill();
+    // caschetto con frangia (tav. 005/071): massa nera tagliata dritta al mento, frangia dritta sulla fronte, gocce dalle punte
+    g.fillStyle = '#1b130e'; g.beginPath(); g.moveTo(256, 92); g.bezierCurveTo(150, 96, 136, 200, 146, 300); g.lineTo(140, 345); for (let x = 140; x <= 372; x += 16) g.lineTo(x + 8, 345 + ((x * 7) % 13)); g.lineTo(372, 345); g.lineTo(366, 300); g.bezierCurveTo(376, 200, 362, 96, 256, 92); g.fill();
+    for (let i = 0; i < 5; i++) { const x = 156 + i * 50; g.fillRect(x, 345, 5, 14 + (i * 13) % 22); g.beginPath(); g.arc(x + 2.5, 362 + (i * 13) % 22, 5, 0, 6.3); g.fill(); }
+    g.fillStyle = '#f3e9d4'; g.beginPath(); g.ellipse(256, 245, 74, 94, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.moveTo(222, 330); g.lineTo(290, 330); g.lineTo(330, 420); g.lineTo(182, 420); g.fill();
+    g.fillStyle = '#1b130e'; g.beginPath(); g.moveTo(176, 214); g.quadraticCurveTo(176, 118, 256, 114); g.quadraticCurveTo(336, 118, 336, 214); for (let x = 336; x >= 176; x -= 10) g.lineTo(x - 5, 204 + ((x * 3) % 9)); g.fill();
+    g.beginPath(); g.moveTo(176, 200); g.quadraticCurveTo(170, 280, 186, 340); g.lineTo(196, 340); g.quadraticCurveTo(186, 270, 194, 205); g.fill(); g.beginPath(); g.moveTo(336, 200); g.quadraticCurveTo(342, 280, 326, 340); g.lineTo(316, 340); g.quadraticCurveTo(326, 270, 318, 205); g.fill();
     g.fillStyle = 'rgba(180,90,70,.25)'; g.beginPath(); g.arc(212, 262, 16, 0, 6.3); g.arc(300, 262, 16, 0, 6.3); g.fill();
     g.strokeStyle = '#1b130e'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(205, 225); g.quadraticCurveTo(222, state.eyes + 30, 240, 225); g.moveTo(272, 225); g.quadraticCurveTo(290, state.eyes + 30, 307, 225); g.stroke();
     g.lineWidth = 3; g.beginPath(); g.moveTo(256, 235); g.lineTo(250, 268); g.lineTo(260, 270); g.stroke();
     g.lineWidth = 4; g.beginPath(); g.moveTo(236, 295); g.quadraticCurveTo(256, 295 + state.mouth, 276, 295); g.stroke();
-    g.fillStyle = '#8a2416'; g.beginPath(); g.moveTo(190, 405); g.lineTo(322, 405); g.lineTo(300, 430); g.lineTo(212, 430); g.fill();
+    g.fillStyle = '#8a2416'; g.beginPath(); g.ellipse(228, 392, 26, 14, -0.3, 0, 6.3); g.ellipse(284, 392, 26, 14, 0.3, 0, 6.3); g.fill(); g.beginPath(); g.arc(256, 394, 10, 0, 6.3); g.fill(); g.beginPath(); g.moveTo(250, 398); g.lineTo(226, 445); g.lineTo(240, 448); g.lineTo(256, 402); g.lineTo(272, 448); g.lineTo(286, 445); g.lineTo(262, 398); g.fill(); // fiocco rosso
     if (state.verdict) { g.save(); g.translate(256, 625); g.rotate(-0.08); g.fillStyle = '#8a1a10'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.fillText(state.verdict, 0, 0); g.restore(); }
     if (state.torn) { g.fillStyle = '#120c0a'; g.beginPath(); g.moveTo(330, 0); for (let y = 0; y <= 768; y += 30) g.lineTo(320 + Math.random() * 40, y); g.lineTo(512, 768); g.lineTo(512, 0); g.fill(); }
     if (state.seam) { g.strokeStyle = '#5a1810'; g.lineWidth = 3; for (let y = 40; y < 740; y += 26) { g.beginPath(); g.moveTo(330, y); g.lineTo(350, y + 12); g.stroke(); } }

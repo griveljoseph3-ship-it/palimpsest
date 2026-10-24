@@ -1,6 +1,8 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
 import * as THREE from '../vendor/three.module.js?v=1.9.0';
 import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
+import * as CH from './chars.js?v=1.9.0';
+export const makePlayer = CH.makePlayer;
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -141,43 +143,6 @@ export function makeCustode() {
   const eye = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.02), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); eye.position.set(0, 2.62, 0.62); armor.add(eye);
   const halo = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.45, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8a1a10, transparent: true, opacity: 0.7, depthWrite: false })); halo.position.y = 0.03; grp.add(halo);
   body.scale.setScalar(1.2); grp.userData.halo = halo; Object.assign(grp.userData, { body, core, armor, r: 0.9, height: 3.4, eye }); return grp;
-}
-export function makePlayer() {
-  // Il Correttore: mantello d'inchiostro che si sfrangia, cappuccio, volto in ombra con due punti di luce, sciarpa rossa.
-  const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
-  const cloak = inked(lathe([[0.46, 0], [0.5, 0.06], [0.4, 0.45], [0.3, 0.9], [0.22, 1.25], [0.14, 1.38]], 16), { color: 0x241d19, shift: 0x7a1f14, y0: 0, y1: 1.4 }); cloak.material.side = THREE.DoubleSide; body.add(cloak);
-  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const fr = inked(new THREE.ConeGeometry(0.07, 0.22, 4), { color: 0x16110d, outline: false }); fr.position.set(Math.sin(a) * 0.46, -0.05, Math.cos(a) * 0.46); fr.rotation.x = Math.PI; body.add(fr); }
-  const head = inked(new THREE.SphereGeometry(0.2, 16, 12), { color: 0x14100d, y0: 1.3, y1: 1.75 }); head.position.y = 1.5; body.add(head);
-  const hood = inked(lathe([[0.27, 0], [0.28, 0.15], [0.2, 0.36], [0.03, 0.52]], 14), { color: 0x2c2420 }); hood.position.set(0, 1.33, -0.03); hood.rotation.x = -0.18; body.add(hood);
-  for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), new THREE.MeshBasicMaterial({ color: 0xf6e3b0 })); e.position.set(sd * 0.07, 1.52, 0.18); body.add(e); }
-  const scarf = inked(new THREE.TorusGeometry(0.19, 0.06, 6, 14), { color: 0x8a2416, outline: false }); scarf.rotation.x = Math.PI / 2; scarf.position.y = 1.3; body.add(scarf);
-  const tail = inked(new THREE.PlaneGeometry(0.14, 0.6, 1, 4), { color: 0x8a2416, outline: false }); tail.material.side = THREE.DoubleSide; tail.position.set(0.1, 1.05, -0.22); tail.rotation.x = 0.35; body.add(tail);
-  const sash = inked(new THREE.TorusGeometry(0.33, 0.03, 5, 14), { color: 0x5a1810, outline: false }); sash.rotation.x = Math.PI / 2; sash.position.y = 0.72; body.add(sash);
-  // dettagli: mantellina a strati, cintura con borse e boccetta, libro sulla schiena, stivali
-  const capelet = inked(lathe([[0.42, 0], [0.38, 0.16], [0.24, 0.3]], 16), { color: 0x3a2c24, shift: 0x7a1f14 }); capelet.material.side = THREE.DoubleSide; capelet.position.y = 1.02; body.add(capelet);
-  for (const sd of [-1, 1]) { const pouch = inked(new THREE.BoxGeometry(0.13, 0.15, 0.08), { color: 0x6b4a2a, ow: 0.015 }); pouch.position.set(sd * 0.3, 0.66, 0.16); pouch.rotation.y = sd * 0.5; body.add(pouch);
-    const boot = inked(new THREE.SphereGeometry(0.1, 8, 6), { color: 0x120c0a, outline: false }); boot.scale.set(1, 0.6, 1.5); boot.position.set(sd * 0.13, 0.05, 0.12); body.add(boot); }
-  const vial = inked(new THREE.CylinderGeometry(0.045, 0.05, 0.14, 8), { color: 0x1b2a3a, shift: 0x3fc1ff, ow: 0.012 }); vial.position.set(-0.24, 0.62, -0.2); body.add(vial);
-  const vialInk = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); vialInk.position.set(-0.24, 0.6, -0.2); body.add(vialInk);
-  const book = inked(new THREE.BoxGeometry(0.34, 0.44, 0.1), { color: 0x6b2318, ow: 0.02 }); book.position.set(0, 1.05, -0.3); book.rotation.x = 0.15; body.add(book);
-  const pages = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 0.07), new THREE.MeshBasicMaterial({ color: 0xefe5cf })); pages.position.set(0.03, 1.05, -0.3); pages.rotation.x = 0.15; body.add(pages);
-  // LA PENNA: stilografica-piuma con pennino d'oro, fusto laccato, goccia d'inchiostro e bagliore
-  const quillPivot = new THREE.Group(); quillPivot.position.set(0.34, 1.0, 0.05); body.add(quillPivot);
-  const quill = new THREE.Group(); quill.scale.setScalar(1.7); quillPivot.add(quill);
-  const barrel = inked(new THREE.CylinderGeometry(0.045, 0.055, 0.62, 10).rotateX(Math.PI / 2), { color: 0x120c0a, shift: 0x8a2416, ow: 0.015 }); barrel.position.z = 0.42; quill.add(barrel);
-  for (const z of [0.16, 0.7]) { const band = new THREE.Mesh(new THREE.TorusGeometry(0.056, 0.014, 6, 14), new THREE.MeshBasicMaterial({ color: 0xd8a63a })); band.position.z = z; quill.add(band); }
-  const grip = inked(new THREE.CylinderGeometry(0.05, 0.034, 0.18, 10).rotateX(Math.PI / 2), { color: 0x8a2416, ow: 0.012 }); grip.position.z = 0.82; quill.add(grip);
-  const nibGeo = new THREE.ConeGeometry(0.036, 0.22, 4).rotateX(Math.PI / 2); nibGeo.scale(1.7, 0.4, 1.25); const nibM = new THREE.Mesh(nibGeo, new THREE.MeshBasicMaterial({ color: 0xe8be55 })); nibM.position.z = 1.01; quill.add(nibM);
-  const slit = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.02, 0.12), new THREE.MeshBasicMaterial({ color: 0x120c0a })); slit.position.set(0, 0.012, 1.04); quill.add(slit);
-  const drop = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), new THREE.MeshBasicMaterial({ color: 0x8a1a10 })); drop.scale.y = 1.4; drop.position.set(0, -0.04, 1.12); quill.add(drop);
-  const nibGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'); const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); return new THREE.CanvasTexture(c); })(), color: 0xff5a30, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); nibGlow.scale.setScalar(0.35); nibGlow.position.z = 1.1; quill.add(nibGlow);
-  // fondello del cappuccio con fermaglio d'oro: legge subito come una stilografica
-  const cap = inked(new THREE.CylinderGeometry(0.058, 0.05, 0.3, 12).rotateX(Math.PI / 2), { color: 0x120c0a, shift: 0x8a2416, ow: 0.015 }); cap.position.z = -0.02; quill.add(cap);
-  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 6), new THREE.MeshBasicMaterial({ color: 0xd8a63a })); finial.scale.z = 0.6; finial.position.z = -0.17; quill.add(finial);
-  const clip = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.012, 0.3), new THREE.MeshBasicMaterial({ color: 0xe8be55 })); clip.position.set(0, 0.068, 0.02); quill.add(clip);
-  const clipEnd = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 4), new THREE.MeshBasicMaterial({ color: 0xe8be55 })); clipEnd.position.set(0, 0.07, 0.17); quill.add(clipEnd);
-  const nib = new THREE.Object3D(); nib.position.z = 1.12; quill.add(nib);
-  grp.userData = { body, cloak, head, quillPivot, quill, tail, nib, nibGlow, nibWorld: new THREE.Vector3(), r: 0.38 }; return grp;
 }
 export function makeLumi() {
   const grp = new THREE.Group();

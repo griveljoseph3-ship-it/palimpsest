@@ -1,6 +1,6 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=2.0.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=2.0.0';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -235,6 +235,13 @@ export function makeSeal() {
   const stand = inked(new THREE.BoxGeometry(0.3, 1.0, 0.3), { color: 0x2b221b }); stand.position.y = 0.5; grp.add(stand); grp.userData.disc = disc; return grp;
 }
 export function makeMonolith() { const m = inked(new THREE.CylinderGeometry(0.45, 0.6, 1.2, 6), { color: 0x2b221b, shift: 0x9e2b1c, y0: 0, y1: 1.2 }); m.position.y = 0.6; return m; }
+// unisce i pezzi a tinta unita (MeshBasicMaterial) di un oggetto in una sola mesh a colori per vertice: molte meno draw call
+export function mergeBasic(root) { const parts = []; root.updateMatrix(); const inv = new THREE.Matrix4().copy(root.matrix).invert(); root.updateMatrixWorld(true);
+  root.traverse((o) => { if (o.isMesh && o.material && o.material.isMeshBasicMaterial && !o.material.transparent && !o.material.map) parts.push(o); });
+  if (parts.length < 2) return; const pos = [], col = [], m = new THREE.Matrix4(), c = new THREE.Color();
+  for (const o of parts) { let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); m.multiplyMatrices(inv, o.matrixWorld); g.applyMatrix4(m); c.copy(o.material.color); const a = g.attributes.position.array; for (let i = 0; i < a.length; i += 3) { pos.push(a[i], a[i + 1], a[i + 2]); col.push(c.r, c.g, c.b); } o.parent.remove(o); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const merged = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })); root.add(merged); return merged; }
 export function makeMite() { const m = inked(new THREE.IcosahedronGeometry(0.3, 1), { color: 0x120c0a, shift: 0x7a1f14, ow: 0.02 }); m.position.y = 0.3;
   const sg = new THREE.ConeGeometry(0.06, 0.32, 4); const sm = new THREE.MeshBasicMaterial({ color: 0x1b120e }); for (let i = 0; i < 9; i++) { const a = i * 2.4, b = Math.acos(1 - 2 * (i + 0.5) / 9); const d = new THREE.Vector3(Math.sin(b) * Math.cos(a), Math.cos(b), Math.sin(b) * Math.sin(a)); const sp = new THREE.Mesh(sg, sm); sp.position.copy(d).multiplyScalar(0.32); sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); m.add(sp); }
   for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff3a20 })); e.position.set(sd * 0.1, 0.06, 0.26); m.add(e); }
@@ -243,7 +250,7 @@ export function makeMite() { const m = inked(new THREE.IcosahedronGeometry(0.3, 
   const jg = new THREE.ConeGeometry(0.035, 0.22, 4); const jm = new THREE.MeshBasicMaterial({ color: 0xe8dcc0 });
   for (const sd of [-1, 1]) { const j = new THREE.Mesh(jg, jm); j.position.set(sd * 0.08, -0.06, 0.36); j.rotation.set(Math.PI / 2, 0, sd * 0.55); m.add(j);
     const eg = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xff3a20, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false })); eg.scale.setScalar(0.16); eg.position.set(sd * 0.1, 0.07, 0.3); m.add(eg); }
-  m.scale.setScalar(1.15); return m; }
+  m.scale.setScalar(1.15); { const sc = m.scale.clone(), py = m.position.y; m.scale.set(1, 1, 1); m.position.set(0, 0, 0); mergeBasic(m); m.scale.copy(sc); m.position.y = py; } return m; }
 export function makeDoc() { const g = new THREE.Group(); const p = inked(new THREE.BoxGeometry(0.5, 0.04, 0.65), { color: 0xf5ecd8, ow: 0.02 }); p.position.y = 0.95; p.rotation.y = 0.3; g.add(p);
   const st = inked(new THREE.CylinderGeometry(0.1, 0.2, 0.9, 6), { color: 0x2b221b }); st.position.y = 0.45; g.add(st); g.userData.paper = p; return g; }
 export function makeReader() { // leggio d'inchiostro con libro aperto (prima era una scatola scura)

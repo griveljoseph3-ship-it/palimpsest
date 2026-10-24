@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=2.0.0';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
@@ -29,8 +29,10 @@ float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(
 float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vnoise(p);p*=2.03;a*=.5;}return s;}`;
 
+// luci puntiformi per pixel: le 7 più vicine + la penna del giocatore (prima 12: troppo lavoro per pixel su iPad)
+export const NL = 8;
 export const INK_UNIFORMS = { uPR: { value: 1 }, uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 },
-  uPL: { value: Array.from({ length: 12 }, () => new THREE.Vector4(0, -99, 0, 1)) }, uPC: { value: Array.from({ length: 12 }, () => new THREE.Vector3()) } };
+  uPL: { value: Array.from({ length: NL }, () => new THREE.Vector4(0, -99, 0, 1)) }, uPC: { value: Array.from({ length: NL }, () => new THREE.Vector3()) } };
 
 export function inkMaster(opts = {}) {
   const m = new THREE.ShaderMaterial({
@@ -52,7 +54,7 @@ export function inkMaster(opts = {}) {
  mat4 mm=modelMatrix;
 #endif
  vec4 w=mm*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
-    fragmentShader: `uniform vec4 uPL[12]; uniform vec3 uPC[12]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
+    fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
@@ -79,10 +81,10 @@ export function inkMaster(opts = {}) {
         // dissoluzione in inchiostro
         if(DissolveAmount>0.){ float dn=fbm(vW.xy*3.+vW.zz*2.); if(dn<DissolveAmount) discard; col=mix(col,uInk,1.-smoothstep(0.,.08,dn-DissolveAmount)); }
         // lampada da lettura che segue il giocatore: il resto della pagina sprofonda nel buio caldo
-        float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.25,1.,ld+vnoise(vW.xz*.6+uTime*.05)*.18);
-        col*=mix(vec3(.17,.14,.17),vec3(1.06,1.,.9),lamp);
+        float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.38,1.18,ld+vnoise(vW.xz*.6+uTime*.05)*.18); // pozza di luce più ampia: si legge meglio la stanza
+        col*=mix(vec3(.3,.26,.27),vec3(1.14,1.09,1.),lamp);
         // candele, lampade e inchiostro luminoso
-        vec3 vd=normalize(cameraPosition-vW); for(int i=0;i<12;i++){ vec3 dv=uPL[i].xyz-vW; float dl=length(dv); float a=max(0.,1.-dl/uPL[i].w); if(a<=0.) continue; a*=a; vec3 ld=dv/max(dl,.001); float nl=max(dot(n,ld),0.);
+        vec3 vd=normalize(cameraPosition-vW); for(int i=0;i<${NL};i++){ vec3 dv=uPL[i].xyz-vW; float dl=length(dv); float a=max(0.,1.-dl/uPL[i].w); if(a<=0.) continue; a*=a; vec3 ld=dv/max(dl,.001); float nl=max(dot(n,ld),0.);
           float wrap=.35+.65*smoothstep(-.1,.6,dot(n,ld)); float spec=pow(max(dot(n,normalize(ld+vd)),0.),24.)*.35*vMask;
           col+=(base*1.55*wrap+vec3(spec))*uPC[i]*a; }
         col=mix(col, vec3(dot(col,vec3(.33)))*1.1, uContrast*.6);
@@ -179,9 +181,9 @@ export class Post {
         void main(){ vec2 uv=vUv; vec2 c=uv-.5; float r=length(c);
           float bleed=(.0015+focus*.002)*(1.-reduce); vec3 col; col.r=texture2D(t,uv+c*bleed).r; col.g=texture2D(t,uv).g; col.b=texture2D(t,uv-c*bleed).b;
           col+=texture2D(b,uv).rgb*.55;
-          float lum=dot(col,vec3(.299,.587,.114)); col=mix(col,vec3(lum)*vec3(1.05,.97,.86),.18+focus*.45);
-          col=pow(col,vec3(1.03)); col*=vec3(1.03,1.,.95);
-          float vig=smoothstep(.85,.25,r+vnoise(uv*3.+time*.02)*.12); col*=mix(.42,1.,vig);
+          float lum=dot(col,vec3(.299,.587,.114)); col=mix(col,vec3(lum)*vec3(1.05,.98,.88),.1+focus*.45);
+          vec3 cs=clamp(col,0.,1.); col=mix(col,cs*cs*(3.-2.*cs),.38); col*=vec3(1.04,1.01,.97); // curva a S: carta chiara, inchiostro nero
+          float vig=smoothstep(.85,.25,r+vnoise(uv*3.+time*.02)*.12); col*=mix(.55,1.,vig);
           // bordi della pagina che si inchiostrano durante la lettura
           if(focus>.01){ float edge=smoothstep(.36,.75,r+fbm(uv*6.+time*.1)*.2)*focus; col=mix(col,vec3(.05,.035,.03),edge*.8); }
           col=mix(col,vec3(lum*.9+.1),sbiadito*.5);

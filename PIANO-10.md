@@ -42,24 +42,24 @@ Legenda della sicurezza: **[certo]** = visto giocando o misurato · **[probabile
 
 | # | Miglioria | Categoria | Cosa cambia | Difficoltà | Stato |
 |---|---|---|---|---|---|
-| 0 | Test stabili | Bug | `systems.mjs` reso affidabile (oggi fallisce già su main); test di base verdi prima di cambiare il gioco | facile | da fare |
-| 1 | Colpi che pesano | Combattimento | Catena di 3 colpi (il terzo spinge via), lampo bianco + schiacciamento su ogni nemico colpito (anche le macchie), schizzi d'inchiostro nella direzione del colpo, camera che spinge nel verso del colpo, pausa sul colpo proporzionata, scia della schivata, macchie che esplodono in inchiostro | media | da fare |
-| 2 | Primi 5 minuti puliti | Primi 5 minuti / UI | Prologo senza HUD (solo ✎ quando serve), camera vicina al personaggio durante la caduta, niente fotogramma nero, tutorial più corto e senza sovrapposizioni | media | da fare |
-| 3 | Musica che cambia | Audio | Musica generata con melodia e livelli: esplorazione, combattimento, labirinto, boss; accordo quando scrivi una parola, fanfara breve per combinazioni e fasi del boss | media | da fare |
-| 4 | Il Copista diventa un boss | Boss | Attacco proprio (riga d'inchiostro che spazza la radura, con segnale), pozze d'inchiostro, fase 2 sotto metà vita, ingresso messo in scena | media | da fare |
-| 5 | Custode messo in scena | Boss | Passaggi di fase con rallentatore, camera che si avvicina, scritta grande, suono; segnali d'attacco più leggibili (forma + colore) | media | da fare |
-| 6 | HUD senza sovrapposizioni | UI / Comandi | Un messaggio alla volta in alto, dialogo che non copre i pulsanti in verticale, barra del boss visibile, ritratti nei dialoghi | facile | da fare |
-| 7 | Colore e leggibilità | Grafica | Carta più chiara, inchiostro più nero, meno nebbia marrone, nemici con contorno più netto, morte dei nemici che si scioglie in inchiostro | media | da fare |
-| 8 | Mappa del labirinto | Level design | Pagina-mappa disegnata a mano che si riempie esplorando (nel Diario), segna lampade, pagine trovate e Copista | media | da fare |
-| 9 | Prestazioni iPad | Prestazioni | Oggetti fermi uniti (meno draw call), luci per pixel da 12 a 8, partenza a risoluzione prudente con adattamento | difficile | da fare |
-| 10 | Indizi a gradini | Puzzle | Prima un indizio vago, dopo ~45 s uno più chiaro, solo dopo ~90 s la soluzione | facile | da fare |
-| 11 | Scelta della difficoltà | Difficoltà | Storia / Normale / Inchiostro secco all'inizio e nelle opzioni | facile | da fare |
-| 12 | Accessibilità in più | Accessibilità | Intensità scossa, velocità del testo, mira assistita on/off, simboli oltre ai colori nei segnali | facile | da fare |
-| 13 | Momento delle combinazioni | Parole | Prima scoperta di ogni combinazione: rallentatore breve, scritta grande, suono; elenco combinazioni nel Diario | facile | da fare |
-| 14 | Nemico nuovo: lo Sputacchio | Combattimento | Nemico che tira gocce d'inchiostro da lontano (con segnale), si nasconde dietro i ripari: obbliga a muoversi | media | da fare |
-| 15 | Ritratti e messa in scena | Storia | Ritratti a inchiostro per Il Libro, Ilde, Elara, Lumi, Custode; Elara che si gira nei momenti chiave | media | da fare |
-| 16 | Pennino più ricco | Progressione | 2–3 abilità di combattimento (affondo dopo la schivata, colpo forte caricato, recupero inchiostro alla chiusura della catena) | media | da fare |
-| 17 | Pulizia codice morto | Bug | Rimozione di `if (false)` e righe inutili | facile | da fare |
+| 0 | Test stabili | Bug | `systems.mjs` reso affidabile (oggi fallisce già su main); test di base verdi prima di cambiare il gioco | facile | fatto |
+| 1 | Colpi che pesano | Combattimento | Catena di 3 colpi (il terzo spinge via), lampo bianco + schiacciamento su ogni nemico colpito (anche le macchie), schizzi d'inchiostro nella direzione del colpo, camera che spinge nel verso del colpo, pausa sul colpo proporzionata, scia della schivata, macchie che esplodono in inchiostro | media | fatto |
+| 2 | Primi 5 minuti puliti | Primi 5 minuti / UI | Prologo senza HUD (solo ✎ quando serve), camera vicina al personaggio durante la caduta, niente fotogramma nero, tutorial più corto e senza sovrapposizioni | media | fatto |
+| 3 | Musica che cambia | Audio | Musica generata con melodia e livelli: esplorazione, combattimento, labirinto, boss; accordo quando scrivi una parola, fanfara breve per combinazioni e fasi del boss | media | fatto |
+| 4 | Il Copista diventa un boss | Boss | Attacco proprio (riga d'inchiostro che spazza la radura, con segnale), pozze d'inchiostro, fase 2 sotto metà vita, ingresso messo in scena | media | fatto |
+| 5 | Custode messo in scena | Boss | Passaggi di fase con rallentatore, camera che si avvicina, scritta grande, suono; segnali d'attacco più leggibili (forma + colore) | media | fatto |
+| 6 | HUD senza sovrapposizioni | UI / Comandi | Un messaggio alla volta in alto, dialogo che non copre i pulsanti in verticale, barra del boss visibile, ritratti nei dialoghi | facile | fatto |
+| 7 | Colore e leggibilità | Grafica | Carta più chiara, inchiostro più nero, meno nebbia marrone, nemici con contorno più netto, morte dei nemici che si scioglie in inchiostro | media | in parte (colore fatto; morte dei nemici in inchiostro da fare) |
+| 8 | Mappa del labirinto | Level design | Pagina-mappa disegnata a mano che si riempie esplorando (nel Diario), segna lampade, pagine trovate e Copista | media | fatto |
+| 9 | Prestazioni iPad | Prestazioni | Oggetti fermi uniti (meno draw call), luci per pixel da 12 a 8, partenza a risoluzione prudente con adattamento | difficile | in parte (luci 12→8, macchie unite, risoluzione adattiva su e giù, fps misurati bene; unione degli oggetti fermi da fare) |
+| 10 | Indizi a gradini | Puzzle | Prima un indizio vago, dopo ~45 s uno più chiaro, solo dopo ~90 s la soluzione | facile | fatto (obiettivo: prima cosa fare, dopo 45 s anche come) |
+| 11 | Scelta della difficoltà | Difficoltà | Storia / Normale / Inchiostro secco all'inizio e nelle opzioni | facile | fatto (nelle opzioni di pausa) |
+| 12 | Accessibilità in più | Accessibilità | Intensità scossa, velocità del testo, mira assistita on/off, simboli oltre ai colori nei segnali | facile | fatto |
+| 13 | Momento delle combinazioni | Parole | Prima scoperta di ogni combinazione: rallentatore breve, scritta grande, suono; elenco combinazioni nel Diario | facile | fatto |
+| 14 | Nemico nuovo: lo Sputacchio | Combattimento | Nemico che tira gocce d'inchiostro da lontano (con segnale), si nasconde dietro i ripari: obbliga a muoversi | media | fatto |
+| 15 | Ritratti e messa in scena | Storia | Ritratti a inchiostro per Il Libro, Ilde, Elara, Lumi, Custode; Elara che si gira nei momenti chiave | media | fatto (ritratti; Elara ti guarda; camera sui momenti chiave) |
+| 16 | Pennino più ricco | Progressione | 2–3 abilità di combattimento (affondo dopo la schivata, colpo forte caricato, recupero inchiostro alla chiusura della catena) | media | fatto (Affondo d'ombra, Svolazzo, Boccetta di riserva) |
+| 17 | Pulizia codice morto | Bug | Rimozione di `if (false)` e righe inutili | facile | fatto |
 
 Regola di lavoro: dopo ogni voce → provo il pezzo cambiato, lancio `node tests/s1.mjs`, `s3.mjs`, `systems.mjs`, `play.mjs`, `perf.mjs`, aggiungo un test per la cosa nuova, commit su `claude/capolavoro`, aggiorno la colonna Stato qui sopra.
 
@@ -67,6 +67,22 @@ Regola di lavoro: dopo ogni voce → provo il pezzo cambiato, lancio `node tests
 
 ## FASE 3 · Diario dei lavori
 (si aggiorna a ogni commit)
+
+### Giro 1 — versione 2.0.0
+- **Test.** `systems.mjs` falliva già su main: aspettava tempi fissi in un browser lento. Ora aspetta che le cose succedano (28/28). Nuovo comando `sh tests/all.sh` che lancia tutto in fila. Test nuovi: `combat.mjs`, `music.mjs`, `boss.mjs`, `map.mjs`, `enemies.mjs`.
+- **Combattimento.** Catena di 3 colpi (destra, sinistra, affondo che spinge via). Ogni nemico colpito lampeggia e si schiaccia; schizzi d'inchiostro nella direzione del colpo; la camera dà una piccola spinta nel verso del colpo; pausa sul colpo proporzionata al peso; la schivata lascia sagome d'inchiostro; l'ultimo nemico di un incontro cade al rallentatore. "PARATO" non riempie più lo schermo di scritte.
+- **Primi 5 minuti.** Durante la caduta non si vede l'HUD (solo ✎ quando serve scrivere PONTE); la camera è vicina e il viaggiatore *resta sulla pagina* che si inclina (prima finiva sotto e spariva); niente più fotogramma nero iniziale.
+- **Musica.** Partitura generata in re minore con livelli: calma, esplorazione, labirinto (carillon), combattimento (basso e percussioni), boss (ottoni). Accordi brevi quando scrivi una parola, scopri una combinazione, trovi una pagina, cambi fase del boss, vinci. Passi sulla carta.
+- **Boss.** Il Copista ora attacca davvero: riga d'inchiostro che spazza la radura (corsia a righe che avvisa prima), poi resta *stanco* e prende più danni; lancia macchie che lasciano pozze che rallentano; fase 2 sotto metà vita con tre righe a ventaglio. Il Custode e il Caricatore disegnano a terra la corsia della carica. Fasi annunciate con scritta grande, rallentatore, camera sul boss e accordo.
+- **Interfaccia.** Colonna in alto senza sovrapposizioni (stanza → obiettivo → annuncio → tutorial/boss); il dialogo non copre più i pulsanti touch; ritratti a inchiostro nei dialoghi.
+- **Colore.** Meno seppia, curva a S (carta più chiara, inchiostro più nero), pozza di luce più ampia.
+- **Stanze.** La pressa diventa una tipografia (casse di caratteri, pile di carta, barili, fogli stesi lungo le pareti); la porta che giudica diventa un tribunale con banchi e una giuria di figure di carta che ti guarda.
+- **Mappa del labirinto.** Tasto M / pulsante ⌗: pagina disegnata a mano che mostra solo ciò che hai esplorato, con lampade, note di Ilde, Copista e piastra.
+- **Nemico nuovo.** Lo Sputacchio resta a distanza, mira (corsia) e sputa gocce: si schivano o si rimandano indietro con un colpo.
+- **Pennino.** +3 abilità: Affondo d'ombra, Svolazzo, Boccetta di riserva.
+- **Opzioni.** Difficoltà (Storia / Normale / Inchiostro secco), intensità scossa, velocità del testo, mira assistita on/off, indizi a gradini o completi.
+- **Prestazioni.** Luci per pixel da 12 a 8; le macchie passano da ~23 a ~5 draw call; la risoluzione parte a 1,5x e sale da sola se il gioco è fluido; il contatore degli fps ora misura il tempo vero (prima, sotto i 10 fps, credeva di andare a 10). Nel browser dei test un fotogramma costa il 19% in meno di main.
+- **Pulizia.** Rimosso codice morto; `CREDITS.md` con la licenza di three.js (MIT) e la dichiarazione che tutto il resto è generato.
 
 ## FASE 4 · Report finale
 (da compilare alla fine)

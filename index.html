@@ -3,8 +3,8 @@
 <meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#16110d">
 <title>PALIMPSEST — Cambia una parola</title>
-<link rel="stylesheet" href="style.css?v=1.9.0"><link rel="icon" href="icon.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png">
-<script type="importmap">{"imports":{"three":"./vendor/three.module.js?v=1.9.0"}}</script>
+<link rel="stylesheet" href="style.css?v=2.0.0"><link rel="icon" href="icon.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js?v=2.0.0"}}</script>
 </head><body>
 <svg width="0" height="0" style="position:absolute"><filter id="inkEdge"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3"><animate attributeName="seed" values="1;4;7;2" dur="1.2s" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" scale="6"/></filter></svg>
 <canvas id="c"></canvas>
@@ -16,7 +16,7 @@
   <div id="prepared" class="hidden"><span>pronta</span><b id="prepWord"></b></div>
   <div id="hint"></div>
   <div id="toast"></div>
-  <div id="topBtns"><button id="bSkills" aria-label="Abilità">✦</button><button id="bJournal" aria-label="Diario">✒︎</button><button id="bPause" aria-label="Pausa">❚❚</button></div>
+  <div id="topBtns"><button id="bMap" class="hidden" aria-label="Mappa">⌗</button><button id="bSkills" aria-label="Abilità">✦</button><button id="bJournal" aria-label="Diario">✒︎</button><button id="bPause" aria-label="Pausa">❚❚</button></div>
 </div>
 <div id="words" class="hidden"><div id="wordTarget"></div><div id="bubbles"></div><div id="preview"><div id="pvText"></div><div id="pvCombo"></div></div><div id="wordHelp"></div></div>
 <div id="touch" class="hidden">
@@ -32,11 +32,12 @@
     <button id="tErase" class="tb mini2 hidden">◌<small>gommino</small></button>
   </div>
 </div>
-<div id="dialog" class="hidden"><div id="dWho"></div><div id="dText"></div><div id="dNext">▸</div></div>
+<div id="dialog" class="hidden"><img id="dFace" alt=""><div id="dWho"></div><div id="dText"></div><div id="dNext">▸</div></div>
 <div id="vision" class="hidden"><div id="visionText"></div></div>
 <div id="skills" class="panel hidden"><h2>Il Pennino</h2><p class="small" id="skDrops"></p><div id="skList"></div><button class="pbtn" id="skClose">Chiudi</button></div>
-<div id="opSub" class="hidden"></div><div id="opTitle" class="hidden">PALIMPSEST<small>Capitolo I · La tavola</small></div><div id="curseTag" class="hidden">LENTO</div><div id="endPage" class="hidden"><canvas id="endCv" width="900" height="1100"></canvas><p id="endQ"></p><small>tocca per continuare</small></div>
+<div id="opSub" class="hidden"></div><div id="opTitle" class="hidden">PALIMPSEST<small>Capitolo I · La tavola</small></div><div id="curseTag" class="hidden">LENTO</div><div id="bossCard"></div><div id="endPage" class="hidden"><canvas id="endCv" width="900" height="1100"></canvas><p id="endQ"></p><small>tocca per continuare</small></div>
 <div id="pageTurn" class="hidden"><div class="pt-page"><div class="pt-text" id="ptText"></div></div></div>
+<div id="mapPanel" class="panel hidden"><h2>Il labirinto del filo</h2><canvas id="mapCv" width="720" height="720"></canvas><p class="small">Si disegna da sola mentre cammini. ✦ pagine · ☼ lampade · ✕ il Copista · ◎ la piastra del filo</p><button class="pbtn" id="mapClose">Chiudi</button></div>
 <div id="journal" class="panel hidden"><h2>Diario</h2><div id="jList"></div><button class="pbtn" data-close>Chiudi</button></div>
 <div id="pause" class="panel hidden"><h2>Pausa</h2>
   <button class="pbtn" id="pResume">Riprendi</button>
@@ -49,15 +50,19 @@
   <label><input type="checkbox" id="oContrast"> Alto contrasto</label>
   <label><input type="checkbox" id="oBig"> Testo grande</label>
   <label><input type="checkbox" id="oPanel"> Pannello laterale avanzato (slot)</label>
-  <label><input type="checkbox" id="oEasy"> Aiuto: meno danni subiti</label>
+  <label>Difficoltà <select id="oDiff"><option value="storia">Storia (danni dimezzati, più inchiostro)</option><option value="normale">Normale</option><option value="secco">Inchiostro secco (più dura)</option></select></label>
+  <label>Scossa della camera <input type="range" id="oShake" min="0" max="1.5" step="0.1"></label>
+  <label>Velocità del testo <input type="range" id="oText" min="0.5" max="2" step="0.1"></label>
+  <label><input type="checkbox" id="oAim"> Mira assistita (il colpo si gira verso il nemico vicino)</label>
+  <label>Indizi <select id="oHints"><option value="gradi">A gradini (prima cosa fare, poi come)</option><option value="sempre">Sempre completi</option></select></label>
   <label>Qualità <select id="oQ"><option value="alta">Alta (nitida)</option><option value="media">Media (più fluida)</option></select></label>
   <button class="pbtn" id="pTele">Esporta telemetria locale</button>
   <button class="pbtn" id="pRestart">Ricomincia il frammento</button>
   <p class="small">Controller: stick muovi · A interagisci/conferma · X colpo · Y colpo forte · B schiva · RB riscrivi · LB riapplica · Select ripristina frase<br>Tastiera: WASD · J colpo · K forte · Spazio schiva · E interagisci · Q riscrivi · R riapplica · T ripristina · Y ricomponi · Esc pausa</p>
 </div>
-<div id="title"><div class="tpage"><h1>PALIMPSEST</h1><p class="sub">«Cambia una parola. Scopri chi o cosa cambia con lei.»</p><button id="bContinue" class="pbtn big hidden">Continua</button><button id="bStart" class="pbtn big">Apri il libro</button><button id="bChapters" class="pbtn">Capitoli</button><button id="bReplayIntro" class="pbtn">Rivedi il prologo (film)</button><p class="small" id="ver">versione 1.9.0</p><p class="small" id="tMem"></p><p class="small">Meglio con le cuffie. Controller o touch.</p></div></div>
+<div id="title"><div class="tpage"><h1>PALIMPSEST</h1><p class="sub">«Cambia una parola. Scopri chi o cosa cambia con lei.»</p><button id="bContinue" class="pbtn big hidden">Continua</button><button id="bStart" class="pbtn big">Apri il libro</button><button id="bChapters" class="pbtn">Capitoli</button><button id="bReplayIntro" class="pbtn">Rivedi il prologo (film)</button><p class="small" id="ver">versione 2.0.0</p><p class="small" id="tMem"></p><p class="small">Meglio con le cuffie. Controller o touch.</p></div></div>
 <div id="chapters" class="hidden"><div class="tpage"><h2>Capitoli</h2><div id="chList"></div><button id="chClose" class="pbtn">Chiudi</button></div></div>
 <div id="film" class="hidden"><div class="bar top"></div><div class="bar bot"></div><div id="fFade"></div><div id="fSub"></div><div id="fTitle">PALIMPSEST</div><button id="fVoice">🔊 Voce</button><button id="fSkip">Salta ▸▸</button><div id="fProg"><i></i></div></div>
 <div id="fade"></div>
-<script type="module" src="src/main.js?v=1.9.0"></script>
+<script type="module" src="src/main.js?v=2.0.0"></script>
 </body></html>

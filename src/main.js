@@ -1,20 +1,22 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
-import { EFFECTS } from './data.js?v=1.9.0';
-import { Grammar } from './resolver.js?v=1.9.0';
-import { Ink, INK } from './ink.js?v=1.9.0';
-import { Input } from './input.js?v=1.9.0';
-import { Sfx } from './audio.js?v=1.9.0';
-import { Tele } from './telemetry.js?v=1.9.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.9.0';
-import * as W from './world.js?v=1.9.0';
-import * as ST from './story.js?v=1.9.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=2.0.0';
+import { EFFECTS } from './data.js?v=2.0.0';
+import { Grammar } from './resolver.js?v=2.0.0';
+import { Ink, INK } from './ink.js?v=2.0.0';
+import { Input } from './input.js?v=2.0.0';
+import { Sfx } from './audio.js?v=2.0.0';
+import { Tele } from './telemetry.js?v=2.0.0';
+import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked } from './art.js?v=2.0.0';
+import * as W from './world.js?v=2.0.0';
+import * as ST from './story.js?v=2.0.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=2.0.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
 const OPT_KEY = 'pal.options';
-const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto' }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
+const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto', diff: 'normale', shakeK: 1, textK: 1, aim: true, hints: 'gradi' }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
+if (opts.easy && opts.diff === 'normale') opts.diff = 'storia'; // compatibilità con la vecchia opzione «meno danni»
+const DIFF = { storia: { dmg: 0.5, ink: 1.5, armor: 0.8 }, normale: { dmg: 1, ink: 1, armor: 1 }, secco: { dmg: 1.5, ink: 0.7, armor: 1.3 } };
 const saveOpts = () => localStorage.setItem(OPT_KEY, JSON.stringify(opts));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v)); const lerp = (a, b, t) => a + (b - a) * t; const rnd = (a, b) => a + Math.random() * (b - a);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
@@ -26,9 +28,10 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPrefer
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.info.autoReset = false;
 const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 if (!['alta', 'media'].includes(opts.q)) opts.q = 'alta'; // default: Alta (iPad Pro regge DPR 2 + MSAA)
-const QL = opts.q === 'alta' ? { pr: Math.min(devicePixelRatio, 2), floor: Math.min(devicePixelRatio, 1.5), samples: 4 } : { pr: Math.min(devicePixelRatio, 1.5), floor: Math.min(devicePixelRatio, 1.0), samples: 2 };
+const QL = opts.q === 'alta' ? { pr: Math.min(devicePixelRatio, 2), floor: Math.min(devicePixelRatio, 1.2), samples: 4 } : { pr: Math.min(devicePixelRatio, 1.5), floor: Math.min(devicePixelRatio, 1.0), samples: 2 };
 if (navigator.webdriver && !Q.has('msaa')) QL.samples = 0; // test automatici su GPU software: niente MSAA
-let pr = QL.pr;
+let pr = opts.q === 'alta' ? Math.min(QL.pr, 1.5) : QL.pr; // parte prudente e sale da sola se il gioco è fluido (v2.0)
+let highStreak = 0;
 const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a130e);
 const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 120);
 const post = new Post(renderer, QL.samples);
@@ -74,7 +77,7 @@ const trapMark = (() => { const c = document.createElement('canvas'); c.width = 
 const trapHole = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0a0605 })); trapHole.position.set(trap.x, 0.014, trap.z); trapHole.visible = false; scene.add(trapHole);
 const secretPages = {};
 function makeSecretPage(id, x, z) { const p = new THREE.Group(); const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ color: 0xf6eedb, side: THREE.DoubleSide })); sheet.position.y = 1.0; p.add(sheet); const glow = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.65, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.6 })); glow.position.y = 0.03; p.add(glow); p.position.set(x, 0, z); scene.add(p); secretPages[id] = { mesh: p, x, z, sheet }; }
-function foundSecret(id, lines) { if (S.secrets.has(id)) return; S.secrets.add(id); const sp = secretPages[id]; if (sp) { scene.remove(sp.mesh); delete secretPages[id]; } sfx.play('seal'); S.flash = 0.3; { const cs = chapSecrets(id[1]); toast('✦ PAGINA NASCOSTA ' + cs.filter((k) => S.secrets.has(k)).length + '/' + cs.length); } say(lines); journal('Pagina nascosta: ' + SECRETS[id] + '.'); Tele.log('secret_found', { id }); saveGame(); }
+function foundSecret(id, lines) { if (S.secrets.has(id)) return; S.secrets.add(id); sfx.sting('secret'); const sp = secretPages[id]; if (sp) { scene.remove(sp.mesh); delete secretPages[id]; } sfx.play('seal'); S.flash = 0.3; { const cs = chapSecrets(id[1]); toast('✦ PAGINA NASCOSTA ' + cs.filter((k) => S.secrets.has(k)).length + '/' + cs.length); } say(lines); journal('Pagina nascosta: ' + SECRETS[id] + '.'); Tele.log('secret_found', { id }); saveGame(); }
 function trapUpdate() {
   trapMark.material.opacity = board.broken && !trap.open ? 0.85 : 0;
 }
@@ -136,13 +139,31 @@ function mitePursue(m, tx, tz, dt, group) { let dx = tx - m.x, dz = tz - m.z; co
 const vials = [];
 function spawnVial(x, z, fixed) { const g = W.makeInkJar(); g.scale.setScalar(1.3); g.position.set(x, 0, z); scene.add(g); vials.push({ x, z, m: g, alive: true, fixed }); }
 function vialsUpdate() { for (const v of vials) { if (!v.alive) continue; v.m.position.y = 0.1 + Math.sin(now * 3 + v.x) * 0.08; v.m.rotation.y += 0.02;
-  if (Math.hypot(P.x - v.x, P.z - v.z) < 0.9 && P.hp < P.max && P.st !== 'dead') { v.alive = false; scene.remove(v.m); P.hp = Math.min(P.max, P.hp + 1); renderHP(); sfx.play('seal'); particles.burst(v.x, 0.5, v.z, 18, 3, [0.3, 0.7, 1], 0.15); toastSmall('Fiala d\'inchiostro: +20'); } } }
+  if (Math.hypot(P.x - v.x, P.z - v.z) < 0.9 && P.hp < P.max && P.st !== 'dead') { v.alive = false; scene.remove(v.m); P.hp = Math.min(P.max, P.hp + (PROG.skills.vial ? 2 : 1)); renderHP(); sfx.play('seal'); particles.burst(v.x, 0.5, v.z, 18, 3, [0.3, 0.7, 1], 0.15); toastSmall('Fiala d\'inchiostro: +20'); } } }
 function miteDrop(m) { gainDrops(m.brute ? 3 : 1); if (Math.random() < (m.brute ? 0.3 : 0.1)) spawnVial(m.x, m.z); }
 function swarmUpdate(dt) {
-  for (const m of swarm) { if (!m.alive) continue; if (m.room !== S.room) continue; if (S.lock) continue; if (m.aggroR && !mazeAggro(m)) { mazeWander(m, dt); continue; } if (m.boss && copistaAct(m, dt)) continue; mitePursue(m, P.x, P.z, dt, swarm);
+  for (const m of swarm) { if (!m.alive) continue; if (m.room !== S.room) continue; if (S.lock) continue; if (m.aggroR && !mazeAggro(m)) { mazeWander(m, dt); continue; } if (m.boss && copistaAct(m, dt)) continue; if (m.spit) { spitterAct(m, dt); continue; } mitePursue(m, P.x, P.z, dt, swarm);
     const dx = P.x - m.x, dz = P.z - m.z, l = Math.hypot(dx, dz) || 1;
     if (l < 0.75) { if (damagePlayer(1, m, 'sw' + (m.id || (m.id = Math.random())))) { m.x -= dx / l * 1.2; m.z -= dz / l * 1.2; collide(m, m.r, false); } } }
 }
+// ---- lo Sputacchio: resta a distanza e sputa gocce d'inchiostro (si schivano o si rimandano indietro con un colpo) ----
+function spawnSpitter(x, z) { const o = spawnMite(x, z, false); o.spit = true; o.hp = 2; o.r = 0.36; o.spT = 1.5 + Math.random(); const beak = inked(new THREE.CylinderGeometry(0.05, 0.12, 0.42, 6), { color: 0xd8cbb0, ow: 0.015 }); beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.05, 0.42); o.mesh.add(beak);
+  const crest = inked(new THREE.ConeGeometry(0.16, 0.42, 5), { color: 0x2b4a5a, outline: false }); crest.position.y = 0.38; o.mesh.add(crest); o.mesh.scale.setScalar(1.25); return o; }
+const shots = [];
+function spitterAct(m, dt) { const dx = P.x - m.x, dz = P.z - m.z, d = Math.hypot(dx, dz) || 1; m.spT -= dt; let mx = 0, mz = 0;
+  if (m.spT > 0.65) { if (d < 4.5) { mx = -dx / d; mz = -dz / d; } else if (d > 8.5) { mx = dx / d; mz = dz / d; } else { mx = -dz / d * (m.side || 1); mz = dx / d * (m.side || 1); } m.side = m.side || (Math.random() < 0.5 ? 1 : -1); if (Math.random() < dt * 0.4) m.side *= -1;
+    m.x += mx * 2.1 * dt; m.z += mz * 2.1 * dt; collide(m, m.r, false); }
+  if (m.spT <= 0.65 && !m.aim) { m.aim = laneWarn(m.x, m.z, dx / d, dz / d, Math.min(d, 7), 0.5, 0.65); sfx.play('warn'); }
+  if (m.spT <= 0) { m.aim = null; m.spT = 2.4 + Math.random() * 0.8; const sp = 7.5, s2 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0x0b0806 })); s2.position.set(m.x, 0.7, m.z); scene.add(s2);
+    shots.push({ x: m.x + dx / d * 0.5, z: m.z + dz / d * 0.5, vx: dx / d * sp, vz: dz / d * sp, life: 2.2, mesh: s2, id: 'spit' + (++attackCounter), from: m, r: 0.2 }); sfx.play('splat', 0.6); }
+  const hop = m.spT < 0.65 ? 0.25 + (0.65 - m.spT) * 0.6 : Math.abs(Math.sin(now * 7 + m.x)) * 0.15; m.mesh.position.set(m.x, 0.3 + hop, m.z); m.mesh.rotation.y = Math.atan2(dx, dz); }
+function shotsUpdate(dt) { for (let i = shots.length - 1; i >= 0; i--) { const q = shots[i]; q.life -= dt; if (q.back && q.from && q.from.alive) { const tx = q.from.x - q.x, tz = q.from.z - q.z, l = Math.hypot(tx, tz) || 1, sp = Math.hypot(q.vx, q.vz); q.vx = lerp(q.vx, tx / l * sp, 0.18); q.vz = lerp(q.vz, tz / l * sp, 0.18); } /* la goccia rimandata insegue chi l'ha sputata */ const nSub = Math.max(1, Math.ceil(Math.hypot(q.vx, q.vz) * dt / 0.25)); let hitM = null; for (let k = 0; k < nSub && !hitM; k++) { q.x += q.vx * dt / nSub; q.z += q.vz * dt / nSub; if (q.back) hitM = swarm.find((m) => m.alive && m.room === S.room && Math.hypot(m.x - q.x, m.z - q.z) < (m.r || 0.3) + 0.3); } /* a piccoli passi: niente salti attraverso il bersaglio */ q.mesh.position.set(q.x, 0.7, q.z); if (frame % 2 === 0) particles.emit(q.x, 0.7, q.z, 0, 0, 0, 0.35, 0.14, 0.05, 0.04, 0.04, 2);
+    let dead = q.life <= 0 || !!collide(q, q.r, true);
+    if (!dead && !q.back && Math.hypot(P.x - q.x, P.z - q.z) < 0.55) { damagePlayer(1, q, q.id); dead = P.st !== 'dodge'; }
+    if (!dead && q.back) for (const m of (hitM ? [hitM] : [])) { m.hp -= 2; hitFx(m, 2, m.hp <= 0); if (m.hp <= 0) { m.alive = false; miteDrop(m); inkDeath(m); traces.add(m.x, m.z, 0.8, 0, now); } dead = true; break; }
+    if (dead) { particles.burst(q.x, 0.6, q.z, 10, 3, [0.05, 0.04, 0.04], 0.14); traces.add(q.x, q.z, 0.5, 0, now); scene.remove(q.mesh); q.mesh.geometry.dispose(); q.mesh.material.dispose(); shots.splice(i, 1); } } }
+function deflectShots(range, arc) { let n = 0; for (const q of shots) if (!q.back && inArc(q, range + 0.4, arc + 0.4)) { q.back = true; const f = q.from && q.from.alive ? q.from : null; const tx = f ? f.x - q.x : Math.sin(P.face), tz = f ? f.z - q.z : Math.cos(P.face), l = Math.hypot(tx, tz) || 1; q.vx = tx / l * 11; q.vz = tz / l * 11; q.life = 1.6; q.mesh.material.color.set(0x8a2416); n++; }
+  if (n) { sfx.play('hit'); KICK.a = Math.max(KICK.a, 0.1); S.hitstop = Math.max(S.hitstop, 0.06); dmgAt(P.x, 2, P.z, 'RIMANDATA!', 'big'); } return n > 0; }
 const aliveIn = (room) => swarm.filter((m) => m.alive && m.room === room).length;
 
 // ---------- Archivio sommerso ----------
@@ -159,7 +180,7 @@ const lecternM = mk(new THREE.BoxGeometry(0.8, 1.1, 0.6), 0x4a3a2c, { y0: 0, y1:
 function archiveUpdate() {
   if (S.room !== 'archive') return;
   if (!AR.wave1) { AR.wave1 = true; S.encounter = 'archive'; ink.encounterEnd(); sfx.tension(true); for (const [x, z] of [[28, -18], [52, -18], [48, -26]]) spawnMite(x, z); say([['narr', 'Sotto la pressa, l\'archivio dove Ilde affogava le versioni scartate. Le macchie si svegliano.'], ['lumi', '…la campana. Suonava quando una pagina era pronta.']]); }
-  if (AR.wave1 && !AR.wave2 && gates.arch.open && P.z < -32) { AR.wave2 = true; for (const [x, z] of [[26, -38], [54, -34], [30, -41], [52, -41]]) spawnMite(x, z); }
+  if (AR.wave1 && !AR.wave2 && gates.arch.open && P.z < -32) { AR.wave2 = true; for (const [x, z] of [[26, -38], [54, -34]]) spawnMite(x, z); spawnSpitter(30, -41); spawnSpitter(52, -41); }
   if (S.encounter === 'archive' && aliveIn('archive') === 0 && (AR.wave2 || !gates.arch.open)) { endEncounter('archive'); }
 }
 function ringBell() { bellRung(); sfx.play('pulse'); particles.burst(28, 1.3, -24, 14, 3, [1, 0.85, 0.4], 0.15); if (grammar.has('apipe', 'element.conductive')) { const w = wireFx(28, -24, 40, -31); openGate('arch'); toast('L\'IMPULSO PASSA: LO SCAFFALE SI APRE'); journal('Hai portato il suono della campana attraverso il tubo.'); }
@@ -192,7 +213,7 @@ function cryptHatch(k) { const h = CR_H[k];
 for (const [x, z] of [[-9.2, -63.2], [53, -17.2], [-49, -22], [13.6, -97.2], [14, -135.6]]) spawnVial(x, z, true);
 const XW = { chT: 0, chN: 0, arT: 6 };
 function extraWaves(dt) {
-  if (S.room === 'charger' && S.encounter === 'charger' && charger.alive && !S.lock) { XW.chT += dt; if (XW.chN === 0 && XW.chT > 4) { XW.chN = 1; spawnMite(-11, -37); spawnMite(11, -37); } if (XW.chN === 1 && charger.armorBroken) { XW.chN = 2; spawnMite(-11, -20); spawnMite(11, -20, true); } }
+  if (S.room === 'charger' && S.encounter === 'charger' && charger.alive && !S.lock) { XW.chT += dt; if (XW.chN === 0 && XW.chT > 4) { XW.chN = 1; spawnMite(-11, -37); spawnMite(11, -37); } if (XW.chN === 1 && charger.armorBroken) { XW.chN = 2; spawnSpitter(-8, -20); spawnMite(8, -20, true); } }
   if (S.room === 'arena' && S.encounter === 'arena' && custode.alive && custode.st !== 'dead' && !S.lock && !S.victory) { XW.arT -= dt; if (XW.arT <= 0 && aliveIn('arena') < 4) { XW.arT = arena.snapped ? 6 : 9; const a = Math.random() * 6.28; spawnMite(Math.cos(a) * 12, -124 + Math.sin(a) * 10, Math.random() < 0.35); sfx.play('voice', 0.25); } }
 }
 function cryptUpdate() { if (S.encounter === 'crypt' && aliveIn('crypt') === 0) { endEncounter('crypt'); } }
@@ -233,7 +254,6 @@ const dweights = [94.5, 100, 105.5].map((x, i) => { const e = addEnt('dw' + i, '
 const damHeart = addEnt('dam', 'dam', mk(new THREE.OctahedronGeometry(0.7, 1), 0x3fc1ff, { shift: 0xffffff }), X, -54.6, { hp: 8, maxHp: 8 }); damHeart.mesh.position.y = 1.5; damHeart.mesh.visible = false; damHeart.alive = false; damHeart.mesh.userData.height = 2.2;
 const stone2 = addEnt('stone2', 'stone', mk(new THREE.DodecahedronGeometry(0.6, 0), 0x6b6258), 104.5, -69); stone2.mesh.position.y = 0.45; stone2.mesh.userData.height = 1; circles.push({ x: 104.5, z: -69, r: 0.6 });
 const elaraC2 = W.makeElaraPage(true); elaraC2.position.set(X, 0, -71.3); elaraC2.scale.setScalar(0.8); scene.add(elaraC2);
-['c2a', 'c2b', 'c2c', 'c2d', 'c2e', 'archive'].forEach(() => {});
 
 function ch2Interactables(L) {
   if (S.room === 'conduct' && S.discovered.has('element.conductive')) L.push({ x: AR.hatch.x, z: AR.hatch.z, r: 1.6, label: 'scendi', fn: () => { sfx.play('page'); P.x = 40; P.z = -19; P.face = Math.PI; P.vx = P.vz = 0; Tele.log('archive_enter'); } });
@@ -379,7 +399,7 @@ function enemyAttack(e) { e.atkId = 'ea' + (++attackCounter); e.hitPlayer = fals
 function damagePlayer(n, from, attackId) {
   if (P.st === 'dead' || S.lock) return false;
   if (P.inv > 0) { if (attackId && P.st === 'dodge') { const g = ink.dodge(attackId); if (g) { Tele.log('dodge_verified', { attackId }); popInk('+' + g); slowmo(0.25); } } return false; }
-  if (opts.easy && n > 1) n = 1;
+  { const k = (DIFF[opts.diff] || DIFF.normale).dmg; n = Math.max(1, k < 1 ? Math.floor(n * k) : Math.round(n * k)); }
   P.hp -= n; P.inv = 0.6; P.st = 'hurt'; P.t = 0.25; sfx.play('hurt'); S.shake = 0.5; S.hitstop = 0.08; input.rumble(0.6, 0.9, 180);
   if (from) { const dx = P.x - from.x, dz = P.z - from.z, l = Math.hypot(dx, dz) || 1; P.vx = dx / l * 9; P.vz = dz / l * 9; }
   particles.burst(P.x, 1, P.z, 14, 4); renderHP(); S.shake = 0.8; dmgAt(P.x, 1.8, P.z, '-' + n * 20, 'player'); const hu = $('hurt'); hu.classList.remove('on'); void hu.offsetWidth; hu.classList.add('on'); try { navigator.vibrate && navigator.vibrate(140); } catch (e) {}
@@ -412,12 +432,12 @@ function aiUpdate(e, dt) {
         if (Math.hypot(mvx, mvz) < 0.3) { mvx = mvz = 0; }
         if (d < 1.4 && e.cd <= 0) { e.st = 'swipeWU'; e.t = 0.55; e.cd = 1.6; }
       } else if (d < c.swipeR && e.cd <= 0) { e.st = 'swipeWU'; e.t = 0.4; e.cd = 1.0; }
-      else if (d > 4 && d < 11 && e.cd <= 0) { e.st = 'windup'; e.t = c.windup; e.dir = { x: dx / d, z: dz / d }; sfx.play('warn'); ring(e.x + e.dir.x * 2, e.z + e.dir.z * 2, 0.6, c.windup, 0xd04020); }
+      else if (d > 4 && d < 11 && e.cd <= 0) { e.st = 'windup'; e.t = c.windup; e.dir = { x: dx / d, z: dz / d }; sfx.play('warn'); ring(e.x + e.dir.x * 2, e.z + e.dir.z * 2, 0.6, c.windup, 0xd04020); e.lane = laneWarn(e.x, e.z, e.dir.x, e.dir.z, Math.min(11, d + 2), c.r * 1.7, c.windup); }
       else if (!e.boss && d < 5.5) { mvx = -dx / d + (-dz / d) * 0.8; mvz = -dz / d + (dx / d) * 0.8; sp = c.speed * 0.8; } // il Caricatore prende la rincorsa
       else { mvx = dx; mvz = dz;
         if (e.boss) { const nx = e.x + dx / d * 0.3, nz = e.z + dz / d * 0.3; if (Math.hypot(nx, nz + 124) > 9 && Math.hypot(nx, nz + 124) > Math.hypot(e.x, e.z + 124)) { mvx = 0; mvz = 0; } } }
       break; }
-    case 'windup': { e.face = Math.atan2(e.dir.x, e.dir.z); if (d > 2) { e.dir.x = lerp(e.dir.x, dx / d, 0.05); e.dir.z = lerp(e.dir.z, dz / d, 0.05); const l = Math.hypot(e.dir.x, e.dir.z); e.dir.x /= l; e.dir.z /= l; }
+    case 'windup': { e.face = Math.atan2(e.dir.x, e.dir.z); if (e.lane && e.lane.life > 0) { const L = e.lane.m, len = L.geometry.parameters.height; L.position.set(e.x + e.dir.x * len / 2, 0.04, e.z + e.dir.z * len / 2); L.rotation.y = Math.atan2(e.dir.x, e.dir.z); } if (d > 2) { e.dir.x = lerp(e.dir.x, dx / d, 0.05); e.dir.z = lerp(e.dir.z, dz / d, 0.05); const l = Math.hypot(e.dir.x, e.dir.z); e.dir.x /= l; e.dir.z /= l; }
       if (cautious && Math.random() < 0.02) { e.st = 'idle'; e.cd = 1.5; break; } // meno incline a caricare
       if (e.t <= 0) { e.st = 'charge'; e.t = c.chargeT; enemyAttack(e); sfx.play('heavy'); } break; }
     case 'charge': { e.vx = e.dir.x * c.charge; e.vz = e.dir.z * c.charge; e.x += e.vx * dt; e.z += e.vz * dt;
@@ -454,20 +474,23 @@ function playerUpdate(dt) {
   if (P.st === 'dead') return;
   const ctl = !S.lock && !panel.open && S.phase === 'play' && !paused;
   const mx = ctl ? input.move.x : 0, mz = ctl ? input.move.y : 0; const ml = Math.hypot(mx, mz);
-  let sp = 5.6 * (P.curse && P.curse.on ? 0.5 : 1); if (P.st === 'attack') sp = 2; if (P.st === 'heavy') sp = 0.8; if (P.st === 'hurt') sp = 0;
+  let sp = 5.6 * (P.curse && P.curse.on ? 0.5 : 1) * (P.slow || 1); if (P.st === 'attack') sp = 2; if (P.st === 'heavy') sp = 0.8; if (P.st === 'hurt') sp = 0;
   if (P.st === 'dodge') { P.x += P.dx * 13 * dt; P.z += P.dz * 13 * dt; if (P.t <= 0) P.st = 'idle'; }
   else { const acc = ml > 0.1 ? 0.22 : 0.3; if (P.st === 'hurt') { P.vx *= 0.85; P.vz *= 0.85; } else { P.vx = lerp(P.vx, mx * sp, acc); P.vz = lerp(P.vz, mz * sp, acc); } P.x += P.vx * dt; P.z += P.vz * dt;
     if (ml > 0.15 && P.st !== 'heavy') P.face = lerpAng(P.face, Math.atan2(mx, mz), 0.25); }
   collide(P, P.r, false);
+  { const v = Math.hypot(P.vx, P.vz); P.stepT = (P.stepT || 0) - dt * v; if (v > 1.2 && P.stepT <= 0 && P.st !== 'dodge') { P.stepT = 1.6; sfx.play('step', Math.min(1, v / 5)); } }
   if (P.st === 'hurt' && P.t <= 0) P.st = 'idle';
   if ((P.st === 'attack' || P.st === 'heavy') && !P.hitDone && P.t <= P.hitAt) { P.hitDone = true; doHit(P.st === 'heavy'); }
-  if ((P.st === 'attack' || P.st === 'heavy') && P.t <= 0) P.st = 'idle';
+  if (P.st === 'attack' && P.hitDone && P.buf && P.combo < 2 && P.t <= 0.08) { P.buf = false; startAttack(false, P.combo + 1); return; }
+  if ((P.st === 'attack' || P.st === 'heavy') && P.t <= 0) { if (P.st === 'attack') P.comboT = P.combo < 2 ? 0.4 : 0; P.st = 'idle'; P.buf = false; }
+  if (P.comboT > 0) P.comboT -= dt; if (P.dashT > 0) P.dashT -= dt;
 }
 function playerActions() { // input a fronte d'onda letti ogni frame (non perdere pressioni brevi)
   if (S.lock || panel.open || S.phase !== 'play' || paused || P.st === 'dead' || (dlg.active && dlg.opt.choices)) { if (dlg.active && !dlg.opt.choices && input.pressed('interact')) dlgNext(); return; }
   const mx = input.move.x, mz = input.move.y, ml = Math.hypot(mx, mz);
-  if (input.pressed('dodge') && P.cd <= 0 && P.st !== 'dodge' && P.st !== 'hurt') { P.dx = ml > 0.1 ? mx / ml : Math.sin(P.face); P.dz = ml > 0.1 ? mz / ml : Math.cos(P.face); P.st = 'dodge'; P.t = 0.22; P.inv = 0.32; P.cd = 0.5; sfx.play('dodge'); Tele.log('dodge'); }
-  else if (input.pressed('attack') && (P.st === 'idle' || (P.st === 'attack' && P.t < 0.12))) startAttack(false);
+  if (input.pressed('dodge') && P.cd <= 0 && P.st !== 'dodge' && P.st !== 'hurt') { P.dx = ml > 0.1 ? mx / ml : Math.sin(P.face); P.dz = ml > 0.1 ? mz / ml : Math.cos(P.face); P.st = 'dodge'; P.t = 0.22; P.inv = 0.32; P.cd = 0.5; P.dashT = 0.5; P.combo = 0; P.comboT = 0; P.buf = false; sfx.play('dodge'); ghostSpawn(); Tele.log('dodge'); }
+  else if (input.pressed('attack')) { if (P.st === 'idle') startAttack(false, PROG.skills.dash && P.dashT > 0 ? 2 : P.comboT > 0 && P.combo < 2 ? P.combo + 1 : 0); else if (P.st === 'attack') P.buf = true; } // catena: il tocco durante un colpo si accoda
   else if (input.pressed('heavy') && P.st === 'idle') startAttack(true);
   if (input.pressed('interact')) interact();
   if (input.pressed('rewrite')) openPanel();
@@ -476,33 +499,66 @@ function playerActions() { // input a fronte d'onda letti ogni frame (non perder
   if (input.pressed('recompose')) recompose();
 }
 function lerpAng(a, b, t) { return a + angDiff(b, a) * t; }
-function startAttack(heavy) { const tgt = nearestEnemy(4.5); if (tgt) { P.face = Math.atan2(tgt.x - P.x, tgt.z - P.z); const d = Math.hypot(tgt.x - P.x, tgt.z - P.z), want = (tgt.r || 0.4) + 1.1; if (d > want && d < 3.6 && !tgt.cfg) { const k = Math.min(d - want, 1.6) / d; P.x += (tgt.x - P.x) * k; P.z += (tgt.z - P.z) * k; collide(P, P.r, false); } }
-  P.st = heavy ? 'heavy' : 'attack'; P.t = heavy ? 0.8 : 0.32; P.hitAt = heavy ? 0.35 : 0.2; P.hitDone = false; P.atkId = 'pa' + (++P.atkSeq); sfx.play(heavy ? 'heavy' : 'swing', 1); input.rumble(0.2, heavy ? 0.5 : 0.1, 60); }
+function startAttack(heavy, step = 0) { const tgt = opts.aim === false ? null : nearestEnemy(4.5); if (tgt) { P.face = Math.atan2(tgt.x - P.x, tgt.z - P.z); const d = Math.hypot(tgt.x - P.x, tgt.z - P.z), want = (tgt.r || 0.4) + 1.1; if (d > want && d < 3.6 && !tgt.cfg) { const k = Math.min(d - want, 1.6) / d; P.x += (tgt.x - P.x) * k; P.z += (tgt.z - P.z) * k; collide(P, P.r, false); } }
+  // catena di tre colpi rapidi: destra→sinistra, sinistra→destra, affondo che spinge via
+  P.combo = heavy ? 0 : step; P.comboT = 0; P.buf = false; const T = [[0.3, 0.19], [0.28, 0.17], [0.42, 0.24]][P.combo];
+  P.st = heavy ? 'heavy' : 'attack'; P.t = heavy ? 0.8 : T[0]; P.hitAt = heavy ? 0.35 : T[1]; P.hitDone = false; P.atkId = 'pa' + (++P.atkSeq);
+  if (!heavy && P.combo === 2) { P.vx += Math.sin(P.face) * 6; P.vz += Math.cos(P.face) * 6; }
+  sfx.play(heavy ? 'heavy' : 'swing', heavy ? 1 : [1, 1.25, 0.75][P.combo]); input.rumble(0.2, heavy ? 0.5 : 0.1, 60); }
+// ---- sensazione dei colpi: lampo + schiacciamento sul bersaglio, schizzi direzionali, camera che spinge nel verso del colpo ----
+const flashes = []; const KICK = { x: 0, z: 0, a: 0 };
+function hitFx(o, weight, kill) { // o: {x,z,mesh}; weight 1 = colpo rapido, 2 = chiusura, 3 = forte
+  const dx = o.x - P.x, dz = o.z - P.z, l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l, y = (o.mesh && o.mesh.position.y > 0.2 ? o.mesh.position.y : 0.5) + 0.2;
+  if (o.mesh) { if (!o.fxMats) o.fxMats = matsOf(o.mesh); let f = flashes.find((q) => q.o === o); if (!f) { f = { o, s0: o.mesh.scale.clone() }; flashes.push(f); } f.t = 0.14; }
+  const n = 8 + weight * 6; for (let i = 0; i < n; i++) { const s = rnd(2, 5) * (0.7 + weight * 0.25); particles.emit(o.x + ux * 0.2, y, o.z + uz * 0.2, ux * s + rnd(-1.5, 1.5), rnd(0.8, 3.2), uz * s + rnd(-1.5, 1.5), rnd(0.35, 0.7), rnd(0.08, 0.2) * (1 + weight * 0.15), 0.04, 0.03, 0.03, 12); }
+  if (kill) { for (let i = 0; i < 10; i++) particles.emit(o.x, y, o.z, rnd(-3, 3), rnd(2, 5), rnd(-3, 3), rnd(0.8, 1.4), rnd(0.12, 0.22), 0.9, 0.84, 0.7, 6); inkWave(o.x, o.z, 1.8); }
+  KICK.x = ux; KICK.z = uz; KICK.a = Math.max(KICK.a, opts.reduce ? 0 : 0.07 + weight * 0.05 + (kill ? 0.05 : 0));
+  S.hitstop = Math.max(S.hitstop, [0, 0.045, 0.085, 0.11][weight] + (kill ? 0.03 : 0)); if (kill) sfx.play('splat');
+}
+// morte in inchiostro: la macchia si scioglie e affonda nella carta invece di sparire
+const dying = [];
+function inkDeath(m) { const f = flashes.findIndex((q) => q.o === m); if (f >= 0) { m.mesh.scale.copy(flashes[f].s0); flashes.splice(f, 1); } dying.push({ mesh: m.mesh, mats: m.fxMats || matsOf(m.mesh), t: 0, s0: m.mesh.scale.clone(), y0: m.mesh.position.y }); }
+function dyingUpdate(dt) { for (let i = dying.length - 1; i >= 0; i--) { const d = dying[i]; d.t += dt; const k = Math.min(1, d.t / 0.42); setU(d.mats, 'DissolveAmount', k * 1.05); d.mesh.scale.copy(d.s0).multiplyScalar(1 + k * 0.25 - k * k * 0.9); d.mesh.position.y = d.y0 - k * 0.25; d.mesh.rotation.y += dt * 6;
+  if (k >= 1) { scene.remove(d.mesh); dying.splice(i, 1); } } }
+function flashUpdate(rdt) { for (let i = flashes.length - 1; i >= 0; i--) { const f = flashes[i]; f.t -= rdt; const k = Math.max(0, f.t / 0.14);
+  setU(f.o.fxMats, 'uHit', k * 0.9); if (f.o.mesh) f.o.mesh.scale.set(f.s0.x * (1 + 0.28 * k), f.s0.y * (1 - 0.22 * k), f.s0.z * (1 + 0.28 * k)); if (f.t <= 0) { if (f.o.mesh) f.o.mesh.scale.copy(f.s0); flashes.splice(i, 1); } } }
+// scia della schivata: sagome d'inchiostro che svaniscono
+const ghosts = []; { const gg = new THREE.ConeGeometry(0.45, 1.5, 10); gg.translate(0, 0.75, 0); for (let i = 0; i < 6; i++) { const m = new THREE.Mesh(gg, new THREE.MeshBasicMaterial({ color: 0x1a1210, transparent: true, opacity: 0, depthWrite: false })); m.visible = false; scene.add(m); ghosts.push({ m, t: 0 }); } }
+let ghostI = 0; function ghostSpawn() { const g = ghosts[ghostI++ % ghosts.length]; g.m.position.set(P.x, 0, P.z); g.m.visible = true; g.t = 0.28; }
+function ghostsUpdate(rdt) { for (const g of ghosts) { if (g.t <= 0) continue; g.t -= rdt; g.m.material.opacity = Math.max(0, g.t / 0.28) * 0.45; g.m.scale.setScalar(1 + (0.28 - g.t) * 0.6); if (g.t <= 0) g.m.visible = false; } }
 function nearestEnemy(r) { let b = null, bd = r; for (const e of [charger, custode, ...door.mites, ...swarm.filter((m) => m.room === S.room)]) { if (!e.alive || e.st === 'dead') continue; const d = dist(P, e); if (d < bd) { bd = d; b = e; } } return b; }
 function inArc(o, range, arc) { const dx = o.x - P.x, dz = o.z - P.z, d = Math.hypot(dx, dz); if (d > range) return false; return d < 0.6 || Math.abs(angDiff(Math.atan2(dx, dz), P.face)) < arc; }
 function doHit(heavy) {
-  const range = heavy ? 2.4 : 1.9, arc = heavy ? 1.1 : 0.95; let any = false;
-  trail.position.set(P.x, 0.05, P.z); trail.rotation.z = P.face - Math.PI / 2; trail.material.opacity = heavy ? 0.85 : 0.6; trail.scale.setScalar(heavy ? 1.25 : 1);
-  if (heavy) { particles.burst(P.x + Math.sin(P.face) * 1.5, 0.2, P.z + Math.cos(P.face) * 1.5, 16, 3); traces.add(P.x + Math.sin(P.face) * 1.6, P.z + Math.cos(P.face) * 1.6, 0.6, 1, now); }
+  const fin = !heavy && P.combo === 2, w = heavy ? 3 : fin ? 2 : 1; // peso del colpo: rapido, chiusura, forte
+  const range = heavy ? 2.4 : fin ? 2.2 : 1.9, arc = heavy ? 1.1 : fin ? 1.25 : 0.95; let any = false;
+  trail.position.set(P.x, 0.05, P.z); trail.rotation.z = P.face - Math.PI / 2; trail.material.opacity = heavy || fin ? 0.85 : 0.6; trail.scale.set(P.combo === 1 && !heavy ? -1 : 1, 1, 1).multiplyScalar(heavy ? 1.25 : fin ? 1.18 : 1);
+  if (heavy || fin) { particles.burst(P.x + Math.sin(P.face) * 1.5, 0.2, P.z + Math.cos(P.face) * 1.5, heavy ? 16 : 8, 3); traces.add(P.x + Math.sin(P.face) * 1.6, P.z + Math.cos(P.face) * 1.6, heavy ? 0.6 : 0.4, 1, now); }
+  const gainInk = () => { const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); };
   for (const e of [charger, custode]) {
     if (!e.alive || e.st === 'dead' || !inArc(e, range + e.cfg.r * 0.6, arc)) continue; any = true;
-    const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); Tele.log('hit', { target: e.id, heavy });
+    gainInk(); Tele.log('hit', { target: e.id, heavy, combo: P.combo });
     if (e.armorBroken && e.exposed > 0) { coreHit(e); continue; }
     const fr = grammar.has(e.id, 'state.fragile'), combo = fr && grammar.has(e.id, 'temperament.cautious');
-    if (heavy && !e.armorBroken && (combo || (fr && (e.st === 'stun' || e.st === 'recover')))) { e.armorHP -= (combo ? 6 : 5) * nibMul(); sfx.play('hit'); S.hitstop = 0.1; particles.burst(e.x, 1.2, e.z, 16, 5, [0.85, 0.78, 0.62], 0.18); if (e.armorHP <= 0) breakArmor(e, 'fragile'); continue; }
+    if (heavy && !e.armorBroken && (combo || (fr && (e.st === 'stun' || e.st === 'recover')))) { e.armorHP -= (combo ? 6 : 5) * nibMul(); sfx.play('hit'); hitFx(e, 3); particles.burst(e.x, 1.2, e.z, 16, 5, [0.85, 0.78, 0.62], 0.18); if (e.armorHP <= 0) breakArmor(e, 'fragile'); continue; }
     const vuln = e.st === 'stun' || e.st === 'recover' || e.st === 'windup' || e.st === 'swipeWU';
-    if (vuln && !e.armorBroken) { e.armorHP -= (heavy ? 3 : 1) * nibMul(); sfx.play('hit'); S.hitstop = heavy ? 0.09 : 0.05; particles.burst(e.x, 1.2, e.z, 10, 4, [0.85, 0.78, 0.62], 0.15);
+    if (vuln && !e.armorBroken) { e.armorHP -= (heavy ? 3 : fin ? 2 : 1) * nibMul(); sfx.play('hit'); hitFx(e, w); particles.burst(e.x, 1.2, e.z, 10, 4, [0.85, 0.78, 0.62], 0.15);
       if (e.armorHP <= 0) breakArmor(e, 'action'); }
-    else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); toastSmall('La corazza è integra: attendi un varco'); dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.3, e.z, 'PARATO', 'block'); }
-    const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; if (e.st !== 'charge') { e.vx += dx / l * (heavy ? 4 : 1.5); e.vz += dz / l * (heavy ? 4 : 1.5); }
+    else { sfx.play('deny'); particles.burst(e.x, 1.3, e.z, 4, 2, [0.9, 0.85, 0.7], 0.1); KICK.a = Math.max(KICK.a, 0.05); if (!(S.paratoT > 0)) { S.paratoT = 3; toastSmall('La corazza è integra: attendi un varco'); } dmgAt(e.x, (e.mesh.userData.height || 1.6) + 0.3, e.z, 'PARATO', 'block'); }
+    const dx = e.x - P.x, dz = e.z - P.z, l = Math.hypot(dx, dz) || 1; if (e.st !== 'charge') { const k = heavy ? 4 : fin ? 3 : 1.5; e.vx += dx / l * k; e.vz += dz / l * k; }
   }
-  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range + 0.7 + (m.r || 0.3), arc + 0.7)) { if (m.boss) { const dmg = (heavy ? 4 : 1) * nibMul(); m.hp -= dmg; any = true; sfx.play('hit'); S.hitstop = 0.06; particles.burst(m.x, 0.9, m.z, 12, 4); dmgAt(m.x, 2.4, m.z, '-' + Math.round(dmg * 10), heavy ? 'big' : ''); m.hitT = 0.15; if (m.hp > 0) continue; }
-    if (!heavy && m.hp > 1) { m.hp--; any = true; sfx.play('hit'); const kx = m.x - P.x, kz = m.z - P.z, kl = Math.hypot(kx, kz) || 1; m.x += kx / kl * 1.2; m.z += kz / kl * 1.2; collide(m, m.r, false); particles.burst(m.x, 0.4, m.z, 8, 3); continue; } m.alive = false; miteDrop(m); any = true; sfx.play('hit'); particles.burst(m.x, 0.4, m.z, 18, 4); traces.add(m.x, m.z, 0.8, 0, now); scene.remove(m.mesh); const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); }
+  for (const m of [...door.mites, ...swarm]) if (m.alive && inArc(m, range + 0.7 + (m.r || 0.3), arc + 0.7)) { any = true;
+    const kx = m.x - P.x, kz = m.z - P.z, kl = Math.hypot(kx, kz) || 1;
+    if (m.boss) { const dmg = (heavy ? 4 : fin ? 2 : 1) * nibMul() * (m.tired ? 1.6 : 1); m.hp -= dmg; sfx.play('hit'); hitFx(m, w, m.hp <= 0); dmgAt(m.x, 2.4, m.z, '-' + Math.round(dmg * 10), heavy || fin ? 'big' : ''); m.hitT = 0.15; gainInk(); if (m.hp > 0) continue; }
+    const dmg = heavy ? 99 : fin ? 2 : 1;
+    if (m.hp > dmg) { m.hp -= dmg; sfx.play('hit'); hitFx(m, w); const kb = fin ? 2.2 : 1.2; m.x += kx / kl * kb; m.z += kz / kl * kb; m.tell = 0; m.lunge = 0; collide(m, m.r, false); gainInk(); continue; }
+    m.alive = false; miteDrop(m); sfx.play('hit'); hitFx(m, w, true); traces.add(m.x, m.z, 0.8, 0, now); inkDeath(m); gainInk(); }
   if (!board.broken && dist(P, board) < 2.4 && heavy) { if (grammar.has('board', 'state.fragile')) breakBoard(); else { sfx.play('deny'); toastSmall('La tavola è integra. Il libro dice: integra.'); } any = true; }
   if (!relay.broken && dist(P, relay) < 2.2 && heavy && !S.doorRoute && !door.defense) { if (grammar.has('relay', 'state.fragile')) forceRelay(); else { sfx.play('deny'); toastSmall('Il supporto del relè regge'); } any = true; }
+  if (fin && any && PROG.skills.flourish) { ink.gain(8); popInk('+8 svolazzo'); }
+  if (deflectShots(range, arc)) any = true;
   if (heavy && trySecretsOnHeavy()) any = true;
   if (ch2Hit(heavy, range, arc)) any = true;
-  if (any) input.rumble(0.3, heavy ? 0.7 : 0.3, 80);
+  if (any) input.rumble(0.3, heavy ? 0.7 : fin ? 0.5 : 0.3, 80);
 }
 function coreHit(e) {
   sfx.play('break'); S.hitstop = 0.15; S.flash = 0.35; S.shake = 1; particles.burst(e.x, 1.5, e.z, 50, 7, [0.6, 0.1, 0.06], 0.2); traces.add(e.x, e.z, 2.5, 0, now); input.rumble(1, 1, 300);
@@ -516,8 +572,6 @@ function interactables() {
   if (S.room === 'intro' && !board.broken && !S.discovered.has('state.fragile')) L.push({ x: 0, z: -8.8, r: 2.6, label: 'guarda', fn: () => { S.discovered.add('state.fragile'); const g = ink.interact(); Tele.log('interact', { what: 'board', gain: g }); sfx.play('page');
     say([['narr', 'Una goccia ha morso la tavola. Sotto la parola INTEGRA si vede un\'altra parola, più vecchia.'], ['narr', 'FRAGILE.']], { done: () => hint(ST.HINTS.firstRewrite) }); journal('Hai trovato la parola FRAGILE sotto INTEGRA.'); } });
   for (const [id, sp] of Object.entries(secretPages)) L.push({ x: sp.x, z: sp.z, r: 2.1, label: 'leggi', fn: () => foundSecret(id, ST.SECRET_TEXT[id]) });
-  if (false) L.push({ x: -6.5, z: -39.3, r: 1.6, label: 'prendi', fn: () => { door.hasDoc = true; docM.userData.paper.visible = false; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'evidence' });
-    say([['narr', 'Una testimonianza piegata in quattro. In fondo, una firma che non è quella del relè.']]); journal('Hai preso la prova dal corridoio.'); } });
   if (S.room === 'door' && door.hasDoc && !door.docPlaced && !S.doorRoute) L.push({ x: -3.8, z: -98.8, r: 1.7, label: 'inserisci', fn: () => { door.docPlaced = true; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'reader' }); hint('La prova è nel lettore. Il relè pulsa già: dai alla piastra una strada'); } });
   if (S.room === 'door' && !S.doorRoute && !door.defense) L.push({ x: 0, z: -97.8, r: 2.0, label: 'parla', fn: talkElara });
   if (S.room === 'arena' && (arena.snapped || arena.window > 0) && !S.victory) L.push({ x: 0, z: -136.4, r: 1.8, label: 'tocca', fn: touchSeal });
@@ -526,14 +580,14 @@ function interactables() {
 }
 function nearestInteract() { let b = null, bd = 1e9; for (const it of interactables()) { const d = Math.hypot(P.x - it.x, P.z - it.z); if (d < it.r && d < bd) { bd = d; b = it; } } return b; }
 function interact() { const it = nearestInteract(); if (dlg.active && (S.lock || dlg.opt.choices || !it)) { dlgNext(); return; } if (it) { if (dlg.active) endDialog(); it.fn(); } }
-function talkElara() {
+function talkElara() { S.camFocus = { x: elaraFig.position.x, z: elaraFig.position.z, t: 1.6 };
   const L = ST.elaraDoor(mem).slice(); L.push(['elara', 'Se vuoi passare senza strappare niente, difendimi mentre riscrivo la mia riga. Trenta secondi.']);
   say(L, { choices: [['Affidati a Elara', () => startDefense()], ['Non ora', () => {}]] });
 }
 function startDefense() { door.defense = { t: 55, spawn: 1 }; S.encounter = 'defense'; ink.encounterEnd(); Tele.log('encounter_start', { id: 'defense' }); toast('DIFENDI ELARA · 55'); sfx.tension(true); $('inkWrap').classList.remove('safe'); }
 function touchSeal() {
   if (S.victory) return; S.victory = true; for (const m of swarm) if (m.alive && m.room === 'arena') { m.alive = false; scene.remove(m.mesh); particles.burst(m.x, 0.3, m.z, 10, 3); } if (!S.plan) S.plan = arena.windowPlan || 'controllo';
-  Tele.log('arena_plan', { plan: S.plan, final: true }); sfx.play('seal'); S.flash = 0.8; endEncounter('arena'); journal('Il Custode è caduto con il piano: ' + ST.PLAN_TEXT[S.plan] + '.');
+  Tele.log('arena_plan', { plan: S.plan, final: true }); sfx.play('seal'); sfx.sting('victory'); S.flash = 0.8; endEncounter('arena'); journal('Il Custode è caduto con il piano: ' + ST.PLAN_TEXT[S.plan] + '.');
   custode.st = 'dead'; custode.dying = 0; tether.visible = false; closePanel(); setTimeout(() => goEnd(), FAST ? 300 : 1800);
 }
 function breakBoard() { board.broken = true; grammar.get('board').broken = true; openGate('board'); sfx.play('tear'); sfx.play('break'); S.shake = 0.6; S.flash = 0.2; input.rumble(0.8, 1, 200);
@@ -543,7 +597,7 @@ function forceRelay() { relay.broken = true; grammar.get('relay').broken = true;
   sfx.play('break'); sfx.play('tear'); S.shake = 0.8; elara.userData.st.torn = true; elara.userData.st.eyes = 215; elara.userData.st.mouth = -14; elara.userData.redraw(); setRoute('forced'); }
 function setRoute(r) {
   if (S.doorRoute) return; S.doorRoute = r; openGate('door'); door.open = 0; Tele.log('door_route', { door_route: r }); journal(ST.ROUTE_TEXT[r]); sfx.tension(false);
-  traces.add(0, -98.4, 2.6, r === 'forced' ? 3 : 0, now); S.tracePos.push([0, -98.4]);
+  traces.add(0, -98.4, 2.6, r === 'forced' ? 3 : 0, now); S.tracePos.push([0, -98.4]); S.camFocus = { x: 0, z: -99, t: 1.8 }; if (!opts.reduce) slowmo(0.5);
   const L = { forced: [['elara', 'Hai strappato la pagina invece di leggerla. Lo ricorderò.']], evidence: [['elara', 'La prova. Il verdetto si spegne. Questa riga la tengo io.']], trust: [['elara', 'Fatto. Ho una riga mia, adesso. Vai: ti seguo con lo sguardo.']] }[r];
   say(L); hint('');
 }
@@ -644,7 +698,7 @@ function applyWord(e, w, via) {
   for (let i = 0; i < 14; i++) particles.emit(e.x + rnd(-0.5, 0.5), (e.mesh.userData.height || 1.2) * rnd(0.5, 1), e.z + rnd(-0.5, 0.5), rnd(-0.6, 0.6), rnd(0, 1.5), rnd(-0.6, 0.6), rnd(1, 2), rnd(0.1, 0.22), 0.04, 0.03, 0.03, 7);
   showWordFloat(e, EFFECTS[w].word); inkWave(e.x, e.z, 3.2, w === 'element.conductive' ? 0x1b5a7a : w === 'temperament.cautious' ? 0x2a2440 : 0x0d0907);
   Tele.log(via === 'quick' ? 'quick_reapply' : 'rewrite_confirm', { target: e.id, eff: w, combo: res.combo ? res.combo.id : null, ink: Math.round(ink.v) });
-  if (res.combo) toast('✦ ' + EFFECTS[res.combo.a].word + ' + ' + EFFECTS[res.combo.b].word);
+  if (res.combo) { const ttl = '✦ ' + EFFECTS[res.combo.a].word + ' + ' + EFFECTS[res.combo.b].word; mem.combos = mem.combos || []; if (!mem.combos.includes(res.combo.id)) { mem.combos.push(res.combo.id); ST.saveMem(mem); comboBeat(ttl, res.combo.text); journal('Combinazione scoperta: ' + ttl.slice(2) + ' — ' + res.combo.text + '.'); } else toast(ttl); sfx.sting('combo'); } else sfx.sting('word');
   if (e.id === 'board') hint(ST.HINTS.heavy);
   if (e.id === 'charger' && w === 'state.fragile') hint(ST.HINTS.pillar);
   const name = grammar.get(e.id).def.name; if (!S.journal.some((j) => j.text === 'Hai scritto ' + EFFECTS[w].word + ' su: ' + name + '.')) journal('Hai scritto ' + EFFECTS[w].word + ' su: ' + name + '.');
@@ -715,7 +769,7 @@ function arenaUpdate(dt) {
 // ---------- stanze, incontri, morte ----------
 function roomAt(x, z) { for (const r of W.ROOMS) if (Math.abs(x - r.cx) <= r.w / 2 - 0.3 && Math.abs(z - r.cz) <= r.d / 2 - 0.5) return r; return null; }
 function enterRoom(r) {
-  if (S.room === r.id) return; const prev = S.room; S.room = r.id; S.roomT = 0; S.lumiHintT = 0; setTimeout(saveGame, 50); P.spawn = { x: r.cx, z: r.cz + r.d / 2 - 1.2 }; $('room').textContent = r.title; toast(r.title.toUpperCase()); Tele.log('section_enter', { section: r.id, t: Math.round(S.time) });
+  if (S.room === r.id) return; const prev = S.room; S.room = r.id; S.roomT = 0; S.lumiHintT = 0; setTimeout(saveGame, 50); P.spawn = { x: r.cx, z: r.cz + r.d / 2 - 1.2 }; $('room').textContent = r.title; if (r.id !== 'open') toast(r.title.toUpperCase()); if (r.id !== 'open' && !MZ.film) { $('opSub').style.opacity = 0; } Tele.log('section_enter', { section: r.id, t: Math.round(S.time) });
   $('inkWrap').classList.toggle('safe', zoneSafe());
   if (r.id === 'intro') grammar.snapshot('intro', ['board'], () => ({}));
   if (r.id === 'charger' && !S.discovered.has('temperament.cautious') && charger.alive) { S.discovered.add('temperament.cautious'); S.encounter = 'charger'; ink.encounterEnd(); Tele.log('encounter_start', { id: 'charger' }); sfx.tension(true);
@@ -725,7 +779,7 @@ function enterRoom(r) {
   if (r.id === 'door' && prev !== 'door' && !S.doorRoute) { grammar.snapshot('door', ['relay', 'evplate'], () => ({ hasDoc: door.hasDoc, docPlaced: door.docPlaced })); say(ST.elaraDoor(mem).slice(0, 2)); hint(ST.HINTS.door); }
   if (r.id === 'arena' && S.encounter !== 'arena' && !S.victory) { S.encounter = 'arena'; ink.encounterEnd(); sfx.tension(true); say(ST.custodeLines(S.arenaDeaths, mem)); hint(ST.HINTS.arena); Tele.log('encounter_start', { id: 'arena' }); }
 }
-function endEncounter(id) { S.encounter = null; ink.encounterEnd(); sfx.tension(false); Tele.log('encounter_end', { id }); popInk('Inchiostro pieno'); }
+function endEncounter(id) { if (S.encounter && !opts.reduce) { slowmo(0.45); S.flash = Math.max(S.flash, 0.15); } S.encounter = null; ink.encounterEnd(); sfx.tension(false); Tele.log('encounter_end', { id }); popInk('Inchiostro pieno'); }
 function die() {
   P.st = 'dead'; P.t = 1.4; S.deaths++; mem.deaths++; sfx.play('death'); closePanel(); S.shake = 0.6; Tele.log('death', { room: S.room, deaths: S.deaths });
   traces.add(P.x, P.z, 1.6, 0, now); traces.add(P.x, P.z, 1.1, 3, now); S.tracePos.push([P.x, P.z]); inkWave(P.x, P.z, 4);
@@ -756,11 +810,24 @@ function ghostUpdate(dt) { if (!ghost.mesh) return; ghost.t += dt; const t = Mat
   if (ghost.t >= 4) { scene.remove(ghost.mesh); ghost.mesh = null; } }
 
 // ---------- dialoghi ----------
+// ritratti a inchiostro disegnati dal codice (niente immagini esterne): uno per voce
+const FACES = {};
+function portrait(who) { if (FACES[who]) return FACES[who]; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = '#efe5cf'; g.fillRect(0, 0, 128, 128); g.strokeStyle = 'rgba(40,28,20,.25)'; for (let i = 0; i < 9; i++) { g.beginPath(); g.moveTo(0, 14 + i * 14); g.lineTo(128, 14 + i * 14); g.stroke(); }
+  const K = '#16110d', R = '#8a2416'; g.lineCap = 'round'; g.lineJoin = 'round';
+  const blob = (x, y, r, col) => { g.fillStyle = col; g.beginPath(); for (let i = 0; i <= 24; i++) { const a = i / 24 * 6.283, q = r * (0.9 + 0.12 * Math.sin(a * 5 + r)); g.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } g.fill(); };
+  if (who === 'narr') { g.fillStyle = K; g.beginPath(); g.moveTo(14, 40); g.quadraticCurveTo(40, 30, 64, 44); g.quadraticCurveTo(88, 30, 114, 40); g.lineTo(114, 100); g.quadraticCurveTo(88, 90, 64, 104); g.quadraticCurveTo(40, 90, 14, 100); g.fill(); g.strokeStyle = '#efe5cf'; g.lineWidth = 2; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(24, 56 + i * 10); g.lineTo(54, 58 + i * 10); g.moveTo(74, 58 + i * 10); g.lineTo(104, 56 + i * 10); g.stroke(); } g.fillStyle = R; g.fillRect(62, 44, 4, 60); }
+  else if (who === 'ilde') { g.fillStyle = '#d9cbb0'; g.beginPath(); g.ellipse(64, 70, 30, 36, 0, 0, 6.3); g.fill(); g.fillStyle = '#9a9288'; blob(64, 30, 20, '#9a9288'); g.beginPath(); g.ellipse(64, 50, 34, 18, 0, Math.PI, 0); g.fill(); g.strokeStyle = K; g.lineWidth = 3; g.beginPath(); g.arc(52, 70, 8, 0, 6.3); g.arc(76, 70, 8, 0, 6.3); g.moveTo(60, 70); g.lineTo(68, 70); g.stroke(); g.beginPath(); g.moveTo(54, 92); g.quadraticCurveTo(64, 96, 74, 92); g.stroke(); g.fillStyle = K; g.fillRect(30, 108, 68, 20); }
+  else if (who === 'elara') { blob(64, 58, 38, K); g.fillStyle = '#efe5cf'; g.beginPath(); g.ellipse(64, 70, 24, 30, 0, 0, 6.3); g.fill(); g.fillStyle = K; g.fillRect(36, 40, 56, 16); g.beginPath(); g.arc(55, 70, 3.5, 0, 6.3); g.arc(73, 70, 3.5, 0, 6.3); g.fill(); g.fillStyle = 'rgba(200,90,80,.5)'; g.beginPath(); g.arc(50, 82, 6, 0, 6.3); g.arc(78, 82, 6, 0, 6.3); g.fill(); g.fillStyle = R; g.fillRect(52, 104, 24, 24); }
+  else if (who === 'lumi') { blob(64, 66, 40, K); for (let i = 0; i < 7; i++) blob(64 + Math.cos(i) * 46, 66 + Math.sin(i * 1.7) * 42, 5 + (i % 3) * 2, K); g.fillStyle = '#f6e3b0'; g.beginPath(); g.arc(50, 60, 8, 0, 6.3); g.arc(78, 60, 8, 0, 6.3); g.fill(); g.fillStyle = K; g.beginPath(); g.arc(52, 62, 3, 0, 6.3); g.arc(80, 62, 3, 0, 6.3); g.fill(); }
+  else if (who === 'custode') { g.fillStyle = '#3a2c24'; g.fillRect(22, 26, 84, 90); g.fillStyle = K; g.fillRect(30, 18, 68, 30); for (let i = 0; i < 5; i++) { g.beginPath(); g.moveTo(34 + i * 15, 18); g.lineTo(40 + i * 15, 2); g.lineTo(46 + i * 15, 18); g.fill(); } g.fillStyle = '#ff3a20'; g.fillRect(40, 62, 48, 8); g.fillStyle = 'rgba(255,58,32,.35)'; g.fillRect(34, 58, 60, 16); }
+  else { blob(64, 72, 38, '#2c2420'); g.fillStyle = K; g.beginPath(); g.ellipse(64, 74, 22, 26, 0, 0, 6.3); g.fill(); g.fillStyle = '#f6e3b0'; g.beginPath(); g.arc(56, 74, 3, 0, 6.3); g.arc(72, 74, 3, 0, 6.3); g.fill(); g.fillStyle = R; g.fillRect(36, 106, 56, 10); }
+  g.strokeStyle = K; g.lineWidth = 5; g.strokeRect(3, 3, 122, 122); return (FACES[who] = c.toDataURL()); }
 const dlg = { active: false, lines: [], i: 0, t: 0, opt: {}, choiceI: 0, full: '', ch: 0 };
 function say(lines, o = {}) { if (!lines.length) { if (o.done) o.done(); return; } dlg.lines = lines.slice(); dlg.i = 0; dlg.opt = o; dlg.active = true; dlg.choiceI = 0; showLine(); }
 function showLine() {
   const [who, text] = dlg.lines[dlg.i]; $('dialog').classList.remove('hidden'); $('dWho').textContent = ST.WHO[who] || who; $('dText').textContent = ''; dlg.full = text; dlg.ch = 0; dlg.t = 0;
-  $('dialog').dataset.who = who; sfx.play('voice', who === 'custode' ? 0.3 : who === 'lumi' ? 1.6 : 1); renderChoices(false);
+  $('dialog').dataset.who = who; $('dFace').src = portrait(who); sfx.play('voice', who === 'custode' ? 0.3 : who === 'lumi' ? 1.6 : 1); renderChoices(false);
 }
 function renderChoices(show) { let box = $('dChoices'); if (box) box.remove(); if (!show || !dlg.opt.choices) return; box = document.createElement('div'); box.id = 'dChoices';
   dlg.opt.choices.forEach(([lab], i) => { const b = document.createElement('button'); b.className = 'pbtn' + (i === dlg.choiceI ? ' sel' : ''); b.textContent = lab; b.onpointerdown = (e) => { e.stopPropagation(); pickChoice(i); }; box.appendChild(b); }); $('dialog').appendChild(box); }
@@ -773,7 +840,7 @@ function dlgNext() {
 }
 function endDialog() { dlg.active = false; renderChoices(false); $('dialog').classList.add('hidden'); const d = dlg.opt.done; dlg.opt = {}; if (d) d(); }
 function dlgUpdate(dt) {
-  if (!dlg.active) return; dlg.t += dt; const speed = FAST ? 400 : 45; const n = Math.min(dlg.full.length, Math.floor(dlg.t * speed)); if (n > dlg.ch) { dlg.ch = n; $('dText').textContent = dlg.full.slice(0, n); }
+  if (!dlg.active) return; dlg.t += dt; const speed = FAST ? 400 : 45 * (opts.textK || 1); const n = Math.min(dlg.full.length, Math.floor(dlg.t * speed)); if (n > dlg.ch) { dlg.ch = n; $('dText').textContent = dlg.full.slice(0, n); }
   if ($('dChoices')) { if (input.pressed('left') || input.pressed('up')) { dlg.choiceI = 0; renderChoices(true); } if (input.pressed('right') || input.pressed('down')) { dlg.choiceI = dlg.opt.choices.length - 1; renderChoices(true); } if (input.pressed('confirm')) pickChoice(dlg.choiceI); return; }
   if (input.pressed('confirm') && (S.lock || dlg.opt.choices)) { dlgNext(); return; }
   if (dlg.ch >= dlg.full.length && dlg.opt.choices && dlg.i === dlg.lines.length - 1) { renderChoices(true); return; }
@@ -838,6 +905,7 @@ function healthUpdate(dt) {
     el.style.display = vis ? 'block' : 'none'; if (vis) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; setBar(el.querySelector('.hbar'), h.v / h.max); }
   }
 }
+function shownGoal() { const g = goalText(); if (opts.hints === 'sempre' || S.roomT > 45) return g; return g.replace(/\s*\([^)]*\)/, ''); } // prima il cosa, dopo 45 s anche il come
 function goalText() {
   switch (S.room) {
     case 'intro': return !S.discovered.has('state.fragile') ? 'Obiettivo: guarda la tavola lacerata' : !board.broken ? (grammar.has('board', 'state.fragile') ? 'Obiettivo: rompi la tavola con un colpo forte' : 'Obiettivo: scrivi FRAGILE sulla tavola (✎)') : 'Obiettivo: prosegui verso nord';
@@ -856,19 +924,19 @@ function goalText() {
 }
 function phase2Update(dt) {
   if (S.room !== 'arena' || !arena.snapped || S.victory || !custode.alive) { arena.p2 = false; return; }
-  if (!arena.p2) { arena.p2 = true; arena.p2T = 1.2; toast('IL CUSTODE · FASE 2'); $('bossBar').querySelector('.bname').textContent = 'FASE 2 · LEGAME SPEZZATO — TOCCA IL SIGILLO'; S.shake = 0.8; Tele.log('boss_phase', { phase: 2 }); }
+  if (!arena.p2) { arena.p2 = true; arena.p2T = 1.2; bossBeat('LEGAME SPEZZATO', 'tocca il sigillo a nord', custode); $('bossBar').querySelector('.bname').textContent = 'FASE 2 · LEGAME SPEZZATO — TOCCA IL SIGILLO'; S.shake = 0.8; Tele.log('boss_phase', { phase: 2 }); }
   arena.p2T -= dt; if (arena.p2T <= 0 && !S.lock) { arena.p2T = 2.3; const x = P.x, z = P.z; sfx.play('warn');
     ring(x, z, 1.6, 0.9, 0x8a1a10, () => { sfx.play('heavy'); particles.burst(x, 0.3, z, 18, 4, [0.1, 0.05, 0.04], 0.18); traces.add(x, z, 1.2, 0, now); if (Math.hypot(P.x - x, P.z - z) < 1.6) damagePlayer(1, { x, z }, 'wave' + (++attackCounter)); }); }
 }
 function lightsUpdate() {
   const t = performance.now() / 1000; const px = P.x, pz = P.z;
-  const near = storyLights.map((l) => [l, (l.x - px) ** 2 + (l.z - pz) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, 11).map((a) => a[0]);
+  const near = storyLights.map((l) => [l, (l.x - px) ** 2 + (l.z - pz) ** 2]).sort((a, b) => a[1] - b[1]).slice(0, NL - 1).map((a) => a[0]);
   const PL = INK_UNIFORMS.uPL.value, PC = INK_UNIFORMS.uPC.value;
-  for (let i = 0; i < 12; i++) { PL[i].set(0, -99, 0, 1); PC[i].set(0, 0, 0); }
+  for (let i = 0; i < NL; i++) { PL[i].set(0, -99, 0, 1); PC[i].set(0, 0, 0); }
   near.forEach((l, i) => { const f = l.kind === 'lamp' ? 1 + Math.sin(t * 2 + l.ph) * 0.03 : 0.85 + Math.sin(t * 13 + l.ph) * 0.08 + Math.sin(t * 7.1 + l.ph * 2) * 0.07; PL[i].set(l.x, l.y, l.z, l.r * 1.35 * f); PC[i].set(l.col[0] * f, l.col[1] * f, l.col[2] * f);
     const u = l.m.userData; u.glow.scale.setScalar((l.kind === 'lamp' ? 1.6 : 0.9) * f); if (l.kind === 'candle') u.flame.scale.set(1, 2.2 * f, 1); });
   // la penna del giocatore è sempre una piccola luce d'inchiostro
-  const q = P.mesh.userData.nibWorld; if (q) { P.mesh.userData.nib.getWorldPosition(q); PL[11].set(q.x, q.y, q.z, panel.open ? 3.2 : 1.8); const k = panel.open ? 1.4 : 0.6; PC[11].set(1.0 * k, 0.25 * k, 0.15 * k); P.mesh.userData.nibGlow.scale.setScalar(panel.open ? 0.6 : 0.3 + Math.sin(t * 4) * 0.05); if (frame % 75 === 0 && S.phase === 'play') particles.emit(q.x, q.y, q.z, 0, -0.5, 0, 1.4, 0.08, 0.45, 0.06, 0.04, 9); }
+  const q = P.mesh.userData.nibWorld; if (q) { P.mesh.userData.nib.getWorldPosition(q); PL[NL - 1].set(q.x, q.y, q.z, panel.open ? 3.2 : 1.8); const k = panel.open ? 1.4 : 0.6; PC[NL - 1].set(1.0 * k, 0.25 * k, 0.15 * k); P.mesh.userData.nibGlow.scale.setScalar(panel.open ? 0.6 : 0.3 + Math.sin(t * 4) * 0.05); if (frame % 75 === 0 && S.phase === 'play') particles.emit(q.x, q.y, q.z, 0, -0.5, 0, 1.4, 0.08, 0.45, 0.06, 0.04, 9); }
 }
 function lumiGuide(dt) {
   S.roomT += dt; if (S.lock || dlg.active || S.done) return;
@@ -876,9 +944,15 @@ function lumiGuide(dt) {
   if (S.roomT > 90 && S.roomT - S.lumiHintT > 45) { S.lumiHintT = S.roomT; const g = goalText().replace('Obiettivo: ', ''); if (g) showLumiTip('Lumi: "' + g + '"'); }
 }
 function showLumiTip(t) { hint(t); sfx.play('voice'); Tele.log('lumi_tip', { room: S.room }); }
+function musicMood() { // la musica segue la storia: calma, esplorazione, labirinto, combattimento, boss
+  if (S.done || S.room === 'end') return 'calm'; if (OP.stage) return 'calm';
+  if ((S.room === 'arena' && S.encounter === 'arena' && !S.victory) || (S.room === 'maze' && MZ.boss && MZ.boss.alive && MZ.boss.engaged)) return 'boss';
+  if (S.encounter || door.defense || (S.room === 'maze' && swarm.some((m) => m.room === 'maze' && m.alive && m.hunting))) return 'combat';
+  return S.room === 'maze' ? 'maze' : 'explore'; }
 function hudUpdate(dt) {
-  tutUpdate(dt); healthUpdate(dt); lumiGuide(dt); lightsUpdate(); phase2Update(dt); trapUpdate();
-  if (frame % 10 === 0) { const g = goalText(); if ($('goal').textContent !== g) { $('goal').textContent = g; $('goal').classList.remove('flash'); void $('goal').offsetWidth; $('goal').classList.add('flash'); } }
+  if (frame % 5 === 0) sfx.setMood(musicMood());
+  tutUpdate(dt); document.body.classList.toggle('tutOn', !$('tut').classList.contains('hidden')); healthUpdate(dt); lumiGuide(dt); lightsUpdate(); phase2Update(dt); trapUpdate();
+  if (frame % 10 === 0) { const g = shownGoal(); if ($('goal').textContent !== g) { $('goal').textContent = g; $('goal').classList.remove('flash'); void $('goal').offsetWidth; $('goal').classList.add('flash'); } }
   $('inkFill').style.width = ink.v + '%'; $('inkNum').textContent = Math.round(ink.v); $('inkWrap').classList.toggle('low', ink.v < 25 && !zoneSafe());
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $('toast').classList.remove('on'); }
   const it = S.phase === 'play' && !panel.open && !S.lock ? nearestInteract() : null; $('tInteract').classList.toggle('hidden', !it); if (it) $('tInteractL').textContent = it.label;
@@ -964,6 +1038,7 @@ function finish() {
 // ---------- menu ----------
 let paused = false;
 function togglePause() { if (S.phase !== 'play') return; paused = !paused; $('pause').classList.toggle('hidden', !paused); if (paused) closePanel(); Tele.log(paused ? 'pause' : 'resume'); }
+function applyDiff() { const k = (DIFF[opts.diff] || DIFF.normale); INK.gainHit = Math.round(12 * k.ink); INK.gainDodge = Math.round(18 * k.ink); INK.gainInteract = Math.round(25 * k.ink); for (const e of [charger, custode]) if (!e.armorBroken && !e.diffK) { e.diffK = k.armor; e.armorHP = Math.round(e.armorHP * k.armor); e.armorMax = Math.round(e.armorMax * k.armor); } }
 function applyOpts() { document.body.classList.toggle('contrast', !!opts.contrast); document.body.classList.toggle('big', !!opts.big); post.comp.uniforms.reduce.value = opts.reduce ? 1 : 0; INK_UNIFORMS.uContrast.value = opts.contrast ? 1 : 0; }
 function bindUI() {
   $('bStart').onclick = () => beginWithIntro(false); $('fSkip').onclick = endFilm; $('fVoice').onclick = () => { voiceOn = !voiceOn; localStorage.setItem('pal_voice', voiceOn ? '1' : '0'); $('fVoice').textContent = voiceOn ? '🔊 Voce' : '🔇 Voce'; if (!voiceOn && window.speechSynthesis) speechSynthesis.cancel(); else speak($('fSub').textContent); }; $('bReplayIntro').onclick = () => beginWithIntro(true); setupTitle(); if (!mem.runs) $('bReplayIntro').classList.add('hidden'); $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
@@ -974,8 +1049,8 @@ function bindUI() {
   $('pRestart').onclick = () => location.reload();
   $('pTele').onclick = () => { const blob = new Blob([JSON.stringify(Tele.all(), null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'palimpsest-telemetria.json'; a.click(); };
   const bind = (id, k, f) => { const el = $(id); if (el.type === 'checkbox') { el.checked = !!opts[k]; el.onchange = () => { opts[k] = el.checked; saveOpts(); if (f) f(); }; } else { el.value = opts[k]; el.oninput = el.onchange = () => { opts[k] = el.type === 'range' ? +el.value : el.value; saveOpts(); if (f) f(); }; } };
-  bind('oVol', 'vol', () => sfx.setVol(opts.vol)); bind('oMus', 'mus', () => sfx.setMusic(opts.mus)); bind('oPauseFull', 'pauseFull'); bind('oReduce', 'reduce', applyOpts); bind('oContrast', 'contrast', applyOpts); bind('oBig', 'big', applyOpts); bind('oPanel', 'panel'); bind('oEasy', 'easy'); bind('oQ', 'q', () => location.reload());
-  applyOpts();
+  bind('oVol', 'vol', () => sfx.setVol(opts.vol)); bind('oMus', 'mus', () => sfx.setMusic(opts.mus)); bind('oPauseFull', 'pauseFull'); bind('oReduce', 'reduce', applyOpts); bind('oContrast', 'contrast', applyOpts); bind('oBig', 'big', applyOpts); bind('oPanel', 'panel'); bind('oDiff', 'diff', applyDiff); bind('oShake', 'shakeK'); bind('oText', 'textK'); bind('oAim', 'aim'); bind('oHints', 'hints'); bind('oQ', 'q', () => location.reload());
+  applyOpts(); applyDiff();
 }
 
 // ---------- loop ----------
@@ -1001,16 +1076,16 @@ function defenseUpdate(dt) {
 const cBlue = new THREE.Color(), cHot = new THREE.Color(0.8, 0.2, 0.05), cDim = new THREE.Color(0.1, 0.02, 0), cEcho = new THREE.Color(0.3, 0.22, 0.12), vH = new THREE.Vector2();
 function visualUpdate(dt, rdt) {
   INK_UNIFORMS.uTime.value += rdt;
-  const u = P.mesh.userData, sp = Math.hypot(P.vx, P.vz); P.mesh.position.set(P.x, 0, P.z); P.mesh.rotation.y = P.face;
+  const u = P.mesh.userData, sp = Math.hypot(P.vx, P.vz); P.mesh.position.set(P.x, P.yOff || 0, P.z); P.mesh.rotation.y = P.face;
   u.body.rotation.x = lerp(u.body.rotation.x, sp * 0.03 + (P.st === 'dodge' ? 0.5 : 0), 0.2); u.body.position.y = Math.abs(Math.sin(now * 11)) * 0.05 * Math.min(1, sp / 4);
   u.cloak.scale.set(1 + Math.sin(now * 9) * 0.03 * sp / 5, 1, 1 + sp * 0.03); const sq = P.st === 'heavy' && P.t > P.hitAt ? 0.9 : 1; u.body.scale.set(2 - sq, sq, 2 - sq);
-  if (P.st === 'attack') u.quillPivot.rotation.y = lerp(1.6, -1.6, clamp(1 - (P.t - 0.05) / 0.27, 0, 1)); else if (P.st === 'heavy') { u.quillPivot.rotation.x = P.t > P.hitAt ? -1.2 : 0.6; u.quillPivot.rotation.y = 0; } else { u.quillPivot.rotation.y = lerp(u.quillPivot.rotation.y, 0.3, 0.2); u.quillPivot.rotation.x = lerp(u.quillPivot.rotation.x, 0, 0.2); }
+  if (P.st === 'attack') { const T0 = [0.3, 0.28, 0.42][P.combo || 0], k = clamp(1 - (P.t - 0.05) / (T0 - 0.05), 0, 1); if (P.combo === 2) { u.quillPivot.rotation.y = 0; u.quillPivot.rotation.x = lerp(0.9, -1.1, k); } else u.quillPivot.rotation.y = P.combo === 1 ? lerp(-1.6, 1.6, k) : lerp(1.6, -1.6, k); } else if (P.st === 'heavy') { u.quillPivot.rotation.x = P.t > P.hitAt ? -1.2 : 0.6; u.quillPivot.rotation.y = 0; } else { u.quillPivot.rotation.y = lerp(u.quillPivot.rotation.y, 0.3, 0.2); u.quillPivot.rotation.x = lerp(u.quillPivot.rotation.x, 0, 0.2); }
   if (!P.mats) P.mats = matsOf(P.mesh); setU(P.mats, 'DissolveAmount', P.st === 'dead' ? clamp(1.05 - P.t / 1.4 * 1.05, 0, 1.05) : 0);
   const wantOl = P.st !== 'dead'; if (P.olOn !== wantOl) { P.olOn = wantOl; setOutlines(P.mesh, wantOl); }
   if (P.st === 'dead') P.mesh.visible = P.t > -0.1; else P.mesh.visible = !(P.inv > 0 && P.st !== 'dodge' && Math.sin(now * 40) < -0.3);
-  if (P.st === 'dodge' && frame % 2 === 0) particles.emit(P.x, 0.5, P.z, 0, 0.5, 0, 0.4, 0.3, 0.06, 0.04, 0.04, 0);
+  if (P.st === 'dodge' && frame % 2 === 0) { particles.emit(P.x, 0.5, P.z, 0, 0.5, 0, 0.4, 0.3, 0.06, 0.04, 0.04, 0); if (frame % 4 === 0) ghostSpawn(); }
   if (sp > 3 && frame % 9 === 0) traces.add(P.x + rnd(-0.1, 0.1), P.z, 0.12, 1, now);
-  pShadow.position.set(P.x, 0.015, P.z); trail.material.opacity *= 0.82;
+  pShadow.position.set(P.x, 0.015 + (P.yOff || 0), P.z); trail.material.opacity *= 0.82;
   for (const e of [charger, custode]) { const m = e.mesh; m.position.set(e.x, 0, e.z); m.rotation.y = lerpAng(m.rotation.y, e.face, 0.2); shadows[e.id].position.set(e.x, 0.015, e.z); const b = m.userData.body;
     if (e.st === 'dead') { if (!e.olOff) { e.olOff = true; setOutlines(m, false); } e.dying = (e.dying || 0) + dt; setU(e.mats, 'DissolveAmount', Math.min(1.05, e.dying * 0.7)); if (frame % 3 === 0 && e.dying < 1.5) particles.emit(e.x + rnd(-0.6, 0.6), rnd(0.3, 2), e.z + rnd(-0.6, 0.6), 0, rnd(0.5, 2), 0, 1.2, 0.2, 0.05, 0.03, 0.03, -1); if (e.dying > 1.6) { m.visible = false; shadows[e.id].visible = false; } continue; }
     const caut = grammar.has(e.id, 'temperament.cautious'), frag = grammar.has(e.id, 'state.fragile'), cond = grammar.has(e.id, 'element.conductive'); const pvOn = panel.open && panel.target === e;
@@ -1032,7 +1107,7 @@ function visualUpdate(dt, rdt) {
   for (const g of Object.values(gates)) if (g.mesh && g.open && g.mesh.position.y > -2) g.mesh.position.y -= dt * 2;
   if (door.open != null && door.open < 1) { door.open = Math.min(1, door.open + dt * 0.6); elara.rotation.y = door.open * (S.doorRoute === 'forced' ? 1.5 : 1.2); elara.position.x = -door.open * 1.3; }
   if (frame % 240 === 0 && S.room === 'door') { const st = elara.userData.st, e0 = st.eyes; st.eyes = 200; elara.userData.redraw(); setTimeout(() => { st.eyes = e0; elara.userData.redraw(); }, 140); }
-  elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; for (const f of [elaraFig, elaraFig2]) { const u = f.userData; u.body.position.y = 0.06 + Math.sin(now * 1.6) * 0.05; u.orbit.rotation.y = now * 0.35; u.head.rotation.y = Math.sin(now * 0.5) * 0.25; } elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
+  elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; for (const f of [elaraFig, elaraFig2]) { const u = f.userData; u.body.position.y = 0.06 + Math.sin(now * 1.6) * 0.05; u.orbit.rotation.y = now * 0.35; const dx = P.x - f.position.x, dz = P.z - f.position.z, near = Math.hypot(dx, dz) < 7; /* Elara si gira a guardarti quando ti avvicini */ if (near) f.rotation.y = lerpAng(f.rotation.y, Math.atan2(dx, dz), 0.04); u.head.rotation.y = near ? lerp(u.head.rotation.y, 0, 0.1) : Math.sin(now * 0.5) * 0.25; } elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
   if (lumi.on) { lumi.x = lerp(lumi.x, P.x + 1.2, 0.03); lumi.z = lerp(lumi.z, P.z + 0.8, 0.03); lumi.mesh.position.set(lumi.x, 1.2 + Math.sin(now * 2) * 0.15, lumi.z); if (frame % 6 === 0) particles.emit(lumi.x, 1.1, lumi.z, rnd(-0.2, 0.2), -0.3, rnd(-0.2, 0.2), 1, 0.12, 0.05, 0.03, 0.04, 3); }
   for (const l of lumiTraces) l.position.y = 0.25 + Math.sin(now * 1.5 + l.position.x) * 0.06;
   for (let i = waves.length - 1; i >= 0; i--) { const w = waves[i]; w.t += rdt; const k = w.t / 0.55; w.m.scale.setScalar(0.3 + k * w.maxR); w.m.material.opacity = 0.85 * (1 - k); if (k >= 1) { scene.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); waves.splice(i, 1); } }
@@ -1040,22 +1115,26 @@ function visualUpdate(dt, rdt) {
   decor.quill.position.y = 4.6 + Math.sin(now * 0.9) * 0.15; decor.quill.rotation.z = 0.12 + Math.sin(now * 0.6) * 0.04;
   for (const p of world.scraps.children) p.rotation.z = Math.sin(now * 1.2 + p.userData.sw) * 0.08;
   if (frame % 20 === 0) particles.emit(P.x + rnd(-8, 8), rnd(1, 4), P.z + rnd(-8, 4), rnd(-0.1, 0.1), 0.05, rnd(-0.1, 0.1), 4, 0.06, 0.95, 0.85, 0.6, 0); // pulviscolo di luce
-  ghostUpdate(dt); particles.update(dt);
+  ghostUpdate(dt); particles.update(dt); shotsUpdate(dt); flashUpdate(rdt); dyingUpdate(dt); lanesUpdate(dt); poolsUpdate(dt); ghostsUpdate(rdt); if (S.paratoT > 0) S.paratoT -= rdt;
   INK_UNIFORMS.uLamp.value.set(lerp(INK_UNIFORMS.uLamp.value.x, P.x, 0.08), 0, lerp(INK_UNIFORMS.uLamp.value.z, S.room === 'arena' ? lerp(P.z, -124, 0.4) : P.z - 1, 0.08)); INK_UNIFORMS.uLampR.value = S.room === 'arena' ? 16 : S.room === 'c2d' ? 11 : S.room === 'intro' ? 13 : S.room === 'maze' ? 14 : 12;
   // camera semi-isometrica stabile
   const focus = panel.open ? 1 : 0; post.comp.uniforms.focus.value = lerp(post.comp.uniforms.focus.value, focus, 0.12); post.comp.uniforms.sbiadito.value = lerp(post.comp.uniforms.sbiadito.value, ink.faded ? 1 : 0, 0.1);
-  const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.12 : 0.96; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
-  const cr = W.ROOMS.find((q) => q.id === S.room); const rcx = cr ? cr.cx : 0; let tx = rcx + (P.x - rcx) * 0.85, tz = P.z - 0.6; if (S.room === 'end') { tx = 0; tz = -161; } if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -124, 0.3); }
-  camLook.lerp(tmpV.set(tx, 0.8, tz), 1 - Math.pow(0.004, rdt)); camPos.set(camLook.x, camLook.y + dy, camLook.z + dz);
-  if (MZ.film) mazeFilmCamera(rdt); else camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3; camera.position.x += rnd(-sh, sh); camera.position.y += rnd(-sh, sh); if (!MZ.film) camera.lookAt(camLook);
+  const portrait = innerWidth < innerHeight; const far = S.room === 'arena' ? 1.12 : S.room === 'open' ? 0.7 : 0.96; const dz = ((portrait ? 13 : 11.5) - focus * 2) * far, dy = ((portrait ? 17.5 : 15) - focus * 2.4) * far;
+  const cr = W.ROOMS.find((q) => q.id === S.room); const rcx = cr ? cr.cx : 0; let tx = rcx + (P.x - rcx) * 0.85, tz = P.z - 0.6;
+  const cf = S.camFocus && S.camFocus.t > 0 ? S.camFocus : null; if (S.room === 'end') { tx = 0; tz = -161; } if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -124, 0.3); }
+  if (cf) { cf.t -= rdt; const k = Math.min(1, cf.t / 0.4, (1.4 - cf.t) / 0.3 + 0.2); tx = lerp(tx, (cf.x + P.x) / 2, k * 0.8); tz = lerp(tz, (cf.z + P.z) / 2, k * 0.8); }
+  camLook.lerp(tmpV.set(tx, 0.8 + (P.yOff || 0), tz), S.snapCam ? 1 : 1 - Math.pow(0.004, rdt)); camPos.set(camLook.x, camLook.y + dy, camLook.z + dz); if (S.snapCam && !MZ.film) { camera.position.copy(camPos); S.snapCam = false; }
+  if (MZ.film) mazeFilmCamera(rdt); else camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3 * (opts.shakeK ?? 1); camera.position.x += rnd(-sh, sh) + KICK.x * KICK.a; camera.position.y += rnd(-sh, sh) - KICK.a * 0.4; camera.position.z += KICK.z * KICK.a; KICK.a = Math.max(0, KICK.a - rdt * 1.6); if (!MZ.film) camera.lookAt(camLook);
   S.shake = Math.max(0, S.shake - rdt * 2.2); S.flash = Math.max(0, S.flash - rdt * 2); post.comp.uniforms.flash.value = opts.reduce ? 0 : S.flash * 0.5;
 }
 function loop() {
-  requestAnimationFrame(loop); const t = performance.now(); const rawDt = Math.min(0.25, (t - last) / 1000); const rdt = Math.min(0.1, rawDt); last = t; frame++;
+  requestAnimationFrame(loop); const t = performance.now(); const realDt = Math.min(5, (t - last) / 1000), rawDt = Math.min(0.25, realDt); const rdt = Math.min(0.1, rawDt); last = t; frame++;
   try {
     if (introPlaying) { input.poll(); if (input.pressed('pause') || input.pressed('back')) endFilm(); film.update(rdt); if (film.done) endFilm(); renderer.info.reset(); post.render(film.scene, film.camera); return; }
     input.poll();
-    if (input.pressed('pause') && S.phase === 'play' && !panel.open) togglePause();
+    if (input.pressed('pause') && S.phase === 'play' && !panel.open) { if (!$('mapPanel').classList.contains('hidden')) toggleMap(false); else togglePause(); }
+    if (input.pressed('map') && S.phase === 'play' && !panel.open) toggleMap(); // una volta per fotogramma, non per passo di simulazione
+    if (input.pressed('erase') && S.phase === 'play' && !paused && !S.lock) useEraser();
     if (S.phase === 'play' && !paused) {
       if (S.visionT > 0) { S.visionT -= rdt; if (S.visionT <= 0) { $('vision').classList.add('hidden'); S.lock = false; } }
       let scale = panel.open ? (opts.pauseFull ? 0 : INK.worldScale) : 1; if (S.hitstop > 0) { S.hitstop -= rdt; scale *= 0.08; } if (slowT > 0) { slowT -= rdt; scale *= 0.4; }
@@ -1065,9 +1144,9 @@ function loop() {
     } else if (S.phase === 'title') { INK_UNIFORMS.uTime.value += rdt; camera.position.set(Math.sin(t / 4000) * 2.5, 7.5, 6.5); camera.lookAt(0, 0.8, -3); particles.update(rdt); if (frame % 8 === 0) particles.emit(rnd(-5, 5), 3.5, rnd(-5, 2), 0, -0.4, 0, 3, 0.07, 0.95, 0.85, 0.6, 0); }
   } catch (err) { console.error(err); }
   renderer.info.reset(); post.render(scene, camera);
-  fpsAcc += rdt; fpsN++; if (fpsAcc > 2) { const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps;
+  fpsAcc += realDt; fpsN++; /* tempo vero del fotogramma, non quello tagliato a 0,1 s */ if (fpsAcc > 2) { const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps;
     if (S.phase === 'play') { if (fps < 48) { lowStreak++; if (lowStreak >= 2) { lowStreak = 0; // prima gli effetti, poi (poco) la risoluzione
-        if (post.bloom) { post.bloom = false; Tele.log('quality_drop', { bloom: false }); } else if (pr > QL.floor + 0.01) { pr = Math.max(QL.floor, pr - 0.25); resize(); Tele.log('quality_drop', { pr }); } else if (post.rt.samples > 0 && fps < 38) { post.setSamples(0); Tele.log('quality_drop', { msaa: 0 }); } } } else lowStreak = 0; } }
+        if (post.bloom) { post.bloom = false; Tele.log('quality_drop', { bloom: false }); } else if (pr > QL.floor + 0.01) { pr = Math.max(QL.floor, pr - 0.25); resize(); Tele.log('quality_drop', { pr }); } else if (post.rt.samples > 0 && fps < 38) { post.setSamples(0); Tele.log('quality_drop', { msaa: 0 }); } } } else { lowStreak = 0; if (fps > 57) { if (++highStreak >= 3 && pr < QL.pr - 0.01) { highStreak = 0; pr = Math.min(QL.pr, pr + 0.25); resize(); Tele.log('quality_up', { pr }); } } else highStreak = 0; } } }
 }
 
 // ---------- avvio + agganci di test ----------
@@ -1083,6 +1162,9 @@ const SKILLS = [
   { id: 'heart', name: 'Rilegatura doppia', cost: 10, text: 'Vita massima +1 pagina.' },
   { id: 'well', name: 'Calamaio profondo', cost: 8, text: 'Recuperi più Inchiostro da colpi e schivate.' },
   { id: 'nib3', name: 'Pennino d\'oro', cost: 22, req: 'nib2', text: 'Sblocca il GOMMINO: cancella il 25% di vita, carica e velocità di tutti i nemici nella stanza.' },
+  { id: 'dash', name: 'Affondo d\'ombra', cost: 10, text: 'Colpisci subito dopo una schivata: parte direttamente l\'affondo che chiude la catena.' },
+  { id: 'flourish', name: 'Svolazzo', cost: 6, text: 'Chiudere la catena di tre colpi su un nemico restituisce 8 di Inchiostro.' },
+  { id: 'vial', name: 'Boccetta di riserva', cost: 8, text: 'Le fiale d\'inchiostro curano il doppio.' },
 ];
 const nibMul = () => (PROG.skills.nib2 ? 1.5 : 1) * (1 + 0.25 * (S.cursed || 0));
 function gainDrops(n) { PROG.drops += n; saveProg(); popInk('+' + n + ' gocce'); }
@@ -1129,6 +1211,7 @@ function buildMaze() {
   for (let z = 1; z <= 3; z++) for (let x = EX - 2; x <= EX + 2; x++) { if (x < EX + 2) open(x, z, 'e'); if (z < 3) open(x, z, 's'); } // radura del Copista // qualche anello: più strade, più agguati
   open(EX, 1, 'n'); // l'ultima cella (la piastra) si raggiunge solo dalla fenditura
   // muri: un solo InstancedMesh (pochi draw call), collisioni registrate solo quando la zona è attiva
+  MZ.E = E; MZ.x0 = x0; MZ.z0 = z0; MZ.seen = new Set();
   const segs = [];
   for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const c = E[z * N + x];
     if (z > 0 && c.n) segs.push([x0 + x * C, z0 + z * C, x0 + (x + 1) * C, z0 + z * C]); if (x > 0 && c.w) segs.push([x0 + x * C, z0 + z * C, x0 + x * C, z0 + (z + 1) * C]); }
@@ -1162,6 +1245,7 @@ function buildMaze() {
   // macchie del labirinto (risvegliate dalla vicinanza o dalla luce)
   for (let i = 0; i < 34; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 5)) + 4; if (cz2 >= N - 2 && Math.abs(cx2 - MZ.EX) < 3) cz2 = 6; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; o.x = x; o.z = z; o.mesh.position.set(x, 0.3, z); if (i % 4 === 0) { o.scribe = true; const q = W.makeDoc(); q.scale.setScalar(0.5); q.position.y = 0.2; o.mesh.add(q); } }
   for (const [cx2, cz2] of [[0, 15], [16, 9], [0, 5], [16, 0], [12, 4]]) { const [x, z] = mzCell(cx2, cz2); spawnVial(x, z, true); }
+  for (const [cx2, cz2] of [[5, 13], [11, 9], [3, 6]]) { const [x, z] = mzCell(cx2, cz2); const o = spawnSpitter(x, z); o.room = 'maze'; o.aggroR = 8; o.home = { x, z }; }
   // pagine della guida (Ilde) lungo il percorso
   MZ.notes = [[8, 15, 'enter'], [4, 11, 'buio'], [8, 4, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 1.4, 0, z); MZ.group.add(n); return { x: x - 1.4, z, id }; }); buildMazeExtras(r); buildMazeRich(); spawnCopista();
 }
@@ -1184,7 +1268,7 @@ function zoneTransition(kind, text, mid) { // anima e nasconde il caricamento: p
   setTimeout(() => { el.className = 'hidden'; S.lock = false; S.transit = false; }, 2250); }
 function enterMaze() { zoneTransition('turn', 'Il vortice ti trascina giù, fra le pagine cadute.', () => { buildMaze(); mazeActivate(true); startMazeFilm(); const [x, z] = mzCell(MZ.EX, MZ.N - 1); P.x = x; P.z = z + 2; P.face = Math.PI; camera.position.set(P.x, 15, P.z + 12); enterRoom(MZ.R); hint('');
   if (!MZ.guide.has('in')) { MZ.guide.add('in'); MZ.afterFilm = () => say([['ilde', 'Sono Ilde. Ho scritto io queste pareti, tanto tempo fa. Ti guido io.'], ['ilde', 'Le macchie dormono finché non ti sentono. Vicino alle lampade accese ti vedono da lontano.'], ['ilde', 'In fondo, a nord, c\'è la piastra del filo. Scrivici CONDUTTIVO.']]); } }); }
-function exitMaze() { zoneTransition('rise', 'La scala si scrive gradino dopo gradino e ti riporta alla pressa.', () => { mazeActivate(false); P.x = 0; P.z = -62.5; P.face = Math.PI; camera.position.set(0, 15, -50); enterRoom(W.ROOMS[2]); openGate('r2'); pulseWire(wireA); pulseWire(wireB); toast('IL CANCELLO SI APRE'); journal('Hai riacceso il filo nel labirinto: l\'impulso ora arriva al cancello.'); }); }
+function exitMaze() { zoneTransition('rise', 'La scala si scrive gradino dopo gradino e ti riporta alla pressa.', () => { mazeActivate(false); P.x = 0; P.z = -62.5; P.face = Math.PI; S.snapCam = true; enterRoom(W.ROOMS[2]); openGate('r2'); pulseWire(wireA); pulseWire(wireB); toast('IL CANCELLO SI APRE'); journal('Hai riacceso il filo nel labirinto: l\'impulso ora arriva al cancello.'); }); }
 function mazeInteractables(L) {
   if (S.room === 'conduct' && MZ.entryOpen >= 1 && !PROG.mazeDone) L.push({ x: -8.8, z: -52.2, r: 2.2, label: 'tuffati', fn: enterMaze });
   if (S.room !== 'maze') return;
@@ -1195,11 +1279,30 @@ function readGuide(id) { MZ.guide.add(id); ink.interact(); sfx.play('page');
   if (id === 'enter') say([['ilde', 'Ci sono quattro pagine nascoste qui sotto: un reliquiario, un cristallo, una scritta che vive solo al buio, e una pila che una parola sola non smuove.'], ['ilde', 'Ogni macchia che cancelli lascia gocce d\'inchiostro. Con le gocce riscrivi il tuo Pennino: tocca ✦ in alto.'], ['ilde', 'Il Pennino d\'oro ti darà il GOMMINO. Fidati, servirà contro il Custode.']]);
   if (id === 'buio') { S.discovered.add('light.dark'); say([['ilde', 'Le lampade sentinella sono vanitose: se scrivi BUIO, si spengono per un po\'.'], ['ilde', 'Al buio le macchie non ti vedono. Riscrivi la lampada come fai con gli oggetti.']]); journal('Hai trovato la parola BUIO.'); }
   if (id === 'ponte') { S.discovered.add('shape.bridge'); say([['ilde', 'Davanti alla piastra la pagina è strappata: un vuoto d\'inchiostro.'], ['ilde', 'Ma un vuoto, per il libro, è solo un ponte non ancora scritto. Scrivi PONTE.']]); journal('Hai trovato la parola PONTE.'); } }
+// ---- mappa del labirinto: si disegna mentre esplori (solo le celle viste) ----
+function mazeSee() { const { N, C } = MZ; const cx = Math.floor((P.x - MZ.x0) / C), cz = Math.floor((P.z - MZ.z0) / C); if (cx < 0 || cz < 0 || cx >= N || cz >= N) return; const i = cz * N + cx; if (MZ.seenLast === i) return; MZ.seenLast = i; MZ.seen.add(i);
+  const c = MZ.E[i]; if (!c.n && cz > 0) MZ.seen.add(i - N); if (!c.s && cz < N - 1) MZ.seen.add(i + N); if (!c.e && cx < N - 1) MZ.seen.add(i + 1); if (!c.w && cx > 0) MZ.seen.add(i - 1); }
+function drawMap() { const cv = $('mapCv'), g = cv.getContext('2d'), W2 = cv.width, { N, C } = MZ, k = (W2 - 60) / N, o = 30; g.fillStyle = '#efe5cf'; g.fillRect(0, 0, W2, W2);
+  const r = mzRng(7); g.strokeStyle = 'rgba(40,28,20,.12)'; for (let i = 0; i < 40; i++) { g.beginPath(); g.moveTo(r() * W2, r() * W2); g.lineTo(r() * W2, r() * W2); g.stroke(); }
+  const jit = () => (r() - 0.5) * 2.2; g.lineCap = 'round';
+  for (const i of MZ.seen) { const x = i % N, z = Math.floor(i / N), c = MZ.E[i], X = o + x * k, Z = o + z * k; g.fillStyle = 'rgba(160,132,88,.18)'; g.fillRect(X + 1, Z + 1, k - 2, k - 2); g.strokeStyle = '#16110d'; g.lineWidth = 3.2;
+    const L = (a, b, c2, d) => { g.beginPath(); g.moveTo(a + jit(), b + jit()); g.lineTo(c2 + jit(), d + jit()); g.stroke(); };
+    if (c.n) L(X, Z, X + k, Z); if (c.s) L(X, Z + k, X + k, Z + k); if (c.w) L(X, Z, X, Z + k); if (c.e) L(X + k, Z, X + k, Z + k); }
+  const at = (wx, wz) => [o + (wx - MZ.x0) / C * k, o + (wz - MZ.z0) / C * k], seenAt = (wx, wz) => MZ.seen.has(Math.floor((wz - MZ.z0) / C) * N + Math.floor((wx - MZ.x0) / C));
+  const mark = (wx, wz, t, col, sz = 22) => { if (!seenAt(wx, wz)) return; const [x, z] = at(wx, wz); g.fillStyle = col; g.font = `${sz}px Georgia`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, x, z); };
+  for (const l of MZ.lamps) mark(l.x, l.z, '☼', grammar.has(l.id, 'light.dark') ? '#6a6a6a' : '#b8862f');
+  for (const n of MZ.notes) if (!MZ.guide.has(n.id)) mark(n.x, n.z, '✦', '#8a2416');
+  if (MZ.boss && MZ.boss.alive) mark(MZ.boss.x, MZ.boss.z, '✕', '#8a1a10', 30);
+  if (MZ.plate) mark(MZ.plate.x, MZ.plate.z, '◎', MZ.done ? '#2b7aa0' : '#16110d', 28);
+  const [px, pz] = at(P.x, P.z); g.fillStyle = '#8a2416'; g.beginPath(); g.arc(px, pz, 8, 0, 6.3); g.fill(); g.strokeStyle = '#16110d'; g.lineWidth = 2; g.beginPath(); g.moveTo(px, pz); g.lineTo(px + Math.sin(P.face) * 16, pz + Math.cos(P.face) * 16); g.stroke();
+  g.fillStyle = 'rgba(40,28,20,.6)'; g.font = 'italic 18px Georgia'; g.textAlign = 'left'; g.fillText('nord ↑', o, 18); g.textAlign = 'right'; g.fillText(Math.round(MZ.seen.size / (N * N) * 100) + '% esplorato', W2 - o, W2 - 10); }
+function toggleMap(on) { const el = $('mapPanel'); const open = on ?? el.classList.contains('hidden'); if (open && (S.room !== 'maze' || !MZ.built || paused)) return; el.classList.toggle('hidden', !open); paused = open; if (open) { drawMap(); sfx.play('page'); Tele.log('map_open', { seen: MZ.seen.size }); } }
+$('bMap').onclick = () => toggleMap(); $('mapClose').onclick = () => toggleMap(false);
 function mazeUpdate(dt) {
+  $('bMap').classList.toggle('hidden', S.room !== 'maze');
   entryWhirl.scale.setScalar(Math.max(0.01, MZ.entryOpen || 0)); if (entryWhirl.scale.x > 0.05) entryWhirl.children.forEach((pg) => { const u = pg.userData; const a = u.a + now * (1.6 - u.r * 0.5); pg.position.set(Math.cos(a) * u.r, 0.15 + u.h + Math.sin(now * 3 + u.a) * 0.1, Math.sin(a) * u.r); pg.rotation.set(0.6, -a, 0.3); });
   mazeFilmUpdate(dt);
   if (ERASE.cd > 0) { ERASE.cd -= dt; if (ERASE.cd <= 0) renderSkills(); }
-  if (input.pressed('erase') && S.phase === 'play' && !paused && !S.lock) useEraser();
   if (MZ.hintT > 0) MZ.hintT -= dt;
   if (MZ.entryOpen > 0 && MZ.entryOpen < 1) { MZ.entryOpen = Math.min(1, MZ.entryOpen + dt * 0.5); const k = MZ.entryOpen; entryWhirl.scale.setScalar(Math.max(0.01, k)); S.shake = Math.max(S.shake, 0.25 * (1 - k)); entryLeaf.rotation.z = -Math.PI * (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2); entryHole.scale.setScalar(Math.max(0.01, k));
     if (frame % 3 === 0) particles.emit(-8.8 + rnd(-1, 1), 0.3, -52.2 + rnd(-1, 1), 0, 1, 0, 1, 0.1, 0.05, 0.04, 0.03, 3); }
@@ -1208,7 +1311,7 @@ function mazeUpdate(dt) {
   if (!MZ.built) return;
   if (S.room !== 'maze' && MZ.active && !S.transit) mazeActivate(false);
   if (S.room === 'maze' && !MZ.active) mazeActivate(true);
-  if (!MZ.active) return;
+  if (!MZ.active) return; mazeSee();
   P.hidden = MZ.lamps.some((l) => grammar.has(l.id, 'light.dark') && Math.hypot(l.x - P.x, l.z - P.z) < 6);
   for (const l of MZ.lamps) { const dark = grammar.has(l.id, 'light.dark'); l.light.col = dark ? [0, 0, 0] : l.light.base; l.mesh.userData.glow.visible = !dark; }
   // PONTE: le assi arrivano una dopo l'altra dall'alto
@@ -1243,10 +1346,12 @@ function buildOpening() { if (OP.built) return; OP.built = true; const R = OP.R;
 function startOpening() {
   if (S.phase !== 'title') return; $('title').classList.add('hidden'); $('hud').classList.remove('hidden'); sfx.start(); S.phase = 'play'; S.lock = true; if (isTouch) input.mode = 'touch';
   Tele.log('session_start', { runs: mem.runs, opening: true }); resetProg(); applySkills(); renderSkills(); buildOpening(); enterRoom(OP.R);
-  P.x = OP.R.cx; P.z = OP.R.cz + 19; P.face = Math.PI; camera.position.set(P.x, 15, P.z + 12); OP.stage = 'tilt'; OP.t = 0; P.inv = 1e9; opSub('E qui il viaggiatore cadde.');
+  P.x = OP.R.cx; P.z = OP.R.cz + 19; P.face = Math.PI; S.snapCam = true; OP.stage = 'tilt'; OP.t = 0; P.inv = 1e9; opSub('E qui il viaggiatore cadde.');
 }
 function opUpdate(dt) {
-  if (!OP.stage) return; OP.t += dt; const R = OP.R;
+  document.body.classList.toggle('cine', !!OP.stage); document.body.classList.toggle('cine-gap', OP.stage === 'gap');
+  if (!OP.stage) { P.yOff = 0; return; } OP.t += dt; const R = OP.R;
+  P.yOff = OP.leaf && P.z > OP.leaf.position.z ? (P.z - OP.leaf.position.z) * Math.sin(-OP.leaf.rotation.x) : 0; // il viaggiatore resta sulla pagina che si inclina
   if (frame % 4 === 0) particles.emit(R.cx + rnd(-7, 7), 7, P.z + rnd(-8, 6), rnd(-0.3, 0.3), -0.9, rnd(-0.2, 0.2), 5, rnd(0.12, 0.25), 0.94, 0.9, 0.82, 0);
   if (OP.chasm && frame % 6 === 0) particles.emit(R.cx + rnd(-7.5, 7.5), 0.1, R.cz + (Math.random() < 0.5 ? -1.7 : 1.7), 0, -1.5, 0, 1.2, 0.08, 0.05, 0.03, 0.03, 3);
   if (OP.stage === 'tilt') { const k = clamp((OP.t - 1.2) / 2.6, 0, 1); OP.leaf.rotation.x = -0.32 * Math.sin(k * Math.PI * 0.5) * (k < 1 ? 1 : 1);
@@ -1256,8 +1361,8 @@ function opUpdate(dt) {
   if (OP.stage === 'build') { P.hp = P.max; OP.planks.forEach((pl, i) => { const t = clamp(OP.t * 1.1 - i * 0.1, 0, 1); pl.visible = t > 0; pl.position.y = lerp(4, 0.04, 1 - Math.pow(1 - t, 3)); pl.rotation.z = (1 - t) * 1.2; });
     OP.gapWords.material.opacity = Math.max(0, 1 - OP.t); if (OP.t > 1.9 && OP.chasm) { world.walls = world.walls.filter((w) => w !== OP.chasm); OP.chasm = null; opSub('E il viaggiatore, che non sapeva ancora di scrivere, attraversò.'); }
     if (P.z < R.cz - 8) { OP.stage = 'title'; OP.t = 0; S.lock = true; $('opSub').style.opacity = 0; $('opTitle').classList.remove('hidden'); sfx.play('seal'); } }
-  if (OP.stage === 'title' && OP.t > 3.4) { OP.stage = null; $('opTitle').classList.add('hidden'); P.inv = 0;
-    zoneTransition('build', 'Capitolo I · La tavola', () => { const r = W.ROOMS[0]; P.x = 0; P.z = r.cz + r.d / 2 - 1.6; P.face = Math.PI; camera.position.set(0, 15, P.z + 12); enterRoom(r); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
+  if (OP.stage === 'title' && OP.t > 3.4) { OP.stage = null; $('opTitle').classList.add('hidden'); P.inv = 0; S.lastWord = null; S.prepared = null; renderPrepared();
+    zoneTransition('build', 'Capitolo I · La tavola', () => { const r = W.ROOMS[0]; P.x = 0; P.z = r.cz + r.d / 2 - 1.6; P.face = Math.PI; S.snapCam = true; enterRoom(r); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
       setTimeout(() => { S.lock = true; say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } }); }, 1600); }); }
 }
 // ---- parola ostile: LENTO sull'ombra ----
@@ -1294,12 +1399,21 @@ function solveVerdict() { VERD.solved = true; sfx.play('seal'); S.flash = 0.4; e
 // ---- Custode in tre fasi ----
 const C3 = { phase: 1, shieldT: 0, shieldWord: null, curseCd: 6 };
 function custodeSay(t) { say([['custode', t]]); }
-function custodePhases(dt) { if (S.room !== 'arena' || !custode.alive || S.victory) return; const c = custode;
+// onda d'inchiostro del Custode: attraversa l'arena; si schiva attraverso o ci si ripara dietro un pilastro
+const tides = [];
+function tideStart() { const z0 = -137.5; const warn = laneWarn(0, z0, 0, 1, 1.6, 31, 1.3); warn.m.rotation.y = Math.PI / 2; warn.m.position.set(0, 0.04, z0 + 0.8); toast('ONDA D\'INCHIOSTRO'); hint('Schiva attraverso l\'onda, oppure riparati dietro un pilastro'); sfx.play('warn'); sfx.play('tear');
+  const m = new THREE.Mesh(new THREE.BoxGeometry(31, 1.4, 1.3), new THREE.MeshBasicMaterial({ color: 0x0b0806, transparent: true, opacity: 0.85 })); m.position.set(0, -2, z0); scene.add(m); tides.push({ m, z: z0, t: -1.3, id: 'tide' + (++attackCounter) }); }
+function tidesUpdate(dt) { for (let i = tides.length - 1; i >= 0; i--) { const w = tides[i]; w.t += dt; if (w.t < 0) continue; w.z += dt * 7; w.m.position.set(0, 0.5 + Math.sin(now * 9) * 0.06, w.z);
+    if (frame % 2 === 0) for (let k = 0; k < 4; k++) particles.emit(rnd(-15, 15), 1.2, w.z, 0, rnd(1, 3), rnd(0, 2), 0.6, 0.2, 0.04, 0.03, 0.03, 8);
+    if (Math.abs(P.z - w.z) < 0.9 && !nearCover()) damagePlayer(1, { x: P.x, z: w.z - 1 }, w.id);
+    if (w.z > -110 || S.victory) { scene.remove(w.m); w.m.geometry.dispose(); w.m.material.dispose(); tides.splice(i, 1); } } }
+function custodePhases(dt) { tidesUpdate(dt); if (S.room !== 'arena' || !custode.alive || S.victory) return; const c = custode;
   if (C3.shieldT > 0) { C3.shieldT -= dt; c.mesh.userData.halo.material.color.setRGB(0.2, 0.35, 0.9); if (C3.shieldT <= 0) { c.mesh.userData.halo.material.color.set(0x8a1a10); toastSmall('La lettura del Custode svanisce'); } }
   if (C3.phase === 1 && !c.armorBroken && c.armorHP < c.armorMax * 0.65) { C3.phase = 2; const top = Object.entries(S.wordUse).filter(([w]) => ['state.fragile', 'temperament.cautious', 'element.conductive'].includes(w)).sort((a, b) => b[1] - a[1])[0];
-    C3.shieldWord = top ? top[0] : 'state.fragile'; C3.shieldT = 12; grammar.resetPhrase('custode'); custodeSay('Conosco quel tratto. ' + EFFECTS[C3.shieldWord].word + ' non mi tocca più.'); toast('FASE 2 · IMMUNE A ' + EFFECTS[C3.shieldWord].word + ' (12 s) · cambia parola o usa il gommino'); }
+    C3.shieldWord = top ? top[0] : 'state.fragile'; C3.shieldT = 12; grammar.resetPhrase('custode'); bossBeat('FASE 2', 'il Custode ti ha letto', c); custodeSay('Conosco quel tratto. ' + EFFECTS[C3.shieldWord].word + ' non mi tocca più.'); toast('IMMUNE A ' + EFFECTS[C3.shieldWord].word + ' · 12 s'); hint('Il Custode ha letto ' + EFFECTS[C3.shieldWord].word + ': usa un\'altra parola o il gommino'); }
   if (C3.phase === 2 && C3.shieldT <= 0 && c.armorHP < c.armorMax * 0.65 && Math.random() < dt / 9) C3.shieldT = 8; // torna a leggerti
-  if (C3.phase < 3 && (c.armorBroken || c.armorHP < c.armorMax * 0.3)) { C3.phase = 3; custodeSay('Allora correggo te.'); toast('FASE 3 · IL CUSTODE SCRIVE SU DI TE'); C3.curseCd = 1.5; }
+  if (C3.phase < 3 && (c.armorBroken || c.armorHP < c.armorMax * 0.3)) { C3.phase = 3; custodeSay('Allora correggo te.'); bossBeat('FASE 3', 'il Custode scrive su di te', c); C3.curseCd = 1.5; }
+  if (C3.phase >= 2 && !arena.snapped && !S.lock) { C3.waveCd = (C3.waveCd ?? 6) - dt; if (C3.waveCd <= 0) { C3.waveCd = C3.phase === 3 ? 11 : 15; tideStart(); } }
   if (C3.phase === 3 && !arena.snapped) { C3.curseCd -= dt; if (C3.curseCd <= 0 && !P.curse) { C3.curseCd = 11; curseStart('Il Custode'); } }
 }
 const _touchSeal = touchSeal; touchSeal = function () { if (S.victory) return; say([['narr', 'Il legame si spezza. Dentro il Custode c\'è una sola riga, scritta di fretta:'], ['narr', '«Il viaggiatore non doveva arrivare fin qui, perché se avesse letto ______»'], ['narr', 'La frase finisce lì. Manca una parola.']]); journal('Dentro il Custode: una frase incompleta.'); _touchSeal(); };
@@ -1339,7 +1453,7 @@ function v16Interactables(L) {
 const _readGuide = readGuide; readGuide = function (id) { if (id === 'pesante') { MZ.guide.add(id); ink.interact(); sfx.play('page'); S.discovered.add('weight.heavy'); S.discovered.add('state.fragile');
   say([['ilde', 'Questa pila di registri chiude un passaggio. Da sola una parola non basta.'], ['ilde', 'FRAGILE e PESANTE insieme: crolla sotto il proprio peso. Ma per comporre due parole serve il Pennino d\'acciaio.']]); journal('Hai trovato la parola PESANTE.'); return; } _readGuide(id); };
 addCursed('ch', 8.6, -20.2); // sul ballatoio del Caricatore (arrivi dalla rampa o con coraggio)
-const INTRO_SWAY = [];
+const INTRO_SWAY = []; const MZ_SHEETS = []; const DOOR_JURY = {};
 
 // ---- stanza I: corridoio più luminoso e pieno di dettagli ----
 (() => { const sh = new THREE.Group(); scene.add(sh); const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
@@ -1373,6 +1487,33 @@ trimRoom({ cx: 0, cz: 0, w: 24, d: 20 }, W.ROOMS[0]); trimRoom({ cx: 0, cz: -28,
     const m = inked(new THREE.BoxGeometry(w, h, d), { color: 0x7a5a3a, shift: 0x8a2416, y0: 0, y1: h, ow: 0.025 }); m.position.set(x, h / 2, z); m.rotation.y = ry; scene.add(m); circles.push({ x, z, r: Math.max(w, d) * 0.45 }); }
   for (let i = 0; i < 26; i++) { const p = inked(new THREE.PlaneGeometry(0.55, 0.75), { color: 0xf1e8d4, outline: false }); p.rotation.set(-Math.PI / 2, 0, Math.random() * 3); p.position.set((Math.random() - 0.5) * 18, 0.02, -28 + (Math.random() - 0.5) * 16); scene.add(p); }
   for (const [x, z] of [[-9.2, -24], [9.2, -34]]) { const c = W.makeCandle(0.7); c.position.set(x, 0, z); scene.add(c); storyLights.push({ m: c, x, y: c.userData.ly, z, r: 3.6, col: [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: 'candle' }); } })();
+// ================= v2.0 · stanze più piene: la pressa diventa una tipografia, la porta un tribunale di carta =================
+(() => { const layerOf = (id) => W.ROOMS.findIndex((r) => r.id === id) + 1;
+  const inst = (geo, color, list, layer, opt = {}) => { const g = geo.clone(); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(opt.mask ?? 0.35), 3)); const im = new THREE.InstancedMesh(g, inkMasterLike(color), list.length); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+    list.forEach(([x, y, z, sx, sy, sz, ry = 0, rx = 0], i) => { e.set(rx, ry, 0); q.setFromEuler(e); m4.compose(v.set(x, y, z), q, sc.set(sx, sy, sz)); im.setMatrixAt(i, m4); }); im.layers.set(layer); scene.add(im); return im; };
+  const box = new THREE.BoxGeometry(1, 1, 1), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10), plane = new THREE.PlaneGeometry(1, 1);
+  // III · la tipografia della pressa
+  const L3 = layerOf('conduct'), rnd2 = mzRng(33), R = () => rnd2();
+  const lines = []; for (const x of [-11.3, 11.3]) lines.push([x, 2.7, -56, 0.03, 0.03, 18.5]); // fili lungo le pareti: non coprono mai il giocatore
+  inst(box, 0x2b221b, lines, L3, { mask: 1 });
+  const sheets = []; for (const x of [-11.3, 11.3]) for (let i = 0; i < 13; i++) { const z = -64.6 + i * 1.4 + R() * 0.3; sheets.push([x, 2.2, z, 0.7, 0.9, 1, Math.PI / 2 + R() * 0.3 - 0.15, (R() - 0.5) * 0.2]); }
+  const sh = inst(plane, 0xf3ead6, sheets, L3, { mask: 0 }); sh.material.side = THREE.DoubleSide; MZ_SHEETS.push(sh);
+  const cases = [[-10.6, -60.5], [10.6, -55.2]]; inst(box, 0x5a3a22, cases.map(([x, z]) => [x, 0.5, z, 1.4, 1, 2.6]), L3, { mask: 1 });
+  const blocks = []; for (const [x, z] of cases) for (let i = 0; i < 40; i++) blocks.push([x - 0.5 + (i % 5) * 0.25, 1.06, z - 1.1 + Math.floor(i / 5) * 0.3, 0.18, 0.12, 0.22, R() * 0.3]);
+  inst(box, 0x8a6a4a, blocks, L3, { mask: 0.2 }); for (const [x, z] of cases) circles.push({ x, z: z - 0.7, r: 0.8 }, { x, z: z + 0.7, r: 0.8 });
+  const stacks = []; for (const [x, z] of [[-11, -47.2], [11, -64.8], [-11, -64.8], [4.6, -64.9], [-4.4, -47.2]]) { for (let k = 0; k < 5 + Math.floor(R() * 4); k++) stacks.push([x + (R() - 0.5) * 0.2, 0.08 + k * 0.16, z + (R() - 0.5) * 0.2, 1.1, 0.15, 0.8, R() * 0.5]); circles.push({ x, z, r: 0.7 }); }
+  inst(box, 0xe9dfc8, stacks, L3, { mask: 0.6 });
+  const barrels = [[10.9, -47.3], [-4.6, -64.8], [-2.8, -47.2]]; inst(cyl, 0x1a1210, barrels.map(([x, z]) => [x, 0.55, z, 0.9, 1.1, 0.9]), L3, { mask: 1 }); for (const [x, z] of barrels) circles.push({ x, z, r: 0.5 });
+  W.sketchWall(scene, 'COMPORRE · INCHIOSTRARE · PREMERE', 0, -45.9, 0, 1.0, 1.0);
+  // IV · il tribunale di carta: banchi della giuria con figure ritagliate che ti guardano
+  const L4 = layerOf('door'); const pews = []; for (const sd of [-1, 1]) for (const z of [-81.5, -85.5]) { pews.push([sd * 8, 0.3, z, 7, 0.6, 1.1]); solid(sd * 8 - 3.5, z - 0.55, sd * 8 + 3.5, z + 0.55); }
+  inst(box, 0xa07a50, pews, L4, { mask: 0.5 }); inst(box, 0x7a5a3a, pews.map(([x, y, z]) => [x, 0.85, z + 0.5, 7, 1.1, 0.15]), L4, { mask: 0.5 });
+  const juryTex = (() => { const c = document.createElement('canvas'); c.width = 128; c.height = 192; const g = c.getContext('2d'); g.fillStyle = '#efe5cf'; g.beginPath(); g.arc(64, 50, 34, 0, 6.3); g.fill(); g.fillRect(22, 84, 84, 108); g.strokeStyle = '#16110d'; g.lineWidth = 5; g.beginPath(); g.arc(64, 50, 34, 0, 6.3); g.stroke(); g.strokeRect(22, 84, 84, 108);
+    g.fillStyle = '#16110d'; g.beginPath(); g.arc(52, 48, 5, 0, 6.3); g.arc(76, 48, 5, 0, 6.3); g.fill(); g.lineWidth = 3; g.beginPath(); g.moveTo(50, 68); g.lineTo(78, 66); g.stroke(); g.fillStyle = '#8a2416'; g.font = 'bold 20px Georgia'; g.textAlign = 'center'; g.fillText('?', 64, 150); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const jury = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.75, 1.1), new THREE.MeshBasicMaterial({ map: juryTex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }), 16); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(); let n = 0;
+  for (const [x, , z] of pews) for (let i = 0; i < 4; i++) { const jx = x - 2.6 + i * 1.75, jz = z + 0.15; e.set(0, -Math.sign(jx) * 0.35 + (R() - 0.5) * 0.3, 0); /* la giuria guarda verso il corridoio, cioè te */ q.setFromEuler(e); m4.compose(new THREE.Vector3(jx, 1.15, jz), q, new THREE.Vector3(1, 1, 1)); jury.setMatrixAt(n++, m4); }
+  jury.layers.set(L4); scene.add(jury); DOOR_JURY.m = jury;
+})();
 // ================= v1.7 · una zona alla volta: ogni oggetto statico appartiene a una stanza (layer); si disegnano solo la stanza attuale e le vicine =================
 const ZONE = { ready: false, active: '' };
 (() => { const box = new THREE.Box3(), v = new THREE.Vector3(), sz = new THREE.Vector3(); const skip = new Set([MZ.group, P.mesh, lumi.mesh]); for (const e of Object.values(ENT)) skip.add(e.mesh);
@@ -1416,7 +1557,7 @@ function mazeRichUpdate(dt) { if (!MZ.active || !MZS.reliq) return;
   const bothDark = grammar.has(MZ.lamps[2].id, 'light.dark') && grammar.has(MZ.lamps[6].id, 'light.dark'); MZS.darkText.material.opacity = lerp(MZS.darkText.material.opacity, bothDark ? 0.9 : 0, 0.05);
   if (bothDark && MZS.darkText.material.opacity > 0.7 && Math.hypot(P.x - MZS.darkAt.x, P.z - MZS.darkAt.z) < 6) mazePage('dark', MZS.darkAt.x, MZS.darkAt.z);
   if (MZ.stack && MZ.stack.broken && !MZS.found.has('stack')) mazePage('stack', MZ.stack.x, MZ.stack.z);
-  if (frame % 10 === 0) for (const it of MZS.items) if (Math.hypot(it.x - P.x, it.z - P.z) < 14) { particles.emit(it.x, 2.4, it.z, 0, -2.5, 0, 1, 0.08, 0.04, 0.03, 0.03, 3); if (Math.random() < 0.04) traces.add(it.x + rnd(-0.3, 0.3), it.z + rnd(-0.3, 0.3), 0.5, 0, now); }
+  if (frame % 10 === 0) for (const it of MZS.items) if (Math.hypot(it.x - P.x, it.z - P.z) < 14) { particles.emit(it.x, 2.4, it.z, 0, -2.5, 0, 1, 0.08, 0.04, 0.03, 0.03, 3); if (Math.random() < 0.12) sfx.play('drip', Math.max(0.15, 1 - Math.hypot(it.x - P.x, it.z - P.z) / 14)); if (Math.random() < 0.04) traces.add(it.x + rnd(-0.3, 0.3), it.z + rnd(-0.3, 0.3), 0.5, 0, now); }
 }
 
 
@@ -1441,15 +1582,44 @@ function endMazeFilm() { const im = MZ.wallIM; MZ.wallFinal.forEach((m, i) => im
 function spawnCopista() { const [x, z] = mzCell(MZ.EX, 2); const o = spawnMite(x, z, true); o.room = 'maze'; o.boss = true; o.hp = o.maxHp = 40; o.r = 0.95; o.aggroR = 8; o.home = { x, z }; o.mesh.scale.setScalar(3.1); o.summonT = 5; o.writeT = 8;
   const q = W.makeDoc(); q.scale.setScalar(0.6); q.position.set(0, 0.3, -0.2); o.mesh.add(q); for (const sd of [-1, 1]) { const h = inked(new THREE.ConeGeometry(0.06, 0.4, 5), { color: 0xe8dcc0, outline: false }); h.position.set(sd * 0.15, 0.35, 0.1); h.rotation.z = sd * -0.5; o.mesh.add(h); }
   MZ.boss = o; const bar = document.createElement('div'); bar.id = 'miniBar'; bar.innerHTML = '<div class="bname">IL COPISTA</div><div class="hbar"><i></i></div>'; bar.style.display = 'none'; document.body.appendChild(bar); }
-function copistaAct(m, dt) { if (!m.engaged) { m.engaged = true; say([['narr', 'Il Copista alza la testa dal suo registro. Ricopia tutto: anche te.']]); sfx.tension(true); }
-  m.summonT -= dt; m.writeT -= dt; if (m.hitT > 0) m.hitT -= dt;
-  if (m.summonT <= 0) { m.summonT = m.hp < m.maxHp / 2 ? 5 : 7.5; for (let i = 0; i < (m.hp < m.maxHp / 2 ? 3 : 2); i++) { const a = Math.random() * 6.28; const c = spawnMite(m.x + Math.sin(a) * 2, m.z + Math.cos(a) * 2, false); c.room = 'maze'; c.aggroR = 30; c.home = { x: c.x, z: c.z }; } particles.burst(m.x, 1, m.z, 20, 4); sfx.play('voice', 0.2); toastSmall('Il Copista ricopia le sue macchie'); }
-  if (m.writeT <= 0) { m.writeT = 11; if (!P.curse) curseStart('Il Copista'); }
+function copistaAct(m, dt) {
+  if (!m.engaged) { m.engaged = true; m.st = 'walk'; m.atkT = 2.6; say([['narr', 'Il Copista alza la testa dal suo registro. Ricopia tutto: anche te.']]); sfx.tension(true); bossBeat('IL COPISTA', 'ricopia tutto, anche te', m); }
+  m.summonT -= dt; m.writeT -= dt; if (m.hitT > 0) m.hitT -= dt; const p2 = m.hp < m.maxHp / 2;
+  if (p2 && !m.p2) { m.p2 = true; m.st = 'walk'; m.atkT = 1.2; bossBeat('IL COPISTA · FASE 2', 'il registro si apre: due righe alla volta', m); m.mesh.scale.setScalar(3.4); }
+  if (m.summonT <= 0) { m.summonT = p2 ? 7 : 9; for (let i = 0; i < (p2 ? 2 : 1); i++) { const a = Math.random() * 6.28; const c = spawnMite(m.x + Math.sin(a) * 2, m.z + Math.cos(a) * 2, false); c.room = 'maze'; c.aggroR = 30; c.home = { x: c.x, z: c.z }; } particles.burst(m.x, 1, m.z, 20, 4); sfx.play('voice', 0.2); toastSmall('Il Copista ricopia le sue macchie'); }
+  if (m.writeT <= 0) { m.writeT = 13; if (!P.curse) curseStart('Il Copista'); }
+  const dx = P.x - m.x, dz = P.z - m.z, d = Math.hypot(dx, dz) || 1;
+  if (m.st === 'walk') { m.atkT -= dt; if (m.atkT <= 0) { // sceglie: riga d'inchiostro (da lontano) o macchie lanciate (da vicino)
+      if (d > 3 || Math.random() < 0.55) { m.st = 'lineWU'; m.t = p2 ? 0.75 : 1.0; m.ldx = dx / d; m.ldz = dz / d; m.lanes = [laneWarn(m.x, m.z, m.ldx, m.ldz, 12, 1.5, m.t)]; if (p2) m.lanes.push(laneWarn(m.x, m.z, -m.ldz, m.ldx, 12, 1.5, m.t), laneWarn(m.x, m.z, m.ldz, -m.ldx, 12, 1.5, m.t)); sfx.play('warn'); }
+      else { m.st = 'blotWU'; m.t = 0.5; const n = p2 ? 5 : 3; for (let i = 0; i < n; i++) { const x = P.x + (i ? rnd(-2.6, 2.6) : 0), z = P.z + (i ? rnd(-2.6, 2.6) : 0); ring(x, z, 1.1, 0.95, 0x8a1a10, () => { particles.burst(x, 0.3, z, 14, 3, [0.05, 0.03, 0.03], 0.2); traces.add(x, z, 1.2, 0, now); inkPool(x, z, 1.3, 5); if (Math.hypot(P.x - x, P.z - z) < 1.1) damagePlayer(1, { x, z }, 'blot' + (++attackCounter)); }); } sfx.play('warn'); } }
+    return false; }
+  m.t -= dt; m.mesh.rotation.y = Math.atan2(m.ldx || dx, m.ldz || dz);
+  if (m.st === 'lineWU') { m.mesh.position.y = 0.3 + Math.max(0, 0.6 - m.t) * 0.8; if (m.t <= 0) { // la riga parte: tutto ciò che è sulla corsia viene ricopiato (e ferito)
+      const dirs = [[m.ldx, m.ldz]]; if (p2) dirs.push([-m.ldz, m.ldx], [m.ldz, -m.ldx]); const id = 'line' + (++attackCounter);
+      for (const [ux, uz] of dirs) { for (let k = 0; k <= 12; k += 0.6) particles.emit(m.x + ux * k, 0.25, m.z + uz * k, rnd(-0.5, 0.5), rnd(1, 3), rnd(-0.5, 0.5), 0.7, 0.2, 0.04, 0.03, 0.03, 8); traces.add(m.x + ux * 6, m.z + uz * 6, 1.4, 1, now);
+        const px = P.x - m.x, pz = P.z - m.z, along = px * ux + pz * uz, side = Math.abs(px * uz - pz * ux); if (along > 0 && along < 12 && side < 0.85) damagePlayer(p2 ? 2 : 1, m, id); }
+      sfx.play('tear'); sfx.play('heavy'); S.shake = Math.max(S.shake, 0.6); KICK.a = Math.max(KICK.a, 0.15); m.st = 'tired'; m.t = p2 ? 1.1 : 1.5; m.tired = true; dmgAt(m.x, 3.2, m.z, 'VULNERABILE', 'big'); } return true; }
+  if (m.st === 'blotWU') { if (m.t <= 0) { m.st = 'walk'; m.atkT = p2 ? 1.8 : 2.6; } return true; }
+  if (m.st === 'tired') { m.mesh.position.y = 0.25 + Math.abs(Math.sin(now * 3)) * 0.05; if (m.t <= 0) { m.st = 'walk'; m.tired = false; m.atkT = p2 ? 1.6 : 2.4; } return true; }
   return false; }
+// corsia d'attacco disegnata a terra: tratteggio a righe oblique (si legge anche senza distinguere i colori)
+const laneTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d'); g.fillStyle = 'rgba(138,26,16,.55)'; g.fillRect(0, 0, 64, 256); g.strokeStyle = 'rgba(250,240,220,.9)'; g.lineWidth = 7; for (let y = -64; y < 320; y += 26) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y + 40); g.stroke(); } g.fillStyle = 'rgba(20,12,10,.95)'; g.fillRect(0, 0, 6, 256); g.fillRect(58, 0, 6, 256); const t = new THREE.CanvasTexture(c); t.wrapT = THREE.RepeatWrapping; return t; })();
+const lanes = [];
+function laneWarn(x, z, ux, uz, len, w, life) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: laneTex.clone(), transparent: true, opacity: 0.85, depthWrite: false })); m.material.map.needsUpdate = true; m.material.map.repeat.set(1, len / 3);
+  m.position.set(x + ux * len / 2, 0.04, z + uz * len / 2); m.rotation.y = Math.atan2(ux, uz); scene.add(m); const L = { m, life, max: life }; lanes.push(L); return L; }
+function lanesUpdate(dt) { for (let i = lanes.length - 1; i >= 0; i--) { const L = lanes[i]; L.life -= dt; const k = 1 - L.life / L.max; L.m.material.opacity = 0.35 + 0.6 * k * (0.6 + 0.4 * Math.sin(now * 30)); L.m.material.map.offset.y -= dt * 2; if (L.life <= 0) { scene.remove(L.m); L.m.geometry.dispose(); L.m.material.map.dispose(); L.m.material.dispose(); lanes.splice(i, 1); } } }
+// pozze d'inchiostro: rallentano chi ci cammina sopra
+const pools = [];
+function inkPool(x, z, r, life) { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0b0806, transparent: true, opacity: 0.8, depthWrite: false })); m.position.set(x, 0.03, z); scene.add(m); pools.push({ x, z, r, life, m }); }
+function poolsUpdate(dt) { P.slow = 1; for (let i = pools.length - 1; i >= 0; i--) { const q = pools[i]; q.life -= dt; q.m.material.opacity = Math.min(0.8, q.life); if (Math.hypot(P.x - q.x, P.z - q.z) < q.r && P.st !== 'dodge') P.slow = 0.55; if (q.life <= 0) { scene.remove(q.m); q.m.geometry.dispose(); q.m.material.dispose(); pools.splice(i, 1); } } }
+// momento del boss: rallentatore, camera sul boss, scritta grande, accordo
+function comboBeat(title, sub) { if (!opts.reduce) slowmo(0.5); S.flash = Math.max(S.flash, 0.2); const el = $('bossCard'); el.innerHTML = title + '<small>' + sub + '</small>'; el.classList.remove('on'); el.classList.add('combo'); void el.offsetWidth; el.classList.add('on'); setTimeout(() => el.classList.remove('combo'), 2300); Tele.log('combo_discovered', { title }); }
+function bossBeat(title, sub, at) { if (!opts.reduce) slowmo(0.6); S.shake = Math.max(S.shake, 0.7); sfx.sting('phase'); S.camFocus = { x: at.x, z: at.z, t: 1.4 };
+  const el = $('bossCard'); el.innerHTML = title + (sub ? '<small>' + sub + '</small>' : ''); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); Tele.log('boss_beat', { title }); }
 function copistaUpdate() { const m = MZ.boss; const bar = $('miniBar'); if (!m || !bar) return; const show = m.alive && m.engaged && S.room === 'maze'; bar.style.display = show ? 'block' : 'none'; if (show) bar.querySelector('i').style.width = (Math.max(0, m.hp) / m.maxHp * 100) + '%';
   if (!m.alive && !m.dead) { m.dead = true; sfx.play('break'); S.shake = 1; S.flash = 0.4; toast('IL COPISTA È CANCELLATO'); gainDrops(15); spawnVial(m.x, m.z, true); journal('Hai sconfitto il Copista: il vuoto davanti alla piastra si può scrivere.'); sfx.tension(false); hint('Ora scrivi PONTE sul vuoto'); } }
 
-window.PAL = { MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

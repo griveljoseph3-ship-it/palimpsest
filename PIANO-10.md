@@ -86,3 +86,29 @@ Regola di lavoro: dopo ogni voce → provo il pezzo cambiato, lancio `node tests
 
 ## FASE 4 · Report finale
 (da compilare alla fine)
+
+---
+
+## GIRO 2 · La visione di Joseph (24 ottobre 2026)
+Decisioni (risposte di Joseph):
+- **Grafica**: entrambe le strade. Subito uno stile più forte fatto col codice (pagine illustrate, fondali dipinti a inchiostro, scene come tavole di un libro). Quando Joseph installerà un generatore (Meshy per il 3D, SpriteCook per immagini/texture; si installano da claude.ai e servono chiavi), sostituisco Elara, boss e fondali più importanti. Ogni immagine generata va dichiarata in `CREDITS.md`.
+- **Priorità**: Capitolo 1 a **40+ minuti veri**, senza stanze vuote. Il Capitolo 2 solo dopo.
+- **Novità per prime**: boss **Ladro d'inchiostro**, **quest secondarie con oggetti**, **scene spettacolari**.
+- **Tono della storia**: toccante e malinconico (madre e figlia, colpa e perdono).
+
+### La storia del Capitolo 1 (bibbia breve)
+- **Ilde** è la madre di **Elara**. La notte del fiume Elara, bambina, cadde in acqua; Ilde la salvò, ma per farlo riscrisse il fiume e aprì la Fenditura.
+- Per non perdere la figlia (chi apre una Fenditura viene cancellata), Ilde scrisse **COLPEVOLE** sulla pagina di Elara: un verdetto falso, perché nessuno cercasse lei. Elara crebbe dentro un verdetto, senza ricordare.
+- **Ilde** è la voce che ti guida nel labirinto. Il colpo di scena di fine capitolo: alla porta Elara riconosce la voce della guida. «Quella voce… è mia madre.» E sotto il suo verdetto, grattando l'inchiostro, c'è la parola che Ilde avrebbe voluto scrivere: **LIBERA**.
+- **Lumi** nasce dai tuoi errori; è la memoria dei tentativi. **Il Custode** è la promessa di Ilde di non cambiare mai più la storia.
+
+### Lavori del giro 2 (in ordine)
+| # | Cosa | Stato |
+|---|---|---|
+| G1 | Borsa e oggetti (inventario con descrizioni, oggetti passivi che cambiano come combatti) | da fare |
+| G2 | Quest «Il Tipografo e le lettere»: un personaggio di carta nella pressa ha perso 4 caratteri nel labirinto; ritrovarli compone un nome (ILDE). Premio: Pennino a punta larga | da fare |
+| G3 | Labirinto più grande e più denso (più celle, più stretto, più angoli con cose da trovare) | da fare |
+| G4 | Boss **Ladro d'inchiostro** nell'archivio: ti succhia l'Inchiostro Vivo con un filo, lo usa per scriverti addosso le tue parole; per riaverlo colpisci la sacca piena quando è gonfia. Quest «La giuria senza volto» | da fare |
+| G5 | Scene: il labirinto che crolla mentre scappi; l'arena che si compone dalle pagine; la rivelazione di Elara e Ilde; pagine illustrate dei ricordi (lettera di Ilde) | da fare |
+| G6 | Fondali dipinti a inchiostro per ogni stanza (niente pavimenti vuoti) | da fare |
+| G7 | Durata: stima per stanza e verifica che il percorso principale superi i 40 minuti | da fare |

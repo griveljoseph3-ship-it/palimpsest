@@ -31,7 +31,7 @@ Questo file dice **cosa è già fatto** e **cosa resta da fare**, in ordine. Chi
 - [x] Prestazioni: luci 12→8, macchie unite, risoluzione adattiva, fps misurati sul tempo vero
 - [x] `arte/PROMPT.md` (prompt per tutte le immagini)
 
-## Giro 3 · Grafica dalle tavole di Joseph (in corso)
+## Giro 3 · Grafica dalle tavole di Joseph (fatto, v2.2.0)
 Idea: le tavole entrano nel gioco. I pavimenti diventano le tavole, i personaggi e i nemici diventano figure di carta ritagliate dalle tavole (paper-doll, piatte, sempre rivolte alla camera), le scene diventano tavole a schermo intero. Il giocatore resta in 3D (servono le animazioni dei colpi) ma con colori e sagoma come nelle tavole 036/038/058.
 
 Mappa delle tavole → uso nel gioco (`docs/concept-art/immagini/tavola-NNN.jpg`):
@@ -55,7 +55,7 @@ Passi (spuntare man mano, con commit):
 - [x] R7 · Icone degli oggetti nella borsa dalle tavole — fatto: `itemIcon()` usa assets/icone (pennino, seppia, segnalibro, sacca; fiala e lettera pronte), riserva disegnata
 - [x] R8 · Giocatore 3D ricolorato come le tavole (mantello sfrangiato nero, sciarpa rossa lunga, occhi dorati) — fatto: makePlayer in world.js (mantello più nero, orlo sfrangiato irregolare, occhi dorati con bagliore, sciarpa in 5 tratti snodati animata in main.js: si gonfia quando corri/schivi)
 - [x] R9 · Misura prestazioni (draw call, memoria texture) e test; `CREDITS.md` aggiornato (tavole di Joseph) — fatto: suite completa verde (v2.2.0); ladro.mjs: attesa a condizione per la seppia; boss.mjs: scelta «macchie» forzata; CREDITS aggiornato (manca solo il nome dello strumento usato da Joseph)
-- [ ] R10 · Report a Joseph con schermate prima/dopo
+- [x] R10 · Report a Joseph con schermate prima/dopo — fatto: `docs/report-v2.2/confronto-*.jpg`, diario in PIANO-10.md
 
 Note del giro 3 per chi riprende:
 - `/tmp/claude-0/snap.sh` (se lo si ricrea) deve copiare anche `assets/`.

@@ -158,3 +158,11 @@ Decisioni (risposte di Joseph):
 | VI · Conseguenza e pagina finale | 2–3 |
 | **Percorso principale** | **≈ 40–58** |
 | Facoltativo: archivio + Ladro (8–12), cripta (4–6) | +12–18 |
+
+## Giro 3 · v2.2.0 — la grafica dalle tavole di Joseph
+- Pavimenti delle stanze = tavole (si moltiplicano sulla luce: lampada e candele restano vere); muri carta-mattoni anche nel labirinto.
+- Ritratti dei dialoghi, icone della borsa e copertina del titolo dalle tavole.
+- 18 tavole a tutto schermo nei momenti della storia, o dietro i dialoghi (la lettera di Ilde ha una tavola per frase).
+- Figure di carta ritagliate dalle tavole: acari, Sputacchio, Risguardo, Copista, Tipografo, giurato, Lumi.
+- Il viaggiatore: mantello nero sfrangiato, occhi dorati, sciarpa rossa lunga al vento.
+- Confronti prima/dopo in `docs/report-v2.2/`. Voto grafica stimato [ipotesi]: 6 → 8. Limite visibile: i boss 3D (Caricatore, Custode, Ladro) e le panche del tribunale ora stonano accanto alle tavole.

@@ -17,7 +17,7 @@ export const ROOMS = [
   { id: 'c2d', cx: 100, cz: -49, w: 18, d: 16, safe: false, chain: 'c2', title: 'II·4 · La Diga Rilegata' },
   { id: 'c2e', cx: 100, cz: -67, w: 12, d: 10, safe: true, chain: 'c2', title: 'II·5 · Acqua ferma' },
   { id: 'open', cx: -220, cz: 90, w: 16, d: 44, safe: true, chain: 'open', title: 'Prologo · E qui il viaggiatore cadde' },
-  { id: 'maze', cx: -220, cz: -56, w: 88, d: 88, safe: false, chain: 'maze', title: 'III · Il labirinto del filo' },
+  { id: 'maze', cx: -220, cz: -56, w: 97, d: 97, safe: false, chain: 'maze', title: 'III · Il labirinto del filo' },
 ];
 export const GAP = 2.8;
 // Scala condivisa delle stanze (v1.4): ogni coordinata di design del Capitolo 1 passa da qui.

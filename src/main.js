@@ -530,10 +530,10 @@ function nearestEnemy(r) { let b = null, bd = r; for (const e of [charger, custo
 function inArc(o, range, arc) { const dx = o.x - P.x, dz = o.z - P.z, d = Math.hypot(dx, dz); if (d > range) return false; return d < 0.6 || Math.abs(angDiff(Math.atan2(dx, dz), P.face)) < arc; }
 function doHit(heavy) {
   const fin = !heavy && P.combo === 2, w = heavy ? 3 : fin ? 2 : 1; // peso del colpo: rapido, chiusura, forte
-  const range = heavy ? 2.4 : fin ? 2.2 : 1.9, arc = heavy ? 1.1 : fin ? 1.25 : 0.95; let any = false;
+  const wide = PROG.items && PROG.items.nibwide, range = heavy ? 2.4 : fin ? 2.2 : 1.9, arc = (heavy ? 1.1 : fin ? (wide ? Math.PI : 1.25) : 0.95) * (wide && !fin ? 1.3 : 1); let any = false;
   trail.position.set(P.x, 0.05, P.z); trail.rotation.z = P.face - Math.PI / 2; trail.material.opacity = heavy || fin ? 0.85 : 0.6; trail.scale.set(P.combo === 1 && !heavy ? -1 : 1, 1, 1).multiplyScalar(heavy ? 1.25 : fin ? 1.18 : 1);
   if (heavy || fin) { particles.burst(P.x + Math.sin(P.face) * 1.5, 0.2, P.z + Math.cos(P.face) * 1.5, heavy ? 16 : 8, 3); traces.add(P.x + Math.sin(P.face) * 1.6, P.z + Math.cos(P.face) * 1.6, heavy ? 0.6 : 0.4, 1, now); }
-  const gainInk = () => { const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); };
+  const gainInk = () => { const g = !heavy ? ink.hit(P.atkId) : 0; if (g && PROG.items.sacca) ink.gain(3); if (g && PROG.skills.well) ink.v = Math.min(100, ink.v + Math.round(g * 0.5)); if (g) popInk('+' + g); };
   for (const e of [charger, custode]) {
     if (!e.alive || e.st === 'dead' || !inArc(e, range + e.cfg.r * 0.6, arc)) continue; any = true;
     gainInk(); Tele.log('hit', { target: e.id, heavy, combo: P.combo });
@@ -575,7 +575,7 @@ function interactables() {
   if (S.room === 'door' && door.hasDoc && !door.docPlaced && !S.doorRoute) L.push({ x: -3.8, z: -98.8, r: 1.7, label: 'inserisci', fn: () => { door.docPlaced = true; ink.interact(); sfx.play('page'); Tele.log('interact', { what: 'reader' }); hint('La prova è nel lettore. Il relè pulsa già: dai alla piastra una strada'); } });
   if (S.room === 'door' && !S.doorRoute && !door.defense) L.push({ x: 0, z: -97.8, r: 2.0, label: 'parla', fn: talkElara });
   if (S.room === 'arena' && (arena.snapped || arena.window > 0) && !S.victory) L.push({ x: 0, z: -136.4, r: 1.8, label: 'tocca', fn: touchSeal });
-  cryptInteractables(L); ch2Interactables(L); mazeInteractables(L); v16Interactables(L);
+  cryptInteractables(L); ch2Interactables(L); mazeInteractables(L); v16Interactables(L); questInteractables(L);
   return L;
 }
 function nearestInteract() { let b = null, bd = 1e9; for (const it of interactables()) { const d = Math.hypot(P.x - it.x, P.z - it.z); if (d < it.r && d < bd) { bd = d; b = it; } } return b; }
@@ -781,6 +781,7 @@ function enterRoom(r) {
 }
 function endEncounter(id) { if (S.encounter && !opts.reduce) { slowmo(0.45); S.flash = Math.max(S.flash, 0.15); } S.encounter = null; ink.encounterEnd(); sfx.tension(false); Tele.log('encounter_end', { id }); popInk('Inchiostro pieno'); }
 function die() {
+  if (PROG.items.segnalibro && !(S.bookmark || (S.bookmark = {}))[S.room]) { S.bookmark[S.room] = true; P.hp = Math.ceil(P.max / 2); P.st = 'idle'; P.inv = 2; renderHP(); sfx.sting('secret'); S.flash = 0.6; slowmo(0.6); toast('IL SEGNALIBRO DI ILDE TI RIALZA'); inkWave(P.x, P.z, 4, 0x8a2416); Tele.log('bookmark_save', { room: S.room }); return; }
   P.st = 'dead'; P.t = 1.4; S.deaths++; mem.deaths++; sfx.play('death'); closePanel(); S.shake = 0.6; Tele.log('death', { room: S.room, deaths: S.deaths });
   traces.add(P.x, P.z, 1.6, 0, now); traces.add(P.x, P.z, 1.1, 3, now); S.tracePos.push([P.x, P.z]); inkWave(P.x, P.z, 4);
   for (let i = 0; i < 30; i++) particles.emit(P.x + rnd(-0.3, 0.3), rnd(0.2, 1.6), P.z + rnd(-0.3, 0.3), rnd(-1, 1), rnd(0, 2), rnd(-1, 1), rnd(0.8, 1.6), rnd(0.12, 0.25), 0.04, 0.03, 0.03, 5);
@@ -1154,9 +1155,9 @@ resize(); bindUI(); P.mesh.position.set(P.x, 0, P.z); requestAnimationFrame(loop
 
 // ================= v1.5 · Il labirinto del filo, transizioni animate, Pennino (albero abilità), gommino =================
 const PROG_KEY = 'palimpsest_prog_v1';
-const PROG = Object.assign({ drops: 0, skills: {}, mazeDone: false }, (() => { try { return JSON.parse(localStorage.getItem(PROG_KEY) || '{}'); } catch (e) { return {}; } })());
+const PROG = Object.assign({ drops: 0, skills: {}, items: {}, quests: {}, mazeDone: false }, (() => { try { return JSON.parse(localStorage.getItem(PROG_KEY) || '{}'); } catch (e) { return {}; } })());
 function saveProg() { try { localStorage.setItem(PROG_KEY, JSON.stringify(PROG)); } catch (e) {} renderSkills(); }
-function resetProg() { PROG.drops = 0; PROG.skills = {}; PROG.mazeDone = false; saveProg(); P.max = 5; }
+function resetProg() { PROG.drops = 0; PROG.skills = {}; PROG.items = {}; PROG.quests = {}; PROG.mazeDone = false; saveProg(); P.max = 5; }
 const SKILLS = [
   { id: 'nib2', name: 'Pennino d\'acciaio', cost: 12, text: 'Colpi sulla corazza +50%. Prepara le parole composte.' },
   { id: 'heart', name: 'Rilegatura doppia', cost: 10, text: 'Vita massima +1 pagina.' },
@@ -1195,8 +1196,9 @@ function useEraser() {
   toast(n ? 'GOMMINO · ' + n + ' NEMICI CANCELLATI AL 25%' : 'GOMMINO · NESSUNO DA CANCELLARE'); Tele.log('eraser', { n }); renderSkills();
 }
 // ---- labirinto ----
-const MZ = { built: false, active: false, R: W.ROOMS.find((r) => r.id === 'maze'), N: 17, C: 5.2, EX: 8, walls: [], group: new THREE.Group(), lamps: [], planks: [], steps: [], done: false, bridgeT: -1, stairsT: -1, hintT: 0, entryOpen: 0, guide: new Set() };
+const MZ = { built: false, active: false, R: W.ROOMS.find((r) => r.id === 'maze'), N: 23, C: 4.2, EX: 11, walls: [], group: new THREE.Group(), lamps: [], planks: [], steps: [], done: false, bridgeT: -1, stairsT: -1, hintT: 0, entryOpen: 0, guide: new Set() };
 scene.add(MZ.group); MZ.group.visible = false;
+const mzD = (x, z) => mzCell(Math.round(x * (MZ.N - 1) / 16), Math.round(z * (MZ.N - 1) / 16)); // coordinate di progetto (griglia 17) → griglia vera
 const mzCell = (x, z) => [MZ.R.cx - MZ.R.w / 2 + (x + 0.5) * MZ.C, MZ.R.cz - MZ.R.d / 2 + (z + 0.5) * MZ.C];
 function mzRng(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
 function buildMaze() {
@@ -1207,7 +1209,7 @@ function buildMaze() {
   const EX = MZ.EX; const st = [[EX, N - 1]]; vis[(N - 1) * N + EX] = true;
   while (st.length) { const [cx, cz] = st[st.length - 1]; const nb = Object.keys(D).filter((k) => { const x = cx + D[k][0], z = cz + D[k][1]; return x >= 0 && z >= 0 && x < N && z < N && !vis[z * N + x] && !(x === EX && z === 0); });
     if (!nb.length) { st.pop(); continue; } const k = nb[Math.floor(r() * nb.length)]; open(cx, cz, k); const nx = cx + D[k][0], nz = cz + D[k][1]; vis[nz * N + nx] = true; st.push([nx, nz]); }
-  for (let i = 0; i < 24; i++) { const x = 1 + Math.floor(r() * (N - 3)), z = 4 + Math.floor(r() * (N - 6)); open(x, z, r() < 0.5 ? 'e' : 's'); }
+  for (let i = 0; i < 40; i++) { const x = 1 + Math.floor(r() * (N - 3)), z = 4 + Math.floor(r() * (N - 6)); open(x, z, r() < 0.5 ? 'e' : 's'); }
   for (let z = 1; z <= 3; z++) for (let x = EX - 2; x <= EX + 2; x++) { if (x < EX + 2) open(x, z, 'e'); if (z < 3) open(x, z, 's'); } // radura del Copista // qualche anello: più strade, più agguati
   open(EX, 1, 'n'); // l'ultima cella (la piastra) si raggiunge solo dalla fenditura
   // muri: un solo InstancedMesh (pochi draw call), collisioni registrate solo quando la zona è attiva
@@ -1226,7 +1228,7 @@ function buildMaze() {
   segs.forEach(([ax, az, bx, bz], i) => { for (let k = 0; k < 3; k++) { const t = (k + 0.5) / 3; m4.makeRotationY(r() * 3); m4.setPosition(ax + (bx - ax) * t, H + 0.2 + ((i * 37) % 7) * 0.08, az + (bz - az) * t); crest.setMatrixAt(ci++, m4); } });
   crest.frustumCulled = false; MZ.group.add(crest); MZ.crest = crest;
   // scritte sul pavimento e frecce d'inchiostro che indicano il filo
-  for (let i = 0; i < 18; i++) { const [x, z] = mzCell(Math.floor(r() * N), Math.floor(r() * N)); const t = W.sketchFloor ? null : null; const sp = new THREE.Mesh(new THREE.CircleGeometry(0.6 + r() * 1.2, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a120c, transparent: true, opacity: 0.35, depthWrite: false })); sp.position.set(x + (r() - 0.5) * 4, 0.012, z + (r() - 0.5) * 4); MZ.group.add(sp); }
+  for (let i = 0; i < 28; i++) { const [x, z] = mzCell(Math.floor(r() * N), Math.floor(r() * N)); const t = W.sketchFloor ? null : null; const sp = new THREE.Mesh(new THREE.CircleGeometry(0.6 + r() * 1.2, 12).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x1a120c, transparent: true, opacity: 0.35, depthWrite: false })); sp.position.set(x + (r() - 0.5) * 4, 0.012, z + (r() - 0.5) * 4); MZ.group.add(sp); }
   // il filo: cavo che corre dalla piastra finale verso la pressa (si accende alla fine)
   const [px, pz] = mzCell(MZ.EX, 0); MZ.wallSegs = segs;
   MZ.wire = W.makeWire([[px, pz + 1.2], [px, pz - 2.6], [px + 30, pz - 2.6]]); MZ.group.add(MZ.wire);
@@ -1240,14 +1242,14 @@ function buildMaze() {
   MZ.plate = addEnt('mzplate', 'mzplate', W.makePlate(1.6, 1.6), px, pz); MZ.group.add(MZ.plate.mesh);
   for (let i = 0; i < 7; i++) { const s = inked(new THREE.BoxGeometry(2.2, 0.3, 0.7), { color: 0xcbbd9e, ow: 0.02 }); s.position.set(px - 1.9 + i * 0.6, -1, pz - 1.2); s.scale.set(0.27, 1, 2.2); s.visible = false; MZ.group.add(s); MZ.steps.push(s); }
   // lampade sentinella (BUIO le spegne): vicino a una lampada accesa le macchie ti vedono da lontano
-  for (const [cx2, cz2] of [[3, 13], [13, 11], [4, 7], [11, 6], [1, 2], [15, 2], [7, 8], [8, 14], [2, 10]]) { const [x, z] = mzCell(cx2, cz2); const o = C * 0.3; const lm = W.makeLamp(); lm.position.set(x + o, 0, z + o); MZ.group.add(lm);
+  for (const [cx2, cz2] of [[3, 13], [13, 11], [4, 7], [11, 6], [1, 2], [15, 2], [7, 8], [8, 14], [2, 10], [15, 14], [10, 3], [5, 4], [14, 7.5]]) { const [x, z] = mzD(cx2, cz2); const o = C * 0.3; const lm = W.makeLamp(); lm.position.set(x + o, 0, z + o); MZ.group.add(lm);
     const e = addEnt('mzlamp' + MZ.lamps.length, 'mzlamp', lm, x + o, z + o); e.mesh.userData.height = 2.2; const L = { m: lm, x: x + o, y: lm.userData.ly, z: z + o, r: 6, col: [1.3, 0.55, 0.35], base: [1.3, 0.55, 0.35], ph: r() * 10, kind: 'lamp' }; e.light = L; storyLights.push(L); MZ.lamps.push(e); }
   // macchie del labirinto (risvegliate dalla vicinanza o dalla luce)
-  for (let i = 0; i < 34; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 5)) + 4; if (cz2 >= N - 2 && Math.abs(cx2 - MZ.EX) < 3) cz2 = 6; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; o.x = x; o.z = z; o.mesh.position.set(x, 0.3, z); if (i % 4 === 0) { o.scribe = true; const q = W.makeDoc(); q.scale.setScalar(0.5); q.position.y = 0.2; o.mesh.add(q); } }
-  for (const [cx2, cz2] of [[0, 15], [16, 9], [0, 5], [16, 0], [12, 4]]) { const [x, z] = mzCell(cx2, cz2); spawnVial(x, z, true); }
-  for (const [cx2, cz2] of [[5, 13], [11, 9], [3, 6]]) { const [x, z] = mzCell(cx2, cz2); const o = spawnSpitter(x, z); o.room = 'maze'; o.aggroR = 8; o.home = { x, z }; }
+  for (let i = 0; i < 46; i++) { let cx2 = Math.floor(r() * N), cz2 = Math.floor(r() * (N - 5)) + 4; if (cz2 >= N - 2 && Math.abs(cx2 - MZ.EX) < 3) cz2 = 6; const [x, z] = mzCell(cx2, cz2); const o = spawnMite(x + (r() - 0.5) * 3, z + (r() - 0.5) * 3, i % 4 === 0); o.room = 'maze'; o.aggroR = 7; o.home = { x: o.x, z: o.z }; o.x = x; o.z = z; o.mesh.position.set(x, 0.3, z); if (i % 4 === 0) { o.scribe = true; const q = W.makeDoc(); q.scale.setScalar(0.5); q.position.y = 0.2; o.mesh.add(q); } }
+  for (const [cx2, cz2] of [[0, 15], [16, 9], [0, 5], [16, 0], [12, 4], [6, 10], [10, 16]]) { const [x, z] = mzD(cx2, cz2); spawnVial(x, z, true); }
+  for (const [cx2, cz2] of [[5, 13], [11, 9], [3, 6], [14, 12], [9, 6]]) { const [x, z] = mzD(cx2, cz2); const o = spawnSpitter(x, z); o.room = 'maze'; o.aggroR = 8; o.home = { x, z }; }
   // pagine della guida (Ilde) lungo il percorso
-  MZ.notes = [[8, 15, 'enter'], [4, 11, 'buio'], [8, 4, 'ponte']].map(([a, b, id]) => { const [x, z] = mzCell(a, b); const n = W.makeDoc(); n.position.set(x - 1.4, 0, z); MZ.group.add(n); return { x: x - 1.4, z, id }; }); buildMazeExtras(r); buildMazeRich(); spawnCopista();
+  MZ.notes = [[8, 15, 'enter'], [4, 11, 'buio'], [8, 4, 'ponte']].map(([a, b, id]) => { const [x, z] = mzD(a, b); const n = W.makeDoc(); n.position.set(x - 1.4, 0, z); MZ.group.add(n); return { x: x - 1.4, z, id }; }); buildMazeExtras(r); buildMazeRich(); spawnCopista();
 }
 function inkMasterLike(color) { const m = world.wallMat.clone(); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) } }; return m; }
 function mazeActivate(on) { if (MZ.active === on) return; MZ.active = on; MZ.group.visible = on;
@@ -1436,14 +1438,14 @@ function endingPage() { const el = $('endPage'); el.classList.remove('hidden'); 
 // ---- dettagli del labirinto, pila di registri (parole composte), pagina maledetta ----
 function buildMazeExtras(r) {
   const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
-  const books = new THREE.InstancedMesh(bg, inkMasterLike(0x8a5a3a), 220); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); const col = new THREE.Color();
-  for (let i = 0; i < 220; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const stack = i % 5; e.set(0, r() * 3, 0); q.setFromEuler(e); m4.compose(v.set(x + (r() < 0.5 ? -1 : 1) * (MZ.C * 0.38), stack * 0.18, z + (r() - 0.5) * MZ.C * 0.7), q, sc.set(0.6 + r() * 0.3, 0.17, 0.8 + r() * 0.2)); books.setMatrixAt(i, m4); books.setColorAt && books.setColorAt(i, col.setHSL(0.03 + r() * 0.08, 0.5, 0.3 + r() * 0.25)); }
+  const books = new THREE.InstancedMesh(bg, inkMasterLike(0x8a5a3a), 320); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); const col = new THREE.Color();
+  for (let i = 0; i < 320; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const stack = i % 5; e.set(0, r() * 3, 0); q.setFromEuler(e); m4.compose(v.set(x + (r() < 0.5 ? -1 : 1) * (MZ.C * 0.38), stack * 0.18, z + (r() - 0.5) * MZ.C * 0.7), q, sc.set(0.6 + r() * 0.3, 0.17, 0.8 + r() * 0.2)); books.setMatrixAt(i, m4); books.setColorAt && books.setColorAt(i, col.setHSL(0.03 + r() * 0.08, 0.5, 0.3 + r() * 0.25)); }
   books.frustumCulled = false; MZ.group.add(books);
-  for (let i = 0; i < 30; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const p = inked(new THREE.PlaneGeometry(0.5, 0.65), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set(x + (r() - 0.5) * MZ.C * 0.7, 0.9 + r() * 0.6, z - MZ.C * 0.45); p.rotation.z = (r() - 0.5) * 0.5; MZ.group.add(p); }
-  const [sx, sz0] = mzCell(14, 7); const sz = sz0 + 2.2; MZ.stack = addEnt('mzstack', 'mzstack', inked(new THREE.BoxGeometry(MZ.C - 0.3, 2.4, 1.2), { color: 0x6b4a2a, shift: 0x8a2416, y0: 0, y1: 2.4 }), sx, sz - 2.2); MZ.stack.mesh.position.y = 1.2; MZ.stack.mesh.userData.height = 2.4; MZ.group.add(MZ.stack.mesh);
+  for (let i = 0; i < 44; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const p = inked(new THREE.PlaneGeometry(0.5, 0.65), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set(x + (r() - 0.5) * MZ.C * 0.7, 0.9 + r() * 0.6, z - MZ.C * 0.45); p.rotation.z = (r() - 0.5) * 0.5; MZ.group.add(p); }
+  const [sx, sz0] = mzD(14, 7); const sz = sz0 + 2.2; MZ.stack = addEnt('mzstack', 'mzstack', inked(new THREE.BoxGeometry(MZ.C - 0.3, 2.4, 1.2), { color: 0x6b4a2a, shift: 0x8a2416, y0: 0, y1: 2.4 }), sx, sz - 2.2); MZ.stack.mesh.position.y = 1.2; MZ.stack.mesh.userData.height = 2.4; MZ.group.add(MZ.stack.mesh);
   MZ.stackBox = { minX: sx - MZ.C / 2, maxX: sx + MZ.C / 2, minZ: sz - 2.8, maxZ: sz - 1.6 }; MZ.walls.push(MZ.stackBox);
   MZ.notes.push({ x: sx - 1.5, z: sz + 0.6, id: 'pesante' }); { const n = W.makeDoc(); n.position.set(sx - 1.5, 0, sz + 0.6); MZ.group.add(n); }
-  const [cx, cz] = mzCell(16, 16); MZ.curseAt = addCursed('mz', cx, cz); MZ.group.attach(MZ.curseAt.m);
+  const [cx, cz] = mzD(16, 16); MZ.curseAt = addCursed('mz', cx, cz); MZ.group.attach(MZ.curseAt.m);
 }
 function v16Interactables(L) {
   for (const [id, c] of Object.entries(CURSED)) if (!c.taken && (id !== 'mz' || MZ.active)) L.push({ x: c.x, z: c.z, r: 1.8, label: 'leggi', fn: () => say([['narr', '✠ Una pagina maledetta. Le righe sono scritte al contrario e scottano.'], ['narr', 'Se la prendi, il tuo pennino morderà di più. Ma il libro se ne accorgerà, e ti renderà il capitolo più duro.']], { choices: [['Prendila', () => takeCurse(id)], ['Lasciala', () => {}]] }) });
@@ -1466,7 +1468,7 @@ const INTRO_SWAY = []; const MZ_SHEETS = []; const DOOR_JURY = {};
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
-  opUpdate(dt); curseUpdate(dt); custodePhases(dt); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
+  opUpdate(dt); curseUpdate(dt); custodePhases(dt); questUpdate(dt); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
   if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
   if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
   if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
@@ -1537,9 +1539,9 @@ const MZ_LORE = {
 };
 function mazePage(id, x, z) { if (MZS.found.has(id)) return; MZS.found.add(id); sfx.play('seal'); S.flash = 0.3; gainDrops(5); toast('✦ PAGINA DEL LABIRINTO ' + MZS.found.size + '/4'); say(MZ_LORE[id].map((t) => ['narr', t])); journal('Pagina del labirinto: ' + MZ_LORE[id].join(' ')); particles.burst(x, 1, z, 30, 4, [1, 0.85, 0.5], 0.2); Tele.log('maze_page', { id }); }
 function buildMazeRich() {
-  const [rx, rz] = mzCell(1, 12); const rel = inked(new THREE.BoxGeometry(1.2, 1.4, 1.2), { color: 0xd8cbb0, shift: 0x8a2416, y0: 0, y1: 1.4 }); rel.position.y = 0.7;
+  const [rx, rz] = mzD(1, 12); const rel = inked(new THREE.BoxGeometry(1.2, 1.4, 1.2), { color: 0xd8cbb0, shift: 0x8a2416, y0: 0, y1: 1.4 }); rel.position.y = 0.7;
   MZS.reliq = addEnt('mzreliq', 'mzreliq', rel, rx, rz); MZS.reliq.mesh.userData.height = 1.6; MZ.group.add(MZS.reliq.mesh); MZ.walls.push(MZS.reliqBox = { minX: rx - 0.6, maxX: rx + 0.6, minZ: rz - 0.6, maxZ: rz + 0.6 });
-  const [cx, cz] = mzCell(12, 13); const cr = inked(new THREE.OctahedronGeometry(0.8, 0), { color: 0x2a4a6a, shift: 0x3fc1ff, y0: 0, y1: 2 }); cr.position.y = 1.2;
+  const [cx, cz] = mzD(12, 13); const cr = inked(new THREE.OctahedronGeometry(0.8, 0), { color: 0x2a4a6a, shift: 0x3fc1ff, y0: 0, y1: 2 }); cr.position.y = 1.2;
   MZS.crystal = addEnt('mzcrystal', 'mzcrystal', cr, cx, cz); MZS.crystal.mesh.userData.height = 2; MZ.group.add(MZS.crystal.mesh); MZ.walls.push(MZS.crystalBox = { minX: cx - 0.7, maxX: cx + 0.7, minZ: cz - 0.7, maxZ: cz + 0.7 });
   const cpad = inked(new THREE.CylinderGeometry(1.1, 1.3, 0.25, 8), { color: 0x3a2a20, ow: 0.02 }); cpad.position.set(cx, 0.12, cz); MZ.group.add(cpad);
   // scritta nel buio fra due lampade sentinella
@@ -1548,7 +1550,7 @@ function buildMazeRich() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; MZS.darkText = new THREE.Mesh(new THREE.PlaneGeometry(8, 2).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
   MZS.darkText.position.set(MZS.darkAt.x, 0.03, MZS.darkAt.z); MZ.group.add(MZS.darkText);
   // dettagli: tubi d'inchiostro che gocciolano, fogli che volano
-  for (let i = 0; i < 12; i++) { const [x, z] = mzCell((i * 7) % MZ.N, (i * 5 + 2) % MZ.N); const o = MZ.C * 0.42; const pipe = inked(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 8), { color: 0x2b221b, ow: 0.015 }); pipe.position.set(x + o, 1.3, z + o); MZ.group.add(pipe); MZS.items.push({ x: x + o, z: z + o, ph: i }); }
+  for (let i = 0; i < 18; i++) { const [x, z] = mzCell((i * 7) % MZ.N, (i * 5 + 2) % MZ.N); const o = MZ.C * 0.42; const pipe = inked(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 8), { color: 0x2b221b, ow: 0.015 }); pipe.position.set(x + o, 1.3, z + o); MZ.group.add(pipe); MZS.items.push({ x: x + o, z: z + o, ph: i }); }
 }
 function mazeRichUpdate(dt) { if (!MZ.active || !MZS.reliq) return;
   if (!MZS.reliq.broken && grammar.has('mzreliq', 'state.fragile') && P.st === 'heavy' && P.hitDone && dist(P, MZS.reliq) < 2.6) { MZS.reliq.broken = true; MZS.reliq.mesh.visible = false; world.walls = world.walls.filter((w) => w !== MZS.reliqBox); sfx.play('break'); S.shake = 0.6; particles.burst(MZS.reliq.x, 0.8, MZS.reliq.z, 30, 5, [0.85, 0.78, 0.62], 0.2); mazePage('reliq', MZS.reliq.x, MZS.reliq.z); }
@@ -1568,7 +1570,7 @@ const _fm = { p: new THREE.Vector3(), q: new THREE.Quaternion(), s: new THREE.Ve
 function mazeFilmUpdate(dt) { const F = MZ.film; if (!F) return; F.t += dt; S.lock = true; const T = F.t / FILM_T * 8; const R = MZ.R, im = MZ.wallIM;
   if (!F.s2 && T > 3) { F.s2 = 1; opSub('Ogni foglio si piega, si squadra, diventa un muro.'); sfx.play('heavy'); }
   if (!F.s3 && T > 5.6) { F.s3 = 1; opSub('E il labirinto si richiude intorno a te.'); sfx.play('seal'); S.shake = 0.6; }
-  MZ.wallFinal.forEach((fm, i) => { const r = F.rnd[i]; fm.decompose(_fm.p, _fm.q, _fm.s); const d = Math.hypot(_fm.p.x - R.cx, _fm.p.z - R.cz) / 62; const k = clamp((T - 0.4 - d * 4.2 - r[3] * 0.6) / 1.3, 0, 1), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+  MZ.wallFinal.forEach((fm, i) => { const r = F.rnd[i]; fm.decompose(_fm.p, _fm.q, _fm.s); const d = Math.hypot(_fm.p.x - R.cx, _fm.p.z - R.cz) / 68; const k = clamp((T - 0.4 - d * 4.2 - r[3] * 0.6) / 1.3, 0, 1), e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
     _fm.p0.set(_fm.p.x + (r[0] - 0.5) * 50, 18 + r[1] * 30, _fm.p.z + (r[2] - 0.5) * 50); _fm.e.set(r[0] * 6, r[1] * 6, r[2] * 6); _fm.q0.setFromEuler(_fm.e); _fm.s0.set(1.3, 0.04, 1.7);
     _fm.p0.lerp(_fm.p, e); _fm.q0.slerp(_fm.q, e); const sq = clamp(e * 1.4 - 0.4, 0, 1); _fm.s0.set(lerp(1.3, _fm.s.x, sq), lerp(0.04, _fm.s.y, sq), lerp(1.7, _fm.s.z, sq));
     _fm.m.compose(_fm.p0, _fm.q0, _fm.s0); im.setMatrixAt(i, _fm.m); });
@@ -1619,7 +1621,77 @@ function bossBeat(title, sub, at) { if (!opts.reduce) slowmo(0.6); S.shake = Mat
 function copistaUpdate() { const m = MZ.boss; const bar = $('miniBar'); if (!m || !bar) return; const show = m.alive && m.engaged && S.room === 'maze'; bar.style.display = show ? 'block' : 'none'; if (show) bar.querySelector('i').style.width = (Math.max(0, m.hp) / m.maxHp * 100) + '%';
   if (!m.alive && !m.dead) { m.dead = true; sfx.play('break'); S.shake = 1; S.flash = 0.4; toast('IL COPISTA È CANCELLATO'); gainDrops(15); spawnVial(m.x, m.z, true); journal('Hai sconfitto il Copista: il vuoto davanti alla piastra si può scrivere.'); sfx.tension(false); hint('Ora scrivi PONTE sul vuoto'); } }
 
-window.PAL = { tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+// ================= v2.1 · Borsa, oggetti e commissioni (quest secondarie) =================
+const ITEMS = {
+  nibwide: { name: 'Pennino a punta larga', icon: 'nib', text: 'I colpi rapidi coprono un arco più ampio; l\'affondo che chiude la catena gira tutto intorno a te.', from: 'Il Tipografo' },
+  seppia: { name: 'Inchiostro di seppia', icon: 'jar', text: 'Quando l\'Inchiostro Vivo scende sotto metà, si ricarica da solo, piano.', from: 'Il Giurato senza volto' },
+  segnalibro: { name: 'Segnalibro di Ilde', icon: 'mark', text: 'La prima volta che cadi in una stanza ti rialzi sul posto con metà vita.', from: 'La lettera di Ilde' },
+  sacca: { name: 'Sacca del Ladro', icon: 'sack', text: 'Ogni colpo rapido che va a segno ti restituisce 3 di Inchiostro in più.', from: 'Il Ladro d\'inchiostro' },
+};
+const QUESTS = {
+  tipo: { title: 'Il Tipografo e le lettere', giver: 'Il Tipografo, nella pressa', steps: ['Parla con il Tipografo nella pressa', 'Ritrova i 4 caratteri caduti nel labirinto', 'Riporta i caratteri al Tipografo'], reward: 'nibwide' },
+  giuria: { title: 'La giuria senza volto', giver: 'Un giurato, nel tribunale', steps: ['Parla con il giurato senza volto', 'Trova il suo volto, rubato dal Ladro nell\'archivio', 'Restituisci il volto al giurato'], reward: 'seppia' },
+  lettera: { title: 'La lettera di Ilde', giver: 'Pagine strappate', steps: ['Trova i 3 pezzi della lettera di Ilde', 'Leggi la lettera intera'], reward: 'segnalibro' },
+};
+const Qs = (id) => PROG.quests[id] || (PROG.quests[id] = { step: -1, n: 0 }); // step -1: non iniziata
+function questAdvance(id, step, msg) { const q = Qs(id); if (q.step >= step) return; q.step = step; saveProg(); const Q = QUESTS[id];
+  if (step === 0) { toast('NUOVA COMMISSIONE · ' + Q.title.toUpperCase()); sfx.play('page'); journal('Commissione: ' + Q.title + '.'); }
+  else if (step >= Q.steps.length) { giveItem(Q.reward); journal('Commissione compiuta: ' + Q.title + '.'); }
+  else toastSmall(msg || Q.steps[step]); Tele.log('quest', { id, step }); renderBag(); }
+function giveItem(id) { if (PROG.items[id]) return; PROG.items[id] = true; saveProg(); const it = ITEMS[id]; bossBeat('◈ ' + it.name.toUpperCase(), it.text, P); sfx.sting('secret'); journal('Hai ottenuto: ' + it.name + '.'); renderBag(); $('bBag').classList.add('has'); }
+// icone degli oggetti disegnate a inchiostro
+const ICONS = {};
+function itemIcon(k) { if (ICONS[k]) return ICONS[k]; const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d'); g.fillStyle = '#efe5cf'; g.fillRect(0, 0, 96, 96); g.strokeStyle = g.fillStyle = '#16110d'; g.lineWidth = 4; g.lineCap = 'round';
+  if (k === 'nib') { g.beginPath(); g.moveTo(48, 10); g.lineTo(72, 50); g.lineTo(48, 88); g.lineTo(24, 50); g.closePath(); g.fill(); g.strokeStyle = '#efe5cf'; g.beginPath(); g.moveTo(48, 40); g.lineTo(48, 86); g.stroke(); g.fillStyle = '#d8a63a'; g.beginPath(); g.arc(48, 40, 6, 0, 6.3); g.fill(); }
+  else if (k === 'jar') { g.fillStyle = '#2b4a5a'; g.fillRect(26, 34, 44, 50); g.strokeRect(26, 34, 44, 50); g.fillStyle = '#16110d'; g.fillRect(34, 18, 28, 16); g.fillStyle = '#efe5cf'; g.beginPath(); g.arc(40, 56, 5, 0, 6.3); g.fill(); }
+  else if (k === 'mark') { g.fillStyle = '#8a2416'; g.beginPath(); g.moveTo(32, 8); g.lineTo(64, 8); g.lineTo(64, 88); g.lineTo(48, 72); g.lineTo(32, 88); g.closePath(); g.fill(); g.fillStyle = '#efe5cf'; g.font = 'italic bold 22px Georgia'; g.textAlign = 'center'; g.fillText('I', 48, 46); }
+  else { g.beginPath(); g.ellipse(48, 58, 30, 28, 0, 0, 6.3); g.fill(); g.fillRect(36, 18, 24, 18); g.strokeStyle = '#8a2416'; g.lineWidth = 5; g.beginPath(); g.moveTo(34, 36); g.lineTo(62, 36); g.stroke(); }
+  return (ICONS[k] = c.toDataURL()); }
+function renderBag() { const el = $('bagList'); if (!el) return; const own = Object.keys(ITEMS).filter((k) => PROG.items[k]);
+  let h = '<h3>Oggetti</h3>' + (own.length ? own.map((k) => `<div class="item"><img src="${itemIcon(ITEMS[k].icon)}" alt=""><div><b>${ITEMS[k].name}</b><p>${ITEMS[k].text}</p><small>da: ${ITEMS[k].from}</small></div></div>`).join('') : '<p class="small">La borsa è vuota. Aiuta chi incontri: il libro ricompensa chi legge con attenzione.</p>');
+  h += '<h3>Commissioni</h3>'; const qs = Object.keys(QUESTS).filter((k) => Qs(k).step >= 0);
+  h += qs.length ? qs.map((k) => { const q = Qs(k), Q = QUESTS[k], done = q.step >= Q.steps.length; return `<div class="quest ${done ? 'done' : ''}"><b>${done ? '✔ ' : ''}${Q.title}</b><small>${Q.giver}</small><p>${done ? 'Compiuta. Premio: ' + ITEMS[Q.reward].name : Q.steps[q.step] + (k === 'tipo' && q.step === 1 ? ' (' + q.n + '/4)' : k === 'lettera' && q.step === 0 ? ' (' + q.n + '/3)' : '')}</p></div>`; }).join('') : '<p class="small">Nessuna commissione. Parla con chi incontri.</p>';
+  el.innerHTML = h; }
+function toggleBag(on) { const el = $('bag'); const open = on ?? el.classList.contains('hidden'); if (open && (paused || S.phase !== 'play')) return; el.classList.toggle('hidden', !open); paused = open; $('bBag').classList.remove('has'); if (open) { renderBag(); sfx.play('page'); } }
+$('bBag').onclick = () => toggleBag(); $('bagClose').onclick = () => toggleBag(false);
+// ---- personaggi di carta: sagome ritagliate disegnate a inchiostro ----
+function paperFolk(draw, w = 1.3, h = 1.9) { const c = document.createElement('canvas'); c.width = 256; c.height = 384; const g = c.getContext('2d'); g.lineCap = g.lineJoin = 'round'; draw(g); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const grp = new THREE.Group(); const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide })); m.position.y = h / 2 + 0.05; grp.add(m);
+  const base = inked(new THREE.CylinderGeometry(0.45, 0.5, 0.08, 14), { color: 0x3a2a20, ow: 0.015 }); base.position.y = 0.04; grp.add(base); grp.userData.card = m; return grp; }
+const drawTipo = (g) => { g.fillStyle = '#efe5cf'; g.strokeStyle = '#16110d'; g.lineWidth = 7; // corpo e grembiule
+  g.beginPath(); g.moveTo(128, 96); g.bezierCurveTo(60, 110, 50, 260, 56, 370); g.lineTo(200, 370); g.bezierCurveTo(206, 260, 196, 110, 128, 96); g.fill(); g.stroke(); g.fillStyle = '#5a3a22'; g.fillRect(84, 190, 88, 170); g.strokeRect(84, 190, 88, 170);
+  g.fillStyle = '#efe5cf'; g.beginPath(); g.arc(128, 70, 46, 0, 6.3); g.fill(); g.stroke(); g.fillStyle = '#16110d'; g.fillRect(80, 22, 96, 22); g.lineWidth = 4; g.beginPath(); g.arc(110, 72, 12, 0, 6.3); g.arc(146, 72, 12, 0, 6.3); g.moveTo(122, 72); g.lineTo(134, 72); g.stroke();
+  g.beginPath(); g.moveTo(112, 98); g.quadraticCurveTo(128, 104, 144, 98); g.stroke(); g.fillStyle = '#8a6a4a'; g.fillRect(170, 200, 60, 14); g.strokeRect(170, 200, 60, 14); g.fillStyle = '#8a2416'; g.font = 'bold 22px Georgia'; g.fillText('A', 116, 290); };
+const tipo = paperFolk(drawTipo); tipo.position.set(-8.4, 0, -62.3); scene.add(tipo); circles.push({ x: -8.4, z: -62.3, r: 0.5 }); tipo.traverse((o) => o.layers.set(W.ROOMS.findIndex((r) => r.id === 'conduct') + 1));
+const LETTERS = { list: [], built: false };
+function letterMesh(ch) { const g = new THREE.Group(); const b = inked(new THREE.BoxGeometry(0.42, 0.42, 0.42), { color: 0x8a6a4a, shift: 0xd8a63a, ow: 0.02 }); g.add(b);
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#16110d'; x.fillRect(0, 0, 128, 128); x.fillStyle = '#efe5cf'; x.font = 'bold 96px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.save(); x.translate(64, 66); x.scale(-1, 1); x.fillText(ch, 0, 0); x.restore(); // i caratteri da stampa sono a specchio
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const top = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: t })); top.position.y = 0.215; g.add(top);
+  const glow = new THREE.Mesh(new THREE.RingGeometry(0.45, 0.62, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.55, depthWrite: false })); glow.position.y = -0.7; g.add(glow); return g; }
+function buildLetters() { if (LETTERS.built || !MZ.built) return; LETTERS.built = true; const { N } = MZ; const dead = [];
+  for (let z = 0; z < N; z++) for (let x = 0; x < N; x++) { const c = MZ.E[z * N + x]; const w = (c.n ? 1 : 0) + (c.s ? 1 : 0) + (c.e ? 1 : 0) + (c.w ? 1 : 0); if (w === 3 && z > 2 && z < N - 2) dead.push([x, z]); }
+  const quads = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([qx, qz]) => dead.filter(([x, z]) => (x >= N / 2) === !!qx && (z >= N / 2) === !!qz));
+  'ILDE'.split('').forEach((ch, i) => { const q = quads[i].length ? quads[i] : dead; const [cx, cz] = q[Math.floor(q.length * 0.618 + i * 3) % q.length]; const [x, z] = mzCell(cx, cz); const qt = Qs('tipo'), got = qt.step >= 2 || (qt.got || []).includes(ch); const m = letterMesh(ch); m.position.set(x, 0.8, z); if (!got) MZ.group.add(m); LETTERS.list.push({ ch, x, z, m, got }); }); } /* i caratteri già raccolti restano raccolti dopo un salvataggio */
+function questInteractables(L) {
+  if (S.room === 'conduct') { const q = Qs('tipo'); if (q.step < 0) L.push({ x: tipo.position.x, z: tipo.position.z, r: 2.2, label: 'parla', fn: () => { tipoFace(); say([['tipo', 'Fermo, fermo! Non calpestare le righe ancora fresche.'], ['tipo', 'Sono il Tipografo. Compongo le frasi del libro lettera per lettera, al contrario, come si fa con il piombo.'], ['tipo', 'Quando la pressa ha sfondato la pagina, quattro caratteri mi sono caduti nel labirinto. Senza di loro non posso comporre l\'ultima riga del verdetto di Elara.'], ['tipo', 'Se li trovi, riportameli. Ti darò il mio pennino migliore: quello a punta larga.']], { done: () => { questAdvance('tipo', 0); questAdvance('tipo', 1, 'Cerca 4 caratteri nei vicoli ciechi del labirinto'); } }); } });
+    else if (q.step === 1 && q.n >= 4) L.push({ x: tipo.position.x, z: tipo.position.z, r: 2.2, label: 'consegna', fn: tipoReturn });
+    else if (q.step === 1) L.push({ x: tipo.position.x, z: tipo.position.z, r: 2.2, label: 'parla', fn: () => { tipoFace(); say([['tipo', 'Ne hai trovati ' + q.n + ' su 4. Cadono sempre nei vicoli ciechi: le lettere hanno paura delle frasi lunghe.']]); } }); }
+}
+function tipoFace() { S.camFocus = { x: tipo.position.x, z: tipo.position.z, t: 1.4 }; }
+function tipoReturn() { const q = Qs('tipo'); q.step = 2; tipoFace(); S.lock = true; sfx.play('page');
+  // scena: le quattro lettere volano nella cassa e compongono un nome
+  const ms = 'ILDE'.split('').map((ch, i) => { const m = letterMesh(ch); m.position.set(P.x, 1.2, P.z); scene.add(m); return { m, i }; }); let t = 0; const tx = -10.6, tz = -59.6;
+  const anim = setInterval(() => { t += 0.03; ms.forEach(({ m, i }) => { const k = Math.min(1, Math.max(0, t * 1.4 - i * 0.18)); const e = 1 - Math.pow(1 - k, 3); m.position.set(lerp(P.x, tx - 0.6 + i * 0.4, e), 1.2 + Math.sin(k * Math.PI) * 1.6 + e * 0.1, lerp(P.z, tz, e)); m.rotation.y = (1 - e) * 6; }); if (t >= 1.4) { clearInterval(anim); sfx.sting('word'); { const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d'); g.fillStyle = '#f6efdd'; g.fillRect(0, 0, 512, 256); g.fillStyle = '#16110d'; g.font = 'bold 150px Georgia'; g.textAlign = 'center'; g.fillText('ILDE', 256, 190); const t2 = new THREE.CanvasTexture(c); t2.colorSpace = THREE.SRGBColorSpace;
+      const sheet = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.9), new THREE.MeshBasicMaterial({ map: t2, side: THREE.DoubleSide, transparent: true })); sheet.position.set(tx, 1.2, tz); scene.add(sheet); let u = 0; const up = setInterval(() => { u += 0.03; sheet.position.y = 1.2 + Math.min(1, u) * 1.6; sheet.rotation.x = -0.9 + Math.min(1, u) * 0.5; sheet.rotation.z = Math.sin(u * 3) * 0.05; if (u > 12) { clearInterval(up); scene.remove(sheet); } }, 30); } /* il foglio stampato: ora il nome si legge dritto */
+    say([['tipo', 'I, L, D, E… li compongo al contrario, come sempre. Ma letto dritto, che cosa dice?'], ['narr', 'Sulla cassa, in piombo: ILDE.'], ['tipo', 'Ilde. È il nome che c\'era sotto ogni riga del verdetto di Elara. Qualcuno l\'ha raschiato via, molto tempo fa.'], ['tipo', 'Chi scrive un verdetto e poi cancella la propria firma… o ha paura, o vuole bene a qualcuno. Tieni il pennino. Te lo sei guadagnato.']], { done: () => { S.lock = false; questAdvance('tipo', 3); for (const { m } of ms) m.position.y = 1.08; } }); } }, 30); }
+function questUpdate(dt) {
+  if (MZ.built && !LETTERS.built) buildLetters();
+  if (S.room === 'maze') for (const L of LETTERS.list) { if (L.got) continue; L.m.rotation.y += dt * 1.2; L.m.position.y = 0.8 + Math.sin(now * 2 + L.x) * 0.12;
+    if (Math.hypot(P.x - L.x, P.z - L.z) < 1.2) { L.got = true; MZ.group.remove(L.m); const q = Qs('tipo'); if (q.step < 0) { q.step = 1; } q.n++; (q.got || (q.got = [])).push(L.ch); saveProg(); sfx.sting('word'); particles.burst(L.x, 1, L.z, 20, 3, [1, 0.85, 0.45], 0.15); toast('CARATTERE «' + L.ch + '» · ' + q.n + '/4'); renderBag(); if (q.n >= 4) hint('Hai tutti i caratteri: riportali al Tipografo nella pressa'); } }
+  if (PROG.items.seppia && !panel.open && ink.v < 50 && S.phase === 'play') ink.v = Math.min(50, ink.v + dt * 2);
+  if (tipo.visible) tipo.userData.card.rotation.y = Math.atan2(P.x - tipo.position.x, P.z - tipo.position.z) * 0.3;
+}
+window.PAL = { interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

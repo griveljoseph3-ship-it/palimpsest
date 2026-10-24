@@ -21,6 +21,7 @@ check('M apre la mappa e mette in pausa', await until(() => !document.getElement
 const ink = await E(() => { const c = document.getElementById('mapCv'), g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 16) if (d[i] < 60 && d[i + 1] < 50) n++; return n; });
 check('la mappa disegna muri a inchiostro', ink > 50);
 if (process.env.SHOTS) await pg.screenshot({ path: process.env.SHOTS + '/map.png' });
+await W(1500); // un fotogramma intero tra le due pressioni, come farebbe una persona
 await pg.keyboard.down('KeyM'); await W(80); await pg.keyboard.up('KeyM');
 check('M richiude la mappa', await until(() => document.getElementById('mapPanel').classList.contains('hidden'), 20000));
 console.log('ERRORS', errs); if (bad || errs.length) { console.log('FAIL'); process.exitCode = 1; } else console.log('PASS map'); await b.close();

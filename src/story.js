@@ -3,7 +3,7 @@ const MK = 'pal.memory';
 export function loadMem() { try { return JSON.parse(localStorage.getItem(MK)) || { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } catch (e) { return { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } }
 export function saveMem(m) { try { localStorage.setItem(MK, JSON.stringify(m)); } catch (e) {} }
 
-export const WHO = { ilde: 'Ilde', narr: 'Il Libro', elara: 'Elara', lumi: 'Lumi', custode: 'Il Custode', you: 'Tu' };
+export const WHO = { ilde: 'Ilde', narr: 'Il Libro', elara: 'Elara', lumi: 'Lumi', custode: 'Il Custode', you: 'Tu', tipo: 'Il Tipografo', giurato: 'Il Giurato senza volto', ladro: 'Il Ladro d\'inchiostro' };
 
 export function introLines(mem) {
   if (mem.runs === 0) return [

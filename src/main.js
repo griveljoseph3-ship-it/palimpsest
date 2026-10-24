@@ -615,7 +615,7 @@ function setRoute(r) {
 function elaraTwist() { if (S.twistSeen) return; S.twistSeen = true; S.lock = true; S.camFocus = { x: 0, z: -99.4, t: 9 }; if (!opts.reduce) slowmo(0.8);
   say([['elara', 'Aspetta. Quella voce che ti guidava laggiù, nel labirinto… la sentivo anch\'io, attraverso la carta.'], ['elara', 'Conosco quella voce. Mi cantava sopra il fiume. È mia madre. È Ilde.']], { done: () => {
     const st = elara.userData.st; let k = 0; sfx.play('tear'); const flake = setInterval(() => { k++; for (let i = 0; i < 6; i++) particles.emit(rnd(-0.9, 0.9), 2 + rnd(-0.2, 0.3), -99.2, rnd(-0.6, 0.6), rnd(0.5, 2), rnd(0.3, 1), 1.4, rnd(0.08, 0.16), 0.55, 0.1, 0.06, 2); if (k === 18) { st.verdict = 'LIBERA'; st.vcol = '#1b5a7a'; st.mouth = 12; st.eyes = 190; elara.userData.redraw(); sfx.sting('secret'); S.flash = 0.5; } if (k > 30) clearInterval(flake); }, 60);
-    setTimeout(() => say([['narr', 'Sotto COLPEVOLE il rosso si sfoglia come vernice vecchia. Sotto, scritta con un\'altra mano, più tremante: LIBERA.'], ['elara', 'LIBERA. Era questo che voleva scrivere. Allora perché non l\'ha fatto?'], ['lumi', 'Forse aveva paura di quello che sarebbe successo dopo. La paura scrive sempre più forte.']], { done: () => { S.lock = false; journal('Alla porta, Elara ha riconosciuto la voce di Ilde. Sotto il verdetto c\'era scritto LIBERA.'); Tele.log('twist_elara'); } }), FAST ? 50 : 2400); } }); }
+    setTimeout(() => say([['narr', 'Sotto COLPEVOLE il rosso si sfoglia come vernice vecchia. Sotto, scritta con un\'altra mano, più tremante: LIBERA.'], ['elara-sorriso', 'LIBERA. Era questo che voleva scrivere. Allora perché non l\'ha fatto?'], ['lumi', 'Forse aveva paura di quello che sarebbe successo dopo. La paura scrive sempre più forte.']], { done: () => { S.lock = false; journal('Alla porta, Elara ha riconosciuto la voce di Ilde. Sotto il verdetto c\'era scritto LIBERA.'); Tele.log('twist_elara'); } }), FAST ? 50 : 2400); } }); }
 
 // ---------- Parole Fluttuanti (S3) ----------
 const panel = { open: false, target: null, cands: [], words: [], sel: 0, els: [], wasFaded: false };
@@ -828,7 +828,10 @@ function ghostUpdate(dt) { if (!ghost.mesh) return; ghost.t += dt; const t = Mat
 // ---------- dialoghi ----------
 // ritratti a inchiostro disegnati dal codice (niente immagini esterne): uno per voce
 const FACES = {};
-function portrait(who) { if (FACES[who]) return FACES[who]; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+/* v2.2: i ritratti vengono dalle tavole di Joseph (assets/ritratti); quelli disegnati dal codice restano come riserva. «ilde-lacrime» = Ilde, altro volto */
+const RITR = new Set(['elara', 'elara-sorriso', 'elara-bambina', 'ilde', 'ilde-lacrime', 'lumi', 'custode', 'tipo', 'giurato', 'ladro', 'you', 'narr']);
+function portrait(who) { return RITR.has(who) ? 'assets/ritratti/' + who + '.jpg' : drawnFace(who.split('-')[0]); }
+function drawnFace(who) { if (FACES[who]) return FACES[who]; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
   g.fillStyle = '#efe5cf'; g.fillRect(0, 0, 128, 128); g.strokeStyle = 'rgba(40,28,20,.25)'; for (let i = 0; i < 9; i++) { g.beginPath(); g.moveTo(0, 14 + i * 14); g.lineTo(128, 14 + i * 14); g.stroke(); }
   const K = '#16110d', R = '#8a2416'; g.lineCap = 'round'; g.lineJoin = 'round';
   const blob = (x, y, r, col) => { g.fillStyle = col; g.beginPath(); for (let i = 0; i <= 24; i++) { const a = i / 24 * 6.283, q = r * (0.9 + 0.12 * Math.sin(a * 5 + r)); g.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); } g.fill(); };
@@ -842,8 +845,8 @@ function portrait(who) { if (FACES[who]) return FACES[who]; const c = document.c
 const dlg = { active: false, lines: [], i: 0, t: 0, opt: {}, choiceI: 0, full: '', ch: 0 };
 function say(lines, o = {}) { if (!lines.length) { if (o.done) o.done(); return; } dlg.lines = lines.slice(); dlg.i = 0; dlg.opt = o; dlg.active = true; dlg.choiceI = 0; showLine(); }
 function showLine() {
-  const [who, text] = dlg.lines[dlg.i]; $('dialog').classList.remove('hidden'); $('dWho').textContent = ST.WHO[who] || who; $('dText').textContent = ''; dlg.full = text; dlg.ch = 0; dlg.t = 0;
-  $('dialog').dataset.who = who; $('dFace').src = portrait(who); sfx.play('voice', who === 'custode' ? 0.3 : who === 'lumi' ? 1.6 : 1); renderChoices(false);
+  const [who, text] = dlg.lines[dlg.i]; $('dialog').classList.remove('hidden'); $('dWho').textContent = ST.WHO[who] || ST.WHO[who.split('-')[0]] || who; $('dText').textContent = ''; dlg.full = text; dlg.ch = 0; dlg.t = 0;
+  $('dialog').dataset.who = who.split('-')[0]; $('dFace').onerror = () => { $('dFace').onerror = null; $('dFace').src = drawnFace(who.split('-')[0]); }; $('dFace').src = portrait(who); sfx.play('voice', who === 'custode' ? 0.3 : who === 'lumi' ? 1.6 : 1); renderChoices(false);
 }
 function renderChoices(show) { let box = $('dChoices'); if (box) box.remove(); if (!show || !dlg.opt.choices) return; box = document.createElement('div'); box.id = 'dChoices';
   dlg.opt.choices.forEach(([lab], i) => { const b = document.createElement('button'); b.className = 'pbtn' + (i === dlg.choiceI ? ' sel' : ''); b.textContent = lab; b.onpointerdown = (e) => { e.stopPropagation(); pickChoice(i); }; box.appendChild(b); }); $('dialog').appendChild(box); }
@@ -1749,7 +1752,7 @@ function picksUpdate(dt) { for (const k in PICKS) { const p = PICKS[k]; p.sheet.
     if (Math.hypot(P.x - p.x, P.z - p.z) < 1.3) { scene.remove(p.g); delete PICKS[k]; (PROG.quests.picked || (PROG.quests.picked = {}))[k] = true; saveProg(); sfx.sting('secret'); particles.burst(p.x, 1, p.z, 24, 3, [1, 0.85, 0.45], 0.15); onPick(k); } } }
 function onPick(k) { if (k === 'volto') { const q = Qs('giuria'); toast('UN VOLTO DI CARTA'); if (q.step < 1) q.step = 1; questAdvance('giuria', 2, 'Riporta il volto al giurato nel tribunale'); }
   if (k.startsWith('lettera')) { const q = Qs('lettera'); if (q.step < 0) questAdvance('lettera', 0); q.n++; saveProg(); toast('PEZZO DELLA LETTERA DI ILDE · ' + q.n + '/3'); renderBag(); if (q.n >= 3) setTimeout(readLetter, 600); } }
-function readLetter() { S.lock = true; showLetterPage(); say([['ilde', '«Elara, se leggi questo, il libro si è riaperto. Non so chi tiene la penna. Spero che abbia la mano più gentile della mia.»'], ['ilde', '«La notte del fiume eri così piccola. L\'acqua ti teneva più forte di me. Allora ho riscritto il fiume… e il fiume si è spaccato.»'], ['ilde', '«Chi apre una Fenditura viene cancellato. Così ho scritto COLPEVOLE su di te, perché un verdetto ti tenesse dentro la storia.»'], ['ilde', '«Meglio colpevole che cancellata. Perdonami, se puoi. Io non ci sono riuscita.»'], ['narr', 'In fondo al foglio, piccolissima, una firma: «la tua mamma».']],
+function readLetter() { S.lock = true; showLetterPage(); say([['ilde', '«Elara, se leggi questo, il libro si è riaperto. Non so chi tiene la penna. Spero che abbia la mano più gentile della mia.»'], ['ilde-lacrime', '«La notte del fiume eri così piccola. L\'acqua ti teneva più forte di me. Allora ho riscritto il fiume… e il fiume si è spaccato.»'], ['ilde', '«Chi apre una Fenditura viene cancellato. Così ho scritto COLPEVOLE su di te, perché un verdetto ti tenesse dentro la storia.»'], ['ilde-lacrime', '«Meglio colpevole che cancellata. Perdonami, se puoi. Io non ci sono riuscita.»'], ['narr', 'In fondo al foglio, piccolissima, una firma: «la tua mamma».']],
   { done: () => { S.lock = false; hideLetterPage(); questAdvance('lettera', 2); } }); }
 function showLetterPage() { let el = $('letterPage'); if (!el) { el = document.createElement('div'); el.id = 'letterPage'; el.innerHTML = '<canvas width="700" height="900"></canvas>'; document.body.appendChild(el); } const g = el.querySelector('canvas').getContext('2d'); g.fillStyle = '#f1e7cf'; g.fillRect(0, 0, 700, 900);
   g.strokeStyle = 'rgba(40,28,20,.18)'; for (let i = 0; i < 24; i++) { g.beginPath(); g.moveTo(50, 90 + i * 32); g.lineTo(650, 90 + i * 32); g.stroke(); } g.fillStyle = '#2a1d16'; g.font = 'italic 28px Georgia';

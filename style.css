@@ -218,9 +218,9 @@ body.tutOn #toast{top:calc(196px + env(safe-area-inset-top));font-size:calc(20px
 @media (orientation:portrait){#bossCard{font-size:calc(34px*var(--fs));top:34%}}
 body.reduce-motion #bossCard.on{animation-duration:2.6s}
 /* v2.0 · ritratti a inchiostro nei dialoghi */
-#dFace{float:left;width:64px;height:64px;margin:-4px 14px 4px -6px;border-radius:3px;box-shadow:0 2px 0 rgba(22,17,13,.5)}
+#dFace{float:left;width:92px;height:92px;object-fit:cover;margin:-6px 14px 4px -6px;border-radius:3px;border:3px solid #16110d;box-shadow:0 3px 0 rgba(22,17,13,.5),inset 0 0 12px rgba(22,17,13,.4);filter:sepia(.12) contrast(1.04)}
 #dialog::after{content:"";display:block;clear:both}
-@media (orientation:portrait){#dFace{width:52px;height:52px}}
+@media (orientation:portrait){#dFace{width:68px;height:68px}}
 #bossCard.combo{color:#f3ead6;font-size:calc(34px*var(--fs));text-shadow:0 3px 0 #16110d,0 0 30px #000,0 0 50px rgba(63,193,255,.45)}
 #bossCard.combo small{max-width:70vw;white-space:normal;margin:10px auto 0}
 /* v2.0 · mappa del labirinto */

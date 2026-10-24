@@ -1273,7 +1273,10 @@ function buildMaze() {
   // pagine della guida (Ilde) lungo il percorso
   MZ.notes = [[8, 15, 'enter'], [4, 11, 'buio'], [8, 4, 'ponte']].map(([a, b, id]) => { const [x, z] = mzD(a, b); const n = W.makeDoc(); n.position.set(x - 1.4, 0, z); MZ.group.add(n); return { x: x - 1.4, z, id }; }); buildMazeExtras(r); buildMazeRich(); spawnCopista();
 }
-function inkMasterLike(color) { const m = world.wallMat.clone(); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) } }; return m; }
+/* v2.2: dorsi dei libri nei colori delle tavole (seppia, rosso scuro, indaco, carta vecchia) invece dell'arancio */
+const BOOK_PAL = [0x5a3e28, 0x6b4a2a, 0x7a2418, 0x8a5a3a, 0x2c3650, 0x3a2c22, 0xa08a66, 0x4a2a20];
+function bookCol(col, k) { col.setHex(BOOK_PAL[Math.floor(k * BOOK_PAL.length) % BOOK_PAL.length]); return col.offsetHSL(0, 0, (k * 7 % 1 - 0.5) * 0.08); }
+function inkMasterLike(color) { const m = world.wallMat.clone(); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) }, uSkinK: { value: 0 } }; /* i mattoni restano solo sui muri */ return m; }
 function mazeActivate(on) { if (MZ.active === on) return; MZ.active = on; MZ.group.visible = on;
   if (on) { world.walls.push(...MZ.walls); if (!MZ.bridged) world.walls.push(MZ.chasm); } else { world.walls = world.walls.filter((w) => !MZ.walls.includes(w) && w !== MZ.chasm); } }
 function mazeAggro(m) { const d = Math.hypot(P.x - m.x, P.z - m.z); let R = m.aggroR;
@@ -1477,8 +1480,8 @@ function endingPage() { const el = $('endPage'); el.classList.remove('hidden'); 
 // ---- dettagli del labirinto, pila di registri (parole composte), pagina maledetta ----
 function buildMazeExtras(r) {
   const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
-  const books = new THREE.InstancedMesh(bg, inkMasterLike(0x8a5a3a), 320); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); const col = new THREE.Color();
-  for (let i = 0; i < 320; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const stack = i % 5; e.set(0, r() * 3, 0); q.setFromEuler(e); m4.compose(v.set(x + (r() < 0.5 ? -1 : 1) * (MZ.C * 0.38), stack * 0.18, z + (r() - 0.5) * MZ.C * 0.7), q, sc.set(0.6 + r() * 0.3, 0.17, 0.8 + r() * 0.2)); books.setMatrixAt(i, m4); books.setColorAt && books.setColorAt(i, col.setHSL(0.03 + r() * 0.08, 0.5, 0.3 + r() * 0.25)); }
+  const books = new THREE.InstancedMesh(bg, inkMasterLike(0x5e4636), 320); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); const col = new THREE.Color();
+  for (let i = 0; i < 320; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const stack = i % 5; e.set(0, r() * 3, 0); q.setFromEuler(e); m4.compose(v.set(x + (r() < 0.5 ? -1 : 1) * (MZ.C * 0.38), stack * 0.18, z + (r() - 0.5) * MZ.C * 0.7), q, sc.set(0.6 + r() * 0.3, 0.17, 0.8 + r() * 0.2)); books.setMatrixAt(i, m4); books.setColorAt && books.setColorAt(i, bookCol(col, r())); }
   books.frustumCulled = false; MZ.group.add(books);
   for (let i = 0; i < 44; i++) { const [x, z] = mzCell(Math.floor(r() * MZ.N), Math.floor(r() * MZ.N)); const p = inked(new THREE.PlaneGeometry(0.5, 0.65), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set(x + (r() - 0.5) * MZ.C * 0.7, 0.9 + r() * 0.6, z - MZ.C * 0.45); p.rotation.z = (r() - 0.5) * 0.5; MZ.group.add(p); }
   const [sx, sz0] = mzD(14, 7); const sz = sz0 + 2.2; MZ.stack = addEnt('mzstack', 'mzstack', inked(new THREE.BoxGeometry(MZ.C - 0.3, 2.4, 1.2), { color: 0x6b4a2a, shift: 0x8a2416, y0: 0, y1: 2.4 }), sx, sz - 2.2); MZ.stack.mesh.position.y = 1.2; MZ.stack.mesh.userData.height = 2.4; MZ.group.add(MZ.stack.mesh);
@@ -1499,8 +1502,8 @@ const INTRO_SWAY = []; const MZ_SHEETS = []; const DOOR_JURY = {};
 // ---- stanza I: corridoio più luminoso e pieno di dettagli ----
 (() => { const sh = new THREE.Group(); scene.add(sh); const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
   for (const sd of [-1, 1]) { const frame = inked(new THREE.BoxGeometry(0.7, 2.6, 17), { color: 0x5a3e28, ow: 0.025, y0: 0, y1: 2.6 }); frame.position.set(sd * 6.55, 1.3, 0); sh.add(frame); circles.push(...[-6, -2, 2, 6].map((z) => ({ x: sd * 6.4, z, r: 0.45 }))); }
-  const n = 300, books = new THREE.InstancedMesh(bg, inkMasterLike(0x9a5a3a), n), m4 = new THREE.Matrix4(), col = new THREE.Color(); let k = 0;
-  for (const sd of [-1, 1]) for (let row = 0; row < 3; row++) for (let i = 0; i < 50; i++) { const z = -8.2 + i * 0.33, h = 0.45 + Math.random() * 0.25; m4.makeScale(0.42, h, 0.26 + Math.random() * 0.06); m4.setPosition(sd * 6.15, 0.2 + row * 0.82, z); books.setMatrixAt(k, m4); if (books.setColorAt) books.setColorAt(k, col.setHSL(Math.random() * 0.1, 0.45, 0.25 + Math.random() * 0.3)); k++; }
+  const n = 300, books = new THREE.InstancedMesh(bg, inkMasterLike(0x5e4636), n), m4 = new THREE.Matrix4(), col = new THREE.Color(); let k = 0;
+  for (const sd of [-1, 1]) for (let row = 0; row < 3; row++) for (let i = 0; i < 50; i++) { const z = -8.2 + i * 0.33, h = 0.45 + Math.random() * 0.25; m4.makeScale(0.42, h, 0.26 + Math.random() * 0.06); m4.setPosition(sd * 6.15, 0.2 + row * 0.82, z); books.setMatrixAt(k, m4); if (books.setColorAt) books.setColorAt(k, bookCol(col, Math.random())); k++; }
   books.frustumCulled = false; sh.add(books);
   for (let i = 0; i < 14; i++) { const p = inked(new THREE.PlaneGeometry(0.5, 0.7), { color: 0xf3ead6, outline: false }); p.material.side = THREE.DoubleSide; p.position.set((Math.random() - 0.5) * 10, 2.4 + Math.random() * 0.8, -8 + Math.random() * 16); p.rotation.set(Math.random(), Math.random() * 3, 0); p.userData.sw = Math.random() * 6; sh.add(p); INTRO_SWAY.push(p); }
   for (const [x, z, kd] of [[-5, 7, 'lamp'], [5, 2, 'lamp'], [-5, -3, 'lamp'], [5, -7, 'lamp'], [-3, 8.5, 'candle'], [3, 8.5, 'candle']]) { const m = kd === 'lamp' ? W.makeLamp() : W.makeCandle(0.6); m.position.set(x, 0, z); scene.add(m); storyLights.push({ m, x, y: m.userData.ly, z, r: kd === 'lamp' ? 4.6 : 3.2, col: kd === 'lamp' ? [0.85, 0.65, 0.42] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: kd }); }
@@ -1660,6 +1663,7 @@ function bossBeat(title, sub, at) { if (!opts.reduce) slowmo(0.6); S.shake = Mat
 function copistaUpdate() { const m = MZ.boss; const bar = $('miniBar'); if (!m || !bar) return; const show = m.alive && m.engaged && S.room === 'maze'; bar.style.display = show ? 'block' : 'none'; if (show) bar.querySelector('i').style.width = (Math.max(0, m.hp) / m.maxHp * 100) + '%';
   if (!m.alive && !m.dead) { m.dead = true; sfx.play('break'); S.shake = 1; S.flash = 0.4; toast('IL COPISTA È CANCELLATO'); gainDrops(15); spawnVial(m.x, m.z, true); journal('Hai sconfitto il Copista: il vuoto davanti alla piastra si può scrivere.'); sfx.tension(false); hint('Ora scrivi PONTE sul vuoto'); } }
 
+const PLATES = {};
 // ================= v2.1 · Fondali dipinti: ogni stanza è una tavola illustrata a inchiostro =================
 (() => { const R0 = mzRng(91);
   const sk = (g, pts, w = 3, n = 2) => { for (let k = 0; k < n; k++) { g.lineWidth = w * (0.6 + R0() * 0.6); g.beginPath(); pts.forEach(([x, y], i) => { const jx = (R0() - 0.5) * 6, jy = (R0() - 0.5) * 6; i ? g.lineTo(x + jx, y + jy) : g.moveTo(x + jx, y + jy); }); g.stroke(); } }; // tratto a mano: due passate tremolanti
@@ -1683,7 +1687,16 @@ function copistaUpdate() { const m = MZ.boss; const bar = $('miniBar'); if (!m |
   for (const r of W.ROOMS) { const f = ART[r.id]; if (!f) continue; const c = document.createElement('canvas'); c.width = c.height = r.w * r.d > 500 ? 1024 : 512; const g = c.getContext('2d'); g.scale(c.width / 1024, c.height / 1024); g.strokeStyle = 'rgba(30,22,16,.7)'; g.fillStyle = 'rgba(20,14,10,.7)'; g.lineCap = g.lineJoin = 'round';
     for (let i = 0; i < 5; i++) { g.fillStyle = 'rgba(20,14,10,.08)'; splat(g, R0() * 1024, R0() * 1024, 40 + R0() * 80); } g.fillStyle = 'rgba(20,14,10,.7)'; f(g); // macchie d'acquerello sotto il disegno
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; const m = new THREE.Mesh(new THREE.PlaneGeometry(r.w * 0.94, r.d * 0.94).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, opacity: 0.55 }));
-    m.position.set(r.cx, 0.009, r.cz); m.layers.set(W.ROOMS.indexOf(r) + 1); scene.add(m); }
+    m.position.set(r.cx, 0.009, r.cz); m.layers.set(W.ROOMS.indexOf(r) + 1); scene.add(m); plate(r, m); }
+  /* v2.2 · le tavole di Joseph diventano il pavimento (assets/pavimenti): si «moltiplicano» sul pavimento già illuminato,
+     così lampada e candele restano vere; il disegno del codice resta sotto finché l'immagine non è arrivata (o se manca) */
+  function plate(r, m) { new THREE.TextureLoader().load('assets/pavimenti/' + r.id + '.jpg', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+    if (r.id === 'maze') { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(r.w / 9, r.d / 9); }
+    else { const ia = t.image.width / t.image.height, ra = r.w / r.d; if (ia > ra) { t.repeat.set(ra / ia, 1); t.offset.set((1 - ra / ia) / 2, 0); } else { t.repeat.set(1, ia / ra); t.offset.set(0, (1 - ia / ra) / 2); } } /* riempie la stanza senza deformare */
+    if (!m) { m = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.d).rotateX(-Math.PI / 2)); m.position.set(r.cx, 0.009, r.cz); m.layers.set(W.ROOMS.indexOf(r) + 1); scene.add(m); }
+    else { m.geometry.dispose(); m.geometry = new THREE.PlaneGeometry(r.w * 0.97, r.d * 0.97).rotateX(-Math.PI / 2); m.material.map.dispose(); }
+    m.material.dispose(); m.material = new THREE.MeshBasicMaterial({ map: t, blending: THREE.MultiplyBlending, premultipliedAlpha: true, transparent: true, depthWrite: false, fog: false, toneMapped: false }); m.renderOrder = -1; PLATES[r.id] = m; }); }
+  for (const id of ['open', 'maze']) plate(W.ROOMS.find((r) => r.id === id), null);
 })();
 // ================= v2.1 · Il Ladro d'inchiostro (boss dell'archivio allagato) =================
 const LD = { alive: false, awake: false, hp: 36, max: 36, sack: 0, st: 'sleep', t: 0, x: 40, z: -22, cast: 0 };
@@ -1843,7 +1856,7 @@ function questUpdate(dt) {
   if (PROG.items.seppia && !panel.open && ink.v < 50 && S.phase === 'play') ink.v = Math.min(50, ink.v + dt * 2);
   if (tipo.visible) tipo.userData.card.rotation.y = Math.atan2(P.x - tipo.position.x, P.z - tipo.position.z) * 0.3;
 }
-window.PAL = { spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { PLATES, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

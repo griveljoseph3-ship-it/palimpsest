@@ -44,6 +44,7 @@ export function inkMaster(opts = {}) {
       DissolveAmount: { value: 0 }, ColorShift: { value: 0 }, TextureBlend: { value: opts.texBlend ?? 0.85 },
       uRedraw: { value: -1 }, uMarks: { value: 0 }, uGlow: { value: new THREE.Color(0, 0, 0) }, uCrack: { value: 0 }, uHit: { value: 0 },
       uH: { value: new THREE.Vector2(opts.y0 ?? 0, opts.y1 ?? 2) }, uScale: { value: opts.texScale ?? 0.25 },
+      uSkin: { value: opts.skin || null }, uSkinK: { value: 0 }, uSkinS: { value: opts.skinScale ?? 0.4 }, // v2.2: texture dalle tavole (muri)
     },
     vertexColors: true,
     vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
@@ -54,13 +55,14 @@ export function inkMaster(opts = {}) {
  mat4 mm=modelMatrix;
 #endif
  vec4 w=mm*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
-    fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
+    fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH; uniform sampler2D uSkin; uniform float uSkinK,uSkinS;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
         vec3 an=abs(n); vec2 uv= an.y>.6? vW.xz : (an.x>an.z? vW.zy: vW.xy);
         vec3 paper=texture2D(uPaper,uv*uScale).rgb;
         vec3 base=mix(uColor, uColor*paper*1.25, TextureBlend);
+        if(uSkinK>0.&&an.y<.6){ vec3 sk=texture2D(uSkin,uv*uSkinS).rgb; base=mix(base,sk*1.12,uSkinK); }
         float wob=vnoise(vW.xz*2.+uTime*.15)*.12;
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
         vec2 sp=gl_FragCoord.xy/uPR; float hv=(sp.x+sp.y)*.16+vnoise(sp*.02)*1.5; float hw=fwidth(hv)*.75+.02; float hatch=smoothstep(.5-hw,.5+hw,fract(hv))*smoothstep(1.,1.-hw,fract(hv));

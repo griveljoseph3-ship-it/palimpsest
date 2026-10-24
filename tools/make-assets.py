@@ -27,7 +27,12 @@ def ritratto(n, cx, cy, side):
 
 # ---- pavimenti delle stanze (rot: gradi, per le stanze più lunghe che larghe) ----
 PAVIMENTI = {'intro': ('033', 90), 'charger': ('022', 0), 'conduct': ('064', 0), 'door': ('061', 0), 'arena': ('030', 0),
-             'archive': ('043', 0), 'crypt': ('046', 0), 'end': ('007', 0)}
+             'archive': ('043', 0), 'crypt': ('046', 0), 'end': ('007', 0), 'open': ('035', 90), 'maze': ('060', 0)}
+def multiply_layer(im, strength=0.85):
+    """Strato da «moltiplicare» sul pavimento illuminato: la carta della tavola diventa bianca (non scurisce), l'inchiostro resta.
+    Così la luce della lampada e delle candele del gioco continua a funzionare sopra il disegno."""
+    a = np.asarray(im).astype(np.float32); paper = np.percentile(a.reshape(-1, 3), 70, axis=0)
+    x = np.clip(a / paper, 0, 1); x = 1 - strength * (1 - x); return Image.fromarray((x * 255).astype(np.uint8))
 # ---- scene a tutto schermo ----
 SCENE = {'copertina': '042', 'copertina2': '050', 'caduta': '053', 'ponte': '056', 'fiume': '025', 'fenditura': '041', 'verdetto': '044',
          'tribunale': '013', 'elara-verdetto': '005', 'labirinto': '011', 'fuga': '063', 'archivio': '034', 'libera': '052',
@@ -72,7 +77,11 @@ def cutout(im, max_side=512):
 
 def main():
     for k, (n, cx, cy, s) in RITRATTI.items(): save_jpg(ritratto(n, cx, cy, s), f'{OUT}/ritratti/{k}.jpg')
-    for k, (n, rot) in PAVIMENTI.items(): im = load(n); save_jpg(im.rotate(rot, expand=True) if rot else im, f'{OUT}/pavimenti/{k}.jpg', 82)
+    for k, (n, rot) in PAVIMENTI.items():
+        im = load(n); im = im.rotate(rot, expand=True) if rot else im
+        if k == 'maze': w, h = im.size; im = im.crop(((w - h) // 2, 0, (w - h) // 2 + h, h)).resize((512, 512), Image.LANCZOS)  # si ripete sul pavimento del labirinto
+        save_jpg(multiply_layer(im, {'maze': 0.6, 'charger': 0.7, 'arena': 0.7, 'archive': 0.72, 'crypt': 0.72}.get(k, 0.85))  # più leggere dove si combatte, per leggere i nemici
+                 , f'{OUT}/pavimenti/{k}.jpg', 82)
     for k, n in SCENE.items(): save_jpg(load(n), f'{OUT}/scene/{k}.jpg', 82)
     for k, (n, box) in ICONE.items(): ic = crop(load(n), box); ic.thumbnail((160, 160), Image.LANCZOS); bg = Image.new('RGB', (160, 160), (236, 226, 204)); bg.paste(ic, ((160 - ic.width) // 2, (160 - ic.height) // 2)); save_jpg(bg, f'{OUT}/icone/{k}.jpg', 86)
     for k, (n, box) in TEXTURE.items(): t = crop(load(n), box).resize((512, 512), Image.LANCZOS); save_jpg(t, f'{OUT}/texture/{k}.jpg', 82)

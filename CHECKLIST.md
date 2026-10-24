@@ -48,8 +48,8 @@ Mappa delle tavole → uso nel gioco (`docs/concept-art/immagini/tavola-NNN.jpg`
 Passi (spuntare man mano, con commit):
 - [x] R1 · Cartella `assets/` con le tavole ottimizzate per l'iPad (jpg ridotte, ritagli dei ritratti, figure scontornate in png) generate da `tools/make-assets.py` (riproducibile) — fatto: 5,1 MB in tutto (figure in WebP con trasparenza, 628 KB)
 - [x] R2 · Ritratti dei dialoghi dalle tavole (al posto di quelli disegnati dal codice) — fatto: `portrait()` in main.js usa assets/ritratti, volti alternativi ilde-lacrime (lettera) ed elara-sorriso (LIBERA), riserva disegnata se l'immagine manca
-- [ ] R3 · Pavimenti delle stanze = tavole, con shader che tiene la luce della lampada e le candele
-- [ ] R4 · Muri con texture carta-mattoni (023) anche nel labirinto
+- [x] R3 · Pavimenti delle stanze = tavole, con shader che tiene la luce della lampada e le candele — fatto: blocco «v2.2 · le tavole di Joseph diventano il pavimento» in main.js (fusione moltiplica, `PAL.PLATES`), anche prologo (035) e labirinto (060 ripetuta)
+- [x] R4 · Muri con texture carta-mattoni (023) anche nel labirinto — fatto: uniform `uSkin` in inkMaster (art.js), caricata in buildWorld (world.js); libri ricolorati seppia
 - [ ] R5 · Scene a tutto schermo dalle tavole nei momenti della storia (prologo, labirinto, Ladro, tribunale, LIBERA, lettera, Custode, finale) + schermata del titolo con la copertina
 - [ ] R6 · Figure di carta: Elara, Ilde?, Tipografo, giurato, Lumi, macchie/acari, Ladro, Copista, Custode, Caricatore
 - [ ] R7 · Icone degli oggetti nella borsa dalle tavole

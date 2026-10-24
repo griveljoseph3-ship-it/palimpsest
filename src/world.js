@@ -40,6 +40,9 @@ export function buildWorld(scene, paper) {
   const walls = []; const g = new THREE.Group(); scene.add(g);
   const floorMat = inkMaster({ color: 0xe9dfc8, texBlend: 1, texScale: 0.12, outline: false });
   const wallMat = inkMaster({ color: 0xd8cbb0, texBlend: 0.9, texScale: 0.3, y0: 0, y1: 1.4 });
+  /* v2.2: muri di carta-mattoni dalla tavola 023 di Joseph (arriva dopo il primo fotogramma; prima restano di carta liscia) */
+  new THREE.TextureLoader().load('assets/texture/mattoni.jpg', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; wallMat.uniforms.uSkin.value = t; wallMat.uniforms.uSkinK.value = 0.8; });
+  wallMat.uniforms.uSkinS.value = 0.42;
   const ol = outlineMat(0.03);
   const addWall = (x0, z0, x1, z1, h = 1.3) => {
     const w = Math.abs(x1 - x0) || 0.3, d = Math.abs(z1 - z0) || 0.3; const geo = withMask(new THREE.BoxGeometry(w, h, d), 0.4);

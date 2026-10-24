@@ -54,7 +54,7 @@ Passi (spuntare man mano, con commit):
 - [x] R6 · Figure di carta: Elara, Ilde?, Tipografo, giurato, Lumi, macchie/acari, Ladro, Copista, Custode, Caricatore — fatto in parte: `paperSprite`/`figure`/`loadFigures` in art.js (sagoma sempre verso la camera, luce, lampo e dissoluzione come i corpi 3D); acari, bruto, Sputacchio, Risguardo (+ scudo 3D per leggere il fronte), Copista, Tipografo, giurato (volto restituito = giurato-volto), Lumi. Restano 3D: Elara, Ladro, Custode, Caricatore (hanno parti che si rompono o crescono: da fare con cura)
 - [x] R7 · Icone degli oggetti nella borsa dalle tavole — fatto: `itemIcon()` usa assets/icone (pennino, seppia, segnalibro, sacca; fiala e lettera pronte), riserva disegnata
 - [x] R8 · Giocatore 3D ricolorato come le tavole (mantello sfrangiato nero, sciarpa rossa lunga, occhi dorati) — fatto: makePlayer in world.js (mantello più nero, orlo sfrangiato irregolare, occhi dorati con bagliore, sciarpa in 5 tratti snodati animata in main.js: si gonfia quando corri/schivi)
-- [ ] R9 · Misura prestazioni (draw call, memoria texture) e test; `CREDITS.md` aggiornato (tavole di Joseph)
+- [x] R9 · Misura prestazioni (draw call, memoria texture) e test; `CREDITS.md` aggiornato (tavole di Joseph) — fatto: suite completa verde (v2.2.0); ladro.mjs: attesa a condizione per la seppia; boss.mjs: scelta «macchie» forzata; CREDITS aggiornato (manca solo il nome dello strumento usato da Joseph)
 - [ ] R10 · Report a Joseph con schermate prima/dopo
 
 Note del giro 3 per chi riprende:

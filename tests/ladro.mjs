@@ -42,5 +42,5 @@ check('raccolto il volto: commissione al passo «restituisci»', await E(() => P
 await E(() => { for (const g of ['board', 'r1', 'r2']) PAL.gates[g].open = true; PAL.S.encounter = null; PAL.tp(-3.9, -82.4); }); await until(() => PAL.S.room === 'door', 20000); await until(() => !PAL.dlg.active, 20000, () => PAL.skipDialog());
 check('restituisci il volto al giurato', await until(() => { const it = PAL.interactables().find((i) => i.label === 'restituisci'); if (it) { it.fn(); return true; } return false; }, 20000, () => PAL.tp(-3.9, -82.4)));
 check('premio: Inchiostro di seppia', await until(() => PAL.PROG.items.seppia, 40000, () => PAL.skipDialog())); await shot('giurato');
-await E(() => { PAL.ink.v = 10; PAL.S.lock = false; }); await W(3000); check('la seppia ricarica l\'inchiostro sotto metà', await E(() => PAL.ink.v > 10.5));
+await until(() => !PAL.dlg.active, 20000, () => PAL.skipDialog()); await E(() => { PAL.ink.v = 10; PAL.S.lock = false; }); check('la seppia ricarica l\'inchiostro sotto metà', await until(() => PAL.ink.v > 10.5, 20000, () => { PAL.S.lock = false; })); /* attesa a condizione: il browser dei test è lento */
 console.log('ERRORS', errs); if (bad || errs.length) { console.log('FAIL'); process.exitCode = 1; } else console.log('PASS ladro'); await b.close();

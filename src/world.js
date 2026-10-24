@@ -1,6 +1,6 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=2.0.0';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=2.0.0';
+import * as THREE from '../vendor/three.module.js?v=2.1.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=2.1.0';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -204,7 +204,7 @@ export function makeElaraPage(guilty = true) {
     g.lineWidth = 3; g.beginPath(); g.moveTo(256, 235); g.lineTo(250, 268); g.lineTo(260, 270); g.stroke();
     g.lineWidth = 4; g.beginPath(); g.moveTo(236, 295); g.quadraticCurveTo(256, 295 + state.mouth, 276, 295); g.stroke();
     g.fillStyle = '#8a2416'; g.beginPath(); g.moveTo(190, 405); g.lineTo(322, 405); g.lineTo(300, 430); g.lineTo(212, 430); g.fill();
-    if (state.verdict) { g.save(); g.translate(256, 625); g.rotate(-0.08); g.fillStyle = '#8a1a10'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.fillText(state.verdict, 0, 0); g.restore(); }
+    if (state.verdict) { g.save(); g.translate(256, 625); g.rotate(-0.08); g.fillStyle = state.vcol || '#8a1a10'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.fillText(state.verdict, 0, 0); g.restore(); }
     if (state.torn) { g.fillStyle = '#120c0a'; g.beginPath(); g.moveTo(330, 0); for (let y = 0; y <= 768; y += 30) g.lineTo(320 + Math.random() * 40, y); g.lineTo(512, 768); g.lineTo(512, 0); g.fill(); }
     if (state.seam) { g.strokeStyle = '#5a1810'; g.lineWidth = 3; for (let y = 40; y < 740; y += 26) { g.beginPath(); g.moveTo(330, y); g.lineTo(350, y + 12); g.stroke(); } }
     return c; };

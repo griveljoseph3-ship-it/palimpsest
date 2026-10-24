@@ -5,7 +5,7 @@ const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, 
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
 const S = (n) => pg.screenshot({ path: `/workspace/palimpsest-shots/m-${n}.png` });
 async function until(fn, ms) { ms *= 3; const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await E(fn)) return true; await W(200); } return false; }
-await pg.goto('http://localhost:8941/?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
 await E(() => PAL.tp(0, -49)); await until(() => PAL.S.room === 'conduct', 4000); await E(() => PAL.skipDialog()); await E(() => PAL.tp(0, -54.3));
 await E(() => PAL.rewrite('plate', 'element.conductive')); await W(1500); await E(() => PAL.skipDialog());
 check('cancello chiuso finché il labirinto non è fatto', await E(() => !PAL.gates.r2.open));

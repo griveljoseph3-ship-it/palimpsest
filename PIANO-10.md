@@ -84,8 +84,30 @@ Regola di lavoro: dopo ogni voce → provo il pezzo cambiato, lancio `node tests
 - **Prestazioni.** Luci per pixel da 12 a 8; le macchie passano da ~23 a ~5 draw call; la risoluzione parte a 1,5x e sale da sola se il gioco è fluido; il contatore degli fps ora misura il tempo vero (prima, sotto i 10 fps, credeva di andare a 10). Nel browser dei test un fotogramma costa il 19% in meno di main.
 - **Pulizia.** Rimosso codice morto; `CREDITS.md` con la licenza di three.js (MIT) e la dichiarazione che tutto il resto è generato.
 
-## FASE 4 · Report finale
-(da compilare alla fine)
+## FASE 4 · Report (aggiornato al giro 2, versione 2.1)
+Voti "dopo" = mia valutazione giocando nel browser dei test; quelli marcati [ipotesi] vanno confermati sull'iPad e con persone vere.
+
+| # | Categoria | Prima | Dopo | Cosa è cambiato | Cosa manca per il 10 |
+|---|---|---|---|---|---|
+| 1 | Primi 5 minuti | 5 | 7,5 | prologo come un film, niente HUD, viaggiatore visibile, niente testi sovrapposti | tutorial ancora a 8 passi: ridurlo a 4-5 e insegnare più col mondo che con le schede |
+| 2 | Parole | 7 | 8 | momento della combinazione, CONDUTTIVO contro il Ladro, parole usate contro di te | più enigmi che chiedono due/tre parole insieme; CONDUTTIVO a catena tra oggetti |
+| 3 | Combattimento | 4 | 7,5 | catena di 3 colpi, lampo/schiacciamento, spinta camera, schivata con scia, contrattacco, Sputacchio, Risguardo con scudo, morte in inchiostro [ipotesi sulla sensazione al tocco] | animazioni del personaggio più ricche, 1-2 nemici in più, provare sull'iPad la durata delle pause sul colpo |
+| 4 | Boss | 5 | 8 | Copista (riga, macchie, stanchezza), Ladro d'inchiostro (ruba l'inchiostro e le parole), Custode (corsia, onda, fasi in scena, sale dal pavimento) | un boss finale del capitolo con una fase "a scelta morale"; rifinire i tempi con playtest |
+| 5 | Level design | 6 | 7,5 | labirinto 23×23 con fuga, mappa, vicoli ciechi con premi, stanze più piene, fondali illustrati | punti di riferimento unici nel labirinto (statue, alberi di carta), scorciatoie che si aprono |
+| 6 | Puzzle | 6 | 6,5 | indizi a gradini | 2-3 enigmi nuovi con un vero "aha" (circuiti CONDUTTIVO, specchi, ordine delle parole) |
+| 7 | Storia | 6 | 8 | Ilde madre di Elara, lettera della madre, LIBERA sotto COLPEVOLE, il giurato pentito, il Tipografo e il nome raschiato, ritratti | doppiaggio/voce, una scena finale del capitolo più forte, Lumi più presente |
+| 8 | Grafica | 5 | 6,5 | colore più pulito, tavole illustrate sui pavimenti, tribunale e tipografia arredati, scene | il salto vero richiede un generatore (Meshy/SpriteCook) per personaggi e boss; animazioni |
+| 9 | Audio | 3 | 6,5 | musica generata a livelli, accordi narrativi, passi, gocce [ipotesi: da ascoltare in cuffia] | temi musicali riconoscibili per Elara/Ilde/Custode; ambiente per stanza |
+| 10 | Comandi | 6 | 7 | nessuna sovrapposizione, mira assistita regolabile (e ora conosce i boss), mappa con M | provare sull'iPad la zona del pollice e i pulsanti nuovi (◈, ⌗) |
+| 11 | Interfaccia | 5 | 7 | colonna in alto ordinata, borsa, mappa, scritte dei boss, ritratti | menu di pausa più bello, salvataggi in 3 slot |
+| 12 | Difficoltà e progressione | 5 | 7,5 | 3 difficoltà, 7 abilità del Pennino, 4 oggetti dalle commissioni | più scelte che cambiano lo stile (oggetti alternativi tra cui scegliere) |
+| 13 | Prestazioni | 5 | 6 [ipotesi] | luci 12→8, macchie 23→5 draw call, risoluzione adattiva su/giù, fps misurati bene; −19% di tempo per fotogramma nei test | misurare sull'iPad; unire gli oggetti fermi |
+| 14 | Accessibilità | 6 | 7,5 | scossa, velocità testo, mira, indizi, corsie a righe (non solo colore) | rimappatura dei tasti, sottotitoli più grandi nei film |
+| 15 | Bug e stabilità | 4 | 7 | test affidabili (15 file di test), 6 difetti veri trovati e corretti | una partita intera fatta da una persona |
+| 16 | Rifinitura | 4 | 6,5 | sembra un gioco con un'identità, non più un prototipo grezzo | arte vera, playtest, ritmo finale |
+| | **Totale** | **5,1** | **≈7,2** | | |
+
+**Da provare a mano sull'iPad**: fluidità nel labirinto e durante la fuga (tanti muri che crollano), musica e accordi in cuffia, la catena di 3 colpi col pulsante colpo (ritmo dei tocchi), la schivata perfetta per il contrattacco, il filo del Ladro (si capisce che bisogna schivare?), la mappa ⌗ e la borsa ◈, l'orientamento verticale con il dialogo sopra i pulsanti.
 
 ---
 
@@ -105,10 +127,34 @@ Decisioni (risposte di Joseph):
 ### Lavori del giro 2 (in ordine)
 | # | Cosa | Stato |
 |---|---|---|
-| G1 | Borsa e oggetti (inventario con descrizioni, oggetti passivi che cambiano come combatti) | da fare |
-| G2 | Quest «Il Tipografo e le lettere»: un personaggio di carta nella pressa ha perso 4 caratteri nel labirinto; ritrovarli compone un nome (ILDE). Premio: Pennino a punta larga | da fare |
-| G3 | Labirinto più grande e più denso (più celle, più stretto, più angoli con cose da trovare) | da fare |
-| G4 | Boss **Ladro d'inchiostro** nell'archivio: ti succhia l'Inchiostro Vivo con un filo, lo usa per scriverti addosso le tue parole; per riaverlo colpisci la sacca piena quando è gonfia. Quest «La giuria senza volto» | da fare |
-| G5 | Scene: il labirinto che crolla mentre scappi; l'arena che si compone dalle pagine; la rivelazione di Elara e Ilde; pagine illustrate dei ricordi (lettera di Ilde) | da fare |
-| G6 | Fondali dipinti a inchiostro per ogni stanza (niente pavimenti vuoti) | da fare |
-| G7 | Durata: stima per stanza e verifica che il percorso principale superi i 40 minuti | da fare |
+| G1 | Borsa e oggetti (inventario con descrizioni, oggetti passivi che cambiano come combatti) | fatto |
+| G2 | Quest «Il Tipografo e le lettere»: un personaggio di carta nella pressa ha perso 4 caratteri nel labirinto; ritrovarli compone un nome (ILDE). Premio: Pennino a punta larga | fatto |
+| G3 | Labirinto più grande e più denso (più celle, più stretto, più angoli con cose da trovare) | fatto (23×23, corridoi 3,7 m) |
+| G4 | Boss **Ladro d'inchiostro** nell'archivio: ti succhia l'Inchiostro Vivo con un filo, lo usa per scriverti addosso le tue parole; per riaverlo colpisci la sacca piena quando è gonfia. Quest «La giuria senza volto» | fatto (+ quest «La giuria senza volto» e «La lettera di Ilde») |
+| G5 | Scene: il labirinto che crolla mentre scappi; l'arena che si compone dalle pagine; la rivelazione di Elara e Ilde; pagine illustrate dei ricordi (lettera di Ilde) | fatto (fuga dal labirinto, LIBERA, il Custode che sale, pagina della lettera) |
+| G6 | Fondali dipinti a inchiostro per ogni stanza (niente pavimenti vuoti) | fatto (una tavola illustrata per stanza) |
+| G7 | Durata: stima per stanza e verifica che il percorso principale superi i 40 minuti | stima fatta (sotto); da verificare con una persona vera |
+
+
+### Diario del giro 2 — versione 2.1
+- **Borsa (◈)** con oggetti e commissioni. Quattro oggetti che cambiano come giochi: Pennino a punta larga (colpi più ampi, l'affondo gira tutto intorno), Inchiostro di seppia (ricarica lenta sotto metà), Segnalibro di Ilde (ti rialzi una volta per stanza), Sacca del Ladro (i colpi rubano inchiostro).
+- **Tre commissioni**: *Il Tipografo e le lettere* (4 caratteri nei vicoli ciechi del labirinto → compone ILDE); *La giuria senza volto* (il Ladro ha bevuto la faccia di un giurato: riportargliela; il giurato confessa di aver votato COLPEVOLE senza guardare Elara); *La lettera di Ilde* (3 pezzi: labirinto, cripta, sacca del Ladro → la lettera della madre, letta su una pagina illustrata con le lacrime sulla carta).
+- **Labirinto** da 17×17 a 23×23, corridoi più stretti (3,7 m), più lampade, fiale, Sputacchi e macchie.
+- **Boss Ladro d'inchiostro** nell'archivio: filo che beve l'Inchiostro Vivo, ti scrive addosso la parola che usi di più e ti ruba l'ultima, sacca gonfia da colpire, CONDUTTIVO risale il filo, FRAGILE fa scoppiare la sacca, fase 2.
+- **Scene**: fuga dal labirinto (l'inchiostro sale da nord, i muri crollano, la scala è all'ingresso: bisogna tornare indietro); alla porta Elara riconosce la voce di Ilde e sotto COLPEVOLE appare LIBERA; il Custode sale dal pavimento tra le pagine.
+- **Fondali dipinti**: ogni stanza ha una tavola a inchiostro sul pavimento (libro aperto, bestiario del Caricatore, disegno tecnico della pressa, bilancia della giustizia, rosa dei venti, onde dell'archivio, il fiume e LIBERA alla fine).
+- **Difetti trovati e corretti**: la mira assistita ignorava il Ladro; la camera dei momenti lunghi volava via (formula sbagliata per durate >1,4 s); la goccia rimandata attraversava il bersaglio quando il gioco rallenta.
+
+### Durata stimata del Capitolo 1 (prima partita, difficoltà Normale) [ipotesi: da misurare con una persona]
+| Parte | Minuti |
+|---|---|
+| Prologo (caduta, PONTE, titolo) | 2 |
+| I · La tavola (tutorial, 2 pagine nascoste) | 4–5 |
+| II · Il Caricatore (+ sostegno, Sputacchio, pagina maledetta) | 4–6 |
+| III · La pressa + Tipografo | 2–3 |
+| Labirinto 23×23 (note di Ilde, 4 caratteri, 4 pagine, Copista, fuga) | 15–22 |
+| IV · Tribunale (verdetto o difesa o prova, giurato, scena di Elara) | 5–7 |
+| V · Custode (3 fasi, onda) | 6–10 |
+| VI · Conseguenza e pagina finale | 2–3 |
+| **Percorso principale** | **≈ 40–58** |
+| Facoltativo: archivio + Ladro (8–12), cripta (4–6) | +12–18 |

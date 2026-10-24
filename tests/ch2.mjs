@@ -6,7 +6,7 @@ const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let ba
 const skip = () => E(() => PAL.skipDialog());
 const at = (x, z, face = Math.PI) => E(([x, z, f]) => { PAL.P.x = x; PAL.P.z = z; PAL.P.face = f; PAL.P.vx = PAL.P.vz = 0; PAL.P.hp = 5; PAL.ink.v = 100; }, [x, z, face]);
 const shot = (n) => pg.screenshot({ path: `/workspace/palimpsest-shots/ch2-${n}.png` });
-await pg.goto('http://localhost:8941/?fast'); await W(800); await E(() => PAL.start()); await W(400); await skip();
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.start()); await W(400); await skip();
 await E(() => PAL.startChapter2()); await W(1200); await skip(); await W(300);
 check('Capitolo II: riva', await E(() => PAL.S.room === 'c2a')); await shot('1-riva');
 await at(96.5, 0.4); await E(() => PAL.interact()); await W(300); await skip();

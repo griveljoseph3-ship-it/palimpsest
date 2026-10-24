@@ -53,6 +53,7 @@ export const ENTITY_DEFS = {
   stone:      { name: 'Sasso sulla pagina', supports: ['weight.light'], durations: { 'weight.light': null }, safe: true },
   dweight:    { name: 'Peso della diga', supports: ['weight.heavy'], durations: { 'weight.heavy': null } },
   dam:        { name: 'Cuore della Diga', supports: ['state.fragile', 'element.conductive'], durations: { 'state.fragile': 8, 'element.conductive': 8 } },
+  ladro:      { name: 'Il Ladro d\'inchiostro', supports: ['state.fragile', 'temperament.cautious', 'element.conductive'], durations: { 'state.fragile': 8, 'temperament.cautious': 8, 'element.conductive': 8 } },
   bridge:     { name: 'Ponte conduttivo', supports: ['element.conductive'], durations: { 'element.conductive': 12 } },
 };
 // v1.5 · Capitolo 1 ridisegnato: parole sull'ambiente

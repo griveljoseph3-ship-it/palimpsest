@@ -9,7 +9,7 @@ const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchP
 const tapSel = async (sel) => { const r = await (await pg.$(sel)).boundingBox(); const x = r.x + r.width / 2, y = r.y + r.height / 2; await touch('touchStart', [[x, y]]); await W(90); await touch('touchEnd', []); };
 const step = () => E(() => PAL.TUT[PAL.tut.i] ? PAL.TUT[PAL.tut.i].id : 'end');
 const until = async (f, ms) => { const t = Date.now(); while (Date.now() - t < ms) { if (await E(f)) return true; await W(150); } return false; };
-await pg.goto('http://localhost:8941/'); await W(700); await tapSel('#bStart'); await W(1500);
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + ''); await W(700); await tapSel('#bStart'); await W(1500);
 check('prologo: si scivola fino al vuoto', await until(() => PAL.OP.stage === 'gap' && document.getElementById('opSub').textContent.length > 10, 120000));
 await pg.screenshot({ path: '/workspace/palimpsest-shots/14-prologo-ipad.png' }); await E(() => PAL.rewrite('opbridge', 'shape.bridge')); await until(() => !PAL.OP.chasm, 60000); await E(() => PAL.tp(PAL.OP.R.cx, PAL.OP.R.cz - 9));
 await until(() => PAL.S.room === 'intro', 90000); await W(1800); check('PONTE → titolo → corridoio I', await E(() => PAL.S.phase === 'play' && PAL.S.room === 'intro'));

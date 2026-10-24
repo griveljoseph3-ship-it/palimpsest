@@ -2,14 +2,14 @@ import { chromium } from 'playwright-core';
 const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, hasTouch: true })).newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); pg.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
-const clear = async (room) => { for (let k = 0; k < 40; k++) { const left = await E((r) => PAL.swarm.filter((m) => m.alive && m.room === r).length, room); if (!left) return true; await E(() => { const m = PAL.swarm.find((q) => q.alive && q.room === PAL.S.room); if (m) { PAL.P.x = m.x; PAL.P.z = m.z + 1.2; PAL.P.face = Math.PI; PAL.P.hp = 5; PAL.lightHit(); } }); await W(250); } return false; };
-await pg.goto('http://localhost:8941/?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
+const clear = async (room) => { for (let k = 0; k < 40; k++) { const left = await E((r) => PAL.swarm.filter((m) => m.alive && m.room === r).length, room); if (!left) return true; await E(() => { const m = PAL.swarm.find((q) => q.alive && q.room === PAL.S.room); if (m) { PAL.P.x = m.x; PAL.P.z = m.z + 1.2; PAL.P.face = Math.PI; PAL.P.hp = 5; if (m.shield) PAL.heavyHit(); else PAL.lightHit(); } /* lo scudo del Risguardo si rompe col colpo forte */ }); await W(250); } return false; };
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
 await E(() => { for (const w of ['state.fragile', 'temperament.cautious', 'element.conductive']) PAL.S.discovered.add(w); PAL.tp(8.4, -54); }); await W(1500); await E(() => PAL.skipDialog());
 await E(() => { PAL.P.x = 8.4; PAL.P.z = -51.6; }); await W(200); await E(() => PAL.interact()); await W(1500); await E(() => PAL.skipDialog()); await W(300);
 check('botola della pressa porta nell\'archivio', await E(() => PAL.S.room === 'archive'));
 await pg.screenshot({ path: '/workspace/palimpsest-shots/27-archive.png' });
-check('ondata 1 di macchie', await E(() => PAL.swarm.filter((m) => m.alive).length === 3));
-check('ondata 1 eliminata', await clear('archive'));
+check('ondata 1: due macchie e il Ladro d\'inchiostro', await E(() => PAL.swarm.filter((m) => m.alive && m.room === 'archive').length === 2 && PAL.LD.alive));
+check('ondata 1 eliminata', await clear('archive')); await E(() => { PAL.LD.hp = 0; PAL.LD.alive = false; PAL.LD.ent.alive = false; PAL.LD.ent.mesh.visible = false; PAL.S.lock = false; PAL.skipDialog(); }); // il Ladro ha il suo test (ladro.mjs)
 await E(() => { PAL.P.x = 28; PAL.P.z = -22.6; PAL.P.face = Math.PI; PAL.lightHit(); }); await W(300);
 check('campana senza CONDUTTIVO non apre', await E(() => !PAL.gates.arch.open));
 await E(() => { PAL.ink.v = 100; PAL.applyW('apipe', 'element.conductive'); PAL.P.x = 28; PAL.P.z = -22.6; PAL.lightHit(); }); await W(400);

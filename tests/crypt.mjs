@@ -2,13 +2,13 @@ import { chromium } from 'playwright-core';
 const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, hasTouch: true })).newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); pg.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
-const clear = async (room) => { for (let k = 0; k < 40; k++) { const left = await E((r) => PAL.swarm.filter((m) => m.alive && m.room === r).length, room); if (!left) return true; await E(() => { const m = PAL.swarm.find((q) => q.alive && q.room === PAL.S.room); if (m) { PAL.P.x = m.x; PAL.P.z = m.z + 1.2; PAL.P.face = Math.PI; PAL.P.hp = 5; PAL.lightHit(); } }); await W(250); } return false; };
-await pg.goto('http://localhost:8941/?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
+const clear = async (room) => { for (let k = 0; k < 40; k++) { const left = await E((r) => PAL.swarm.filter((m) => m.alive && m.room === r).length, room); if (!left) return true; await E(() => { const m = PAL.swarm.find((q) => q.alive && q.room === PAL.S.room); if (m) { PAL.P.x = m.x; PAL.P.z = m.z + 1.2; PAL.P.face = Math.PI; PAL.P.hp = 5; if (m.shield) PAL.heavyHit(); else PAL.lightHit(); } /* lo scudo del Risguardo si rompe col colpo forte */ }); await W(250); } return false; };
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
 await E(() => { for (const w of ['state.fragile', 'temperament.cautious', 'element.conductive']) PAL.S.discovered.add(w); PAL.tp(8.4, -54); }); await W(1500); await E(() => PAL.skipDialog());
 await E(() => { PAL.P.x = 8.4; PAL.P.z = -51.6; }); await W(200); await E(() => PAL.interact()); await W(1500); await E(() => PAL.skipDialog()); await W(300);
 check('botola della pressa porta nell\'archivio', await E(() => PAL.S.room === 'archive'));
-check('ondata 1 di macchie', await E(() => PAL.swarm.filter((m) => m.alive).length === 3));
-check('ondata 1 eliminata', await clear('archive'));
+check('ondata 1: due macchie e il Ladro d\'inchiostro', await E(() => PAL.swarm.filter((m) => m.alive && m.room === 'archive').length === 2 && PAL.LD.alive));
+check('ondata 1 eliminata', await clear('archive')); await E(() => { PAL.LD.hp = 0; PAL.LD.alive = false; PAL.LD.ent.alive = false; PAL.LD.ent.mesh.visible = false; PAL.S.lock = false; PAL.skipDialog(); }); // il Ladro ha il suo test (ladro.mjs)
 await E(() => { PAL.P.x = 28; PAL.P.z = -22.6; PAL.P.face = Math.PI; PAL.lightHit(); }); await W(300);
 check('campana senza CONDUTTIVO non apre', await E(() => !PAL.gates.arch.open));
 await E(() => { PAL.ink.v = 100; PAL.applyW('apipe', 'element.conductive'); PAL.P.x = 28; PAL.P.z = -22.6; PAL.lightHit(); }); await W(400);
@@ -33,6 +33,9 @@ await E(() => { PAL.P.hp = 3; PAL.P.x = -49; PAL.P.z = -22.4; }); await W(500);
 console.log(await E(() => [PAL.P.x, PAL.P.z, PAL.P.hp, PAL.vials.filter(v => v.alive).map(v => [v.x, v.z])])); check('fiala cura +1', await E(() => PAL.P.hp === 4));
 await E(() => { PAL.P.x = -40; PAL.P.z = -21.2; PAL.interact(); }); await W(1200);
 check('risalita in archivio', await E(() => PAL.S.room === 'archive'));
-await E(() => PAL.tp(0, -80)); await W(1500); await E(() => PAL.skipDialog()); await E(() => { PAL.P.x = -3.8; PAL.P.z = -97.8; PAL.interact(); }); await W(300); await E(() => { PAL.ink.v = 100; PAL.rewrite('evplate', 'element.conductive'); }); await W(4000); console.log(await E(() => [PAL.S.room, PAL.door.docPlaced, PAL.S.lock, PAL.S.doorRoute]));
+async function until(fn, ms, tick) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (tick) await E(tick); if (await E(fn)) return true; await W(150); } return false; }
+await E(() => PAL.tp(0, -80)); await until(() => PAL.S.room === 'door', 20000); await until(() => !PAL.dlg.active && !PAL.S.lock, 20000, () => PAL.skipDialog());
+await until(() => PAL.door.docPlaced, 20000, () => { PAL.P.x = -3.8; PAL.P.z = -97.8; PAL.interact(); }); await E(() => { PAL.ink.v = 100; PAL.rewrite('evplate', 'element.conductive'); });
+await until(() => PAL.S.doorRoute === 'evidence', 40000, () => { if (PAL.dlg.active && !PAL.dlg.opt.choices) PAL.skipDialog(); }); console.log(await E(() => [PAL.S.room, PAL.door.docPlaced, PAL.S.lock, PAL.S.doorRoute]));
 check('prova consegnata: porta aperta (via prova)', await E(() => PAL.S.doorRoute === 'evidence'));
 console.log('ERRORS', errs); if (bad || errs.length) process.exitCode = 1; await b.close();

@@ -36,11 +36,13 @@ Legenda: **Fatto** = implementato e provato con test automatici · **In corso** 
 | 17 | Backlog P0 | Fatto | dati+resolver, arena, UI, snapshot, porta, InkMaster, Parole Fluttuanti. Seconda Lettura in backlog |
 | 18–19 | Sostituzioni e greenlight | Da fare | servono playtest veri con persone (il greenlight non si può dimostrare da soli) |
 
-## Versione 2.0.0 (ramo `claude/capolavoro`)
+## Versione 2.1.0 (ramo `claude/capolavoro`)
+v2.1: borsa e 3 commissioni con oggetti, labirinto 23×23 con fuga finale, boss Ladro d'inchiostro, Risguardo con scudo, contrattacco, scene (LIBERA, lettera di Ilde, il Custode che sale), fondali illustrati. Dettagli in `PIANO-10.md`.
+
 Piano e diario dei lavori in `PIANO-10.md`; licenze in `CREDITS.md`.
 Novità: catena di 3 colpi e sensazione dei colpi, prologo come un film, musica generata adattiva, Copista e Custode con attacchi e fasi messe in scena, Sputacchio (nemico a distanza), mappa del labirinto (M), tipografia e tribunale più ricchi, ritratti nei dialoghi, difficoltà e opzioni di accessibilità, prestazioni (luci 12→8, macchie unite, risoluzione adattiva).
 
-**Come lanciare tutti i test:** `npx http-server -p 8941 -c-1` in un terminale, poi `sh tests/all.sh` (con `EXTRA="music.mjs boss.mjs map.mjs enemies.mjs tutorial.mjs"` per i test nuovi). Non lanciare altro browser nel frattempo: il rendering software è lento e i tempi contano.
+**Come lanciare tutti i test:** `npx http-server -p 8941 -c-1` in un terminale, poi `sh tests/all.sh` (con `EXTRA="music.mjs boss.mjs map.mjs enemies.mjs quest.mjs ladro.mjs scenes.mjs shield.mjs archive.mjs crypt.mjs maze.mjs"` per tutti i test nuovi). Non lanciare altro browser nel frattempo: il rendering software è lento e i tempi contano.
 
 ## Test (Playwright, viewport iPad 1366×1024 e 1024×1366)
 - `node tests/s1.mjs`, `node tests/s3.mjs`: logica pura.

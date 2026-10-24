@@ -233,3 +233,13 @@ body.reduce-motion #bossCard.on{animation-duration:2.6s}
 #bag .quest{margin:8px 0;padding:8px 10px;border-left:4px solid #8a2416;background:rgba(22,17,13,.06)}#bag .quest.done{border-color:#4a6a3a;opacity:.75}
 #bag .quest p{margin:4px 0 0}
 #bBag.has{box-shadow:0 0 0 3px #d8a63a,0 0 14px #d8a63a}
+/* v2.1 · barra del Ladro (vita + sacca d'inchiostro rubato) e pagina della lettera di Ilde */
+#ladroBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(128px + env(safe-area-inset-top));width:min(520px,56vw);z-index:5;pointer-events:none;text-align:center}
+#ladroBar .bname{color:#efe5cf;letter-spacing:.2em;font-size:14px;text-shadow:0 2px 4px #000;margin-bottom:4px}
+#ladroBar .hbar{height:14px;border:3px solid #16110d;background:rgba(22,17,13,.6);border-radius:3px;overflow:hidden}#ladroBar .hbar i{display:block;height:100%;background:#8a1a10;transition:width .2s}
+#ladroBar .sack{height:7px;margin:3px auto 0;width:70%;background:rgba(22,17,13,.6);border-radius:3px;overflow:hidden}#ladroBar .sack i{display:block;height:100%;background:#3fc1ff;transition:width .2s}
+@media (orientation:portrait){#ladroBar{top:calc(190px + env(safe-area-inset-top));width:80vw}}
+#letterPage{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-2deg) scale(.9);z-index:7;opacity:0;pointer-events:none;transition:opacity 1.2s,transform 1.4s ease-out;filter:url(#inkEdge) drop-shadow(0 18px 40px rgba(0,0,0,.6))}
+#letterPage canvas{width:min(46vh,70vw);height:auto;display:block}
+#letterPage.on{opacity:1;transform:translate(-50%,-50%) rotate(-1deg) scale(1)}#letterPage.off{opacity:0}
+@media (orientation:portrait){#letterPage{top:38%}}

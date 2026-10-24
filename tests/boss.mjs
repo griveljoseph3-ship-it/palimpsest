@@ -19,9 +19,9 @@ await shot('copista-line');
 check('dopo la riga il Copista è stanco (vulnerabile)', await until(() => PAL.MZ.boss.st === 'tired' || PAL.MZ.boss.tired, 30000, () => { PAL.P.hp = 6; }));
 const hp0 = await E(() => PAL.MZ.boss.hp); await E(() => { const m = PAL.MZ.boss; PAL.tp(m.x, m.z + 1.6); PAL.face(m.x, m.z); PAL.attack(false); }); await until(() => PAL.P.st === 'idle', 20000);
 check('colpo sul Copista stanco fa più danno', await E((h) => h - PAL.MZ.boss.hp > 1.2, hp0));
-await E(() => { const m = PAL.MZ.boss; m.st = 'walk'; m.tired = false; m.atkT = 0.05; PAL.tp(m.x + 1.5, m.z + 1.5); });
+await E(() => { window.__rnd = Math.random; Math.random = () => 0.99; /* da vicino sceglie a caso riga o macchie: qui serve la scelta «macchie» (la riga è già provata sopra) */ const m = PAL.MZ.boss; m.st = 'walk'; m.tired = false; m.atkT = 0.05; PAL.tp(m.x + 1.5, m.z + 1.5); });
 check('macchie lanciate lasciano pozze che rallentano', await until(() => PAL.pools.length > 0, 20000, () => { PAL.P.hp = 6; const m = PAL.MZ.boss; if (m.st === 'walk') { m.atkT = 0.05; PAL.tp(m.x + 1.5, m.z + 1.5); } }));
-await E(() => { const q = PAL.pools[0]; PAL.tp(q.x, q.z); }); await W(300); check('nella pozza si è rallentati', await E(() => PAL.P.slow < 1));
+await E(() => { Math.random = window.__rnd; const q = PAL.pools[0]; PAL.tp(q.x, q.z); }); await W(300); check('nella pozza si è rallentati', await E(() => PAL.P.slow < 1));
 await E(() => { PAL.MZ.boss.hp = PAL.MZ.boss.maxHp * 0.4; }); check('fase 2 sotto metà vita', await until(() => PAL.MZ.boss.p2, 20000, () => { PAL.P.hp = 6; })); await shot('copista-p2');
 await E(() => { PAL.MZ.boss.hp = 0; PAL.MZ.boss.alive = false; }); await until(() => PAL.MZ.boss.dead, 20000);
 // ---- Custode ----

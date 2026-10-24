@@ -207,3 +207,39 @@ export class Post {
     this.quad.material = this.comp; this.comp.uniforms.t.value = this.rt.texture; this.comp.uniforms.b.value = this.rtC.texture; r.setRenderTarget(null); r.render(this.scene, this.cam);
   }
 }
+
+// v2.2 · Figura di carta ritagliata dalle tavole di Joseph: sempre girata verso la camera (inclinata a metà, come una sagoma
+// di cartone sul tavolo), illuminata da lampada e candele, con lampo del colpo e dissoluzione in inchiostro come i corpi 3D
+// (stesse uniform: uHit, DissolveAmount, ColorShift, uGlow). ground: la base resta sul pavimento anche se il corpo salta o è scalato.
+export function paperSprite(tex, w, h, opts = {}) {
+  const geo = new THREE.PlaneGeometry(w, h).translate(0, h / 2, 0); geo.computeBoundingSphere(); geo.boundingSphere.radius = Math.max(w, h) * 1.2;
+  const m = new THREE.ShaderMaterial({
+    uniforms: { ...INK_UNIFORMS, map: { value: tex }, uHit: { value: 0 }, DissolveAmount: { value: 0 }, ColorShift: { value: 0 }, uGlow: { value: new THREE.Color(0, 0, 0) },
+      uShiftColor: { value: new THREE.Color(opts.shift ?? 0x7a1f14) }, uGround: { value: opts.ground === false ? 0 : 1 }, uFlip: { value: opts.flip ? 1 : 0 }, uTilt: { value: opts.tilt ?? 0.55 } },
+    vertexShader: `uniform float uGround,uFlip,uTilt; varying vec2 vUv; varying vec3 vW;
+      void main(){ vUv=uv; vec3 base=(modelMatrix*vec4(0.,0.,0.,1.)).xyz; if(uGround>.5) base.y=0.;
+        float sx=length(modelMatrix[0].xyz), sy=length(modelMatrix[1].xyz);
+        vec3 R=normalize(vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0])); vec3 U=normalize(mix(vec3(0.,1.,0.),vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]),uTilt));
+        vec3 fw=mat3(modelMatrix)*vec3(0.,0.,1.); float fl=uFlip>.5 && dot(fw,R)<0. ? -1. : 1.;
+        vec3 w=base+R*(position.x*sx*fl)+U*(position.y*sy); vW=w; gl_Position=projectionMatrix*viewMatrix*vec4(w,1.); }`,
+    fragmentShader: `uniform sampler2D map; uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit,DissolveAmount,ColorShift,uLampR,uTime; uniform vec3 uLamp,uGlow,uShiftColor;
+      varying vec2 vUv; varying vec3 vW; ${NOISE}
+      void main(){ vec4 t=texture2D(map,vUv); if(t.a<.45) discard; vec3 base=t.rgb;
+        if(DissolveAmount>0.){ float dn=fbm(vUv*6.+vW.xz); if(dn<DissolveAmount) discard; base=mix(base,vec3(.06,.04,.03),1.-smoothstep(0.,.08,dn-DissolveAmount)); }
+        float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.38,1.18,ld+vnoise(vW.xz*.6+uTime*.05)*.18);
+        vec3 col=base*mix(vec3(.36,.31,.32),vec3(1.1,1.05,.97),lamp);
+        for(int i=0;i<${NL};i++){ float a=max(0.,1.-length(uPL[i].xyz-vW)/uPL[i].w); col+=base*uPC[i]*a*a*1.3; }
+        col=mix(col,uShiftColor*(.5+.5*base),ColorShift*.6); col+=uGlow*(.35+.25*sin(uTime*6.)); col=mix(col,vec3(1.,.96,.88),uHit);
+        gl_FragColor=vec4(col,1.);
+        #include <colorspace_fragment>
+      }`,
+  });
+  m.side = THREE.DoubleSide; /* specchiata (uFlip) la sagoma mostra il retro: va disegnata da entrambi i lati */
+  m.userData.ink = true; const card = new THREE.Mesh(geo, m); card.userData.paper = true; return card;
+}
+// figure scontornate (assets/figure/*.webp): caricate una volta, condivise; FIG[k].ready quando l'immagine è arrivata
+export const FIG = {};
+export function loadFigures(names) { const L = new THREE.TextureLoader(); for (const k of names) { if (FIG[k]) continue; const f = FIG[k] = { ready: false, tex: null, aspect: 1 };
+  f.tex = L.load('assets/figure/' + k + '.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; f.aspect = t.image.width / t.image.height; f.ready = true; t.needsUpdate = true; }); } }
+// figura di altezza h (metri) con le proporzioni dell'immagine, o null se l'immagine non è ancora arrivata (si resta sul corpo 3D)
+export function figure(k, h, opts) { const f = FIG[k]; if (!f || !f.ready) return null; return paperSprite(f.tex, h * f.aspect, h, opts); }

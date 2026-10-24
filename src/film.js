@@ -2,6 +2,7 @@
 import * as THREE from '../vendor/three.module.js?v=1.9.0';
 import { inked, INK_UNIFORMS } from './art.js?v=1.9.0';
 import * as W from './world.js?v=1.9.0';
+import { makeIldeParts, makeIldeFace } from './chars.js?v=1.9.0';
 
 const ease = (t) => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -59,15 +60,11 @@ export class Film {
     // Ilde, l'autrice
     const ilde = this.ilde = new THREE.Group(); s.add(ilde); ilde.position.set(0, 0, -2.6);
     const L = (pts, seg = 20) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
-    const robe = inked(L([[1.4, 0], [1.3, 0.8], [1.05, 1.8], [0.95, 2.5], [0.7, 3.0], [0.35, 3.2]]), { color: 0x2a211b, y0: 0, y1: 3.2 }); robe.material.side = THREE.DoubleSide; ilde.add(robe);
-    const hair = inked(L([[0.6, 0], [0.62, 0.35], [0.5, 0.75], [0, 0.95]], 16), { color: 0x8f877c }); hair.position.set(0, 3.35, 0.05); ilde.add(hair);
-    for (let i = 0; i < 5; i++) { const st = inked(new THREE.CylinderGeometry(0.03, 0.02, 1.1, 4), { color: 0x8f877c, outline: false }); st.position.set(-0.45 + i * 0.22, 3.0, -0.35); st.rotation.x = 0.2; ilde.add(st); }
+    ilde.add(makeIldeParts()); // tav. 009/045/051: abito grigio, scialle sfrangiato coi bordi rossi, crocchia con la matita
     const head = inked(new THREE.SphereGeometry(0.5, 20, 16), { color: 0xeadfc8, y0: 3, y1: 4.2 }); head.scale.set(0.9, 1.08, 0.95); head.position.set(0, 3.6, 0.2);
-    const glasses = inked(new THREE.TorusGeometry(0.12, 0.02, 4, 12), { color: 0x16110d, outline: false }); glasses.position.set(-0.17, 3.62, 0.66); const g2 = glasses.clone(); g2.position.x = 0.17; head.parent; ilde.add(glasses, g2); ilde.add(head); this.ildeHead = head;
-    const bun = inked(new THREE.SphereGeometry(0.33, 10, 8), { color: 0xa9a196 }); bun.position.set(0, 4.0, -0.3); ilde.add(bun);
-    const shawl = inked(new THREE.TorusGeometry(0.75, 0.2, 6, 16), { color: 0x6b2318, outline: false }); shawl.rotation.x = Math.PI / 2; shawl.position.y = 2.95; ilde.add(shawl);
+    head.add(makeIldeFace()); ilde.add(head); this.ildeHead = head;
     this.arm = new THREE.Group(); this.arm.position.set(0.8, 2.7, 0.3); ilde.add(this.arm);
-    const fore = inked(new THREE.CylinderGeometry(0.13, 0.16, 2.2, 7), { color: 0x2a211b }); fore.position.set(0, -0.2, 1.0); fore.rotation.x = 1.15; this.arm.add(fore);
+    const fore = inked(new THREE.CylinderGeometry(0.13, 0.17, 2.2, 7), { color: 0x1f1a17 }); fore.position.set(0, -0.2, 1.0); fore.rotation.x = 1.15; this.arm.add(fore);
     const hand = inked(new THREE.SphereGeometry(0.16, 8, 6), { color: 0xeadfc8 }); hand.position.set(0, -0.65, 1.95); this.arm.add(hand);
     this.pen = new THREE.Group(); hand.add(this.pen);
     const quill = inked(new THREE.ConeGeometry(0.04, 0.9, 6), { color: 0x15100c }); quill.position.y = -0.1; quill.rotation.x = Math.PI; this.pen.add(quill);

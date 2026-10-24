@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.js?v=1.9.0';
 import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
 import * as CH from './chars.js?v=1.9.0';
-export const { makePlayer, makeElara, makeLumi, makeMite, makeCustode } = CH;
+export const { makePlayer, makeElara, makeLumi, makeMite, makeCustode, makeRilegatore, makeCopistaExtras } = CH;
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },

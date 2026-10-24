@@ -5,9 +5,9 @@ import * as THREE from '../vendor/three.module.js?v=1.9.0';
 import { inked, INK_UNIFORMS } from './art.js?v=1.9.0';
 
 const V3 = THREE.Vector3;
-const lathe = (pts, seg = 18, p0 = 0, pl = Math.PI * 2) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg, p0, pl);
+export const lathe = (pts, seg = 18, p0 = 0, pl = Math.PI * 2) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg, p0, pl);
 let _rad = null; const radTex = () => { if (_rad) return _rad; const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); _rad = new THREE.CanvasTexture(c); return _rad; };
-const basic = (color, o = {}) => new THREE.MeshBasicMaterial({ color, ...o });
+export const basic = (color, o = {}) => new THREE.MeshBasicMaterial({ color, ...o });
 const glow = (color, sx, sy, op = 0.7) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false })); s.scale.set(sx, sy, 1); return s; };
 // pseudo-casuale deterministico (le tavole non cambiano a ogni caricamento)
 const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -26,7 +26,7 @@ export function merge(geos) {
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.computeBoundingSphere(); return g;
 }
 // Orlo strappato: alza i vertici bassi di una lathe con un profilo a denti irregolari (stoffa sfilacciata delle tavole).
-function raggedHem(geo, top, depth, freq = 13, seed = 1) {
+export function raggedHem(geo, top, depth, freq = 13, seed = 1) {
   const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); if (y > top) continue; const a = Math.atan2(x, z);
     const j = Math.abs(Math.sin(a * freq + seed)) * 0.6 + Math.abs(Math.sin(a * freq * 2.3 + seed * 3)) * 0.4; const w = 1 - y / top; p.setY(i, y + j * depth * w);
@@ -249,4 +249,66 @@ export function makeCustode() {
   const eg = glow(0xff3010, 0.7, 0.25, 0.45); eg.position.set(0, 2.52, 0.55); armor.add(eg);
   const halo = new THREE.Mesh(new THREE.RingGeometry(1.25, 1.45, 40).rotateX(-Math.PI / 2), basic(0x8a1a10, { transparent: true, opacity: 0.7, depthWrite: false })); halo.position.y = 0.03; grp.add(halo);
   body.scale.setScalar(1.12); grp.userData.halo = halo; Object.assign(grp.userData, { body, core, armor, r: 0.9, height: 3.4, eye }); return grp;
+}
+
+// ============================ IL RILEGATORE ============================
+// Tavole 010/034: figura curva avvolta in un mantello scuro, maschera di carta bianca a punta con un lungo becco-ago,
+// occhi tristi. I fili color crema che lo avvolgono sono il suo componente (FRAGILE + colpo forte li spezza).
+export function makeRilegatore() {
+  const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
+  const prof = [[0.62, 0], [0.63, 0.1], [0.56, 0.6], [0.46, 1.1], [0.33, 1.45], [0.14, 1.64], [0.02, 1.7]];
+  const cg = raggedHem(lathe(prof, 24), 0.35, 0.16, 9, 4); const coat = inked(cg, { color: 0x2a2830, shift: 0xd8cbb0, y0: 0, y1: 1.8, ow: 0.028 }); coat.material.side = THREE.DoubleSide; coat.rotation.x = 0.22; body.add(coat);
+  body.add(new THREE.Mesh(merge(strands(28, 0.5, 0.6, 0.35, 0.18, 0.4, 0.025, 11)), basic(0x141218)));
+  // testa: cappuccio + maschera a punta + becco-ago
+  const head = new THREE.Group(); head.position.set(0, 1.58, 0.42); head.rotation.x = 0.35; body.add(head);
+  const hood = inked(lathe([[0.27, 0], [0.29, 0.14], [0.24, 0.3], [0.12, 0.42], [0, 0.46]], 16, 0.8, Math.PI * 2 - 1.6), { color: 0x23212a, ow: 0.02 }); hood.material.side = THREE.DoubleSide; hood.position.set(0, -0.12, -0.08); head.add(hood);
+  const mg = new THREE.ConeGeometry(0.24, 0.62, 4, 1); mg.rotateY(Math.PI / 4); mg.scale(1, 1, 0.38); const mask = inked(mg, { color: 0xeee6d2, y0: 1.4, y1: 2.2, ow: 0.016 }); mask.position.set(0, 0.06, 0.12); head.add(mask);
+  const beak = inked(new THREE.ConeGeometry(0.045, 0.95, 8).rotateX(Math.PI / 2 + 0.5), { color: 0xd9cfb8, ow: 0.012 }); beak.position.set(0, -0.12, 0.6); head.add(beak);
+  head.add(new THREE.Mesh(merge([-1, 1].flatMap((sd) => [xf(new THREE.SphereGeometry(0.04, 8, 6), [sd * 0.075, 0.02, 0.2], 0, [1.2, 0.7, 0.4]), xf(new THREE.BoxGeometry(0.08, 0.01, 0.01), [sd * 0.075, 0.07, 0.205], [0, 0, sd * -0.35])])), basic(0x120c0a)));
+  // i fili (componente) + aghi nelle mani
+  const armor = new THREE.Group(); body.add(armor); armor.rotation.x = 0.22;
+  for (let i = 0; i < 10; i++) { const y = 0.2 + i * 0.14; let r = 0.6; for (let k = 1; k < prof.length; k++) if (y <= prof[k][1]) { const [r0, y0] = prof[k - 1], [r1, y1] = prof[k]; r = r0 + (r1 - r0) * (y - y0) / (y1 - y0); break; }
+    const t = inked(new THREE.TorusGeometry(r + 0.02, 0.012, 4, 22), { color: 0xd8cbb0, outline: false }); t.rotation.x = Math.PI / 2 + (i % 2 ? 0.3 : -0.25) * (0.6 + hash(i) * 0.6); t.rotation.y = hash(i + 3) * 3; t.position.y = y; armor.add(t); }
+  for (const sd of [-1, 1]) { const n = inked(new THREE.ConeGeometry(0.04, 1.2, 5), { color: 0x9a9a9a, ow: 0.012 }); n.position.set(sd * 0.55, 1.0, 0.35); n.rotation.x = 1.2; body.add(n); }
+  g.userData = { body, armor, height: 2.3, r: 0.55 }; return g;
+}
+
+// ============================ IL COPISTA (aggiunte al grande acaro) ============================
+// Tavole 068/070: bestia d'inchiostro irsuta con aculei lunghi, occhi rossi, che regge un registro aperto macchiato.
+export function makeCopistaExtras() {
+  const g = new THREE.Group(); const sp = [];
+  for (let i = 0; i < 16; i++) { const a = -1.3 + (i / 15) * 2.6, up = 0.5 + hash(i) * 0.5; const d = new V3(Math.sin(a) * 0.7, up, -0.35 - hash(i + 5) * 0.4).normalize(); const L = 0.18 + hash(i + 2) * 0.22;
+    const c = new THREE.ConeGeometry(0.03, L, 4); c.translate(0, L / 2, 0); c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), d)); c.translate(d.x * 0.26, d.y * 0.26, d.z * 0.26); sp.push(c); }
+  g.add(inked(merge(sp), { color: 0x0d0907, ow: 0.01 }));
+  const book = new THREE.Group(); book.position.set(0, -0.04, 0.3); book.rotation.x = -0.5; g.add(book);
+  book.add(inked(merge([xf(new THREE.BoxGeometry(0.24, 0.02, 0.3), [-0.12, 0, 0], [0, 0, 0.25]), xf(new THREE.BoxGeometry(0.24, 0.02, 0.3), [0.12, 0, 0], [0, 0, -0.25])]), { color: 0x3a2a20, ow: 0.008 }));
+  book.add(inked(merge([xf(new THREE.BoxGeometry(0.22, 0.03, 0.28), [-0.11, 0.022, 0], [0, 0, 0.25]), xf(new THREE.BoxGeometry(0.22, 0.03, 0.28), [0.11, 0.022, 0], [0, 0, -0.25])]), { color: 0xd8cbb0, ow: 0.006 }));
+  const spots = []; for (let i = 0; i < 7; i++) { const sd = i % 2 ? 1 : -1; spots.push(xf(new THREE.SphereGeometry(0.018 + hash(i) * 0.015, 5, 4), [sd * (0.05 + hash(i + 1) * 0.12), 0.04 + 0.12 * 0.25 * (0.05 + hash(i + 1) * 0.12) / 0.12, -0.1 + hash(i + 3) * 0.2], 0, [1, 0.3, 1])); }
+  book.add(new THREE.Mesh(merge(spots), basic(0x7a1410)));
+  return g;
+}
+
+// ============================ ILDE (prologo, alla scrivania) ============================
+// Tavole 009/045/051: capelli grigi raccolti in una crocchia con una matita infilata, occhiali tondi, scialle scuro
+// sfrangiato con i bordi rossi sopra un abito grigio. Restituisce i pezzi da aggiungere al gruppo di Ilde del film.
+export function makeIldeParts() {
+  const g = new THREE.Group();
+  const robe = inked(lathe([[1.4, 0], [1.3, 0.8], [1.05, 1.8], [0.95, 2.5], [0.7, 3.0], [0.35, 3.2]], 24), { color: 0x45403b, y0: 0, y1: 3.2 }); robe.material.side = THREE.DoubleSide; g.add(robe);
+  const sp = [[1.3, 0], [1.22, 0.5], [1.08, 1.0], [0.92, 1.4], [0.68, 1.7], [0.42, 1.86]]; const P0 = 0.55, PL = Math.PI * 2 - 1.1;
+  const sg = raggedHem(lathe(sp, 28, P0, PL), 0.5, 0.35, 8, 3); sg.translate(0, 1.36, 0);
+  const shawl = inked(sg, { color: 0x1f1a17, shift: 0x7a1f14, y0: 1.3, y1: 3.3, ow: 0.03 }); shawl.material.side = THREE.DoubleSide; g.add(shawl);
+  const bands = merge([P0, P0 + PL - 0.14].map((a) => { const b = raggedHem(lathe(sp.map(([r, y]) => [r * 1.015, y]), 3, a, 0.14), 0.5, 0.35, 8, 3); b.translate(0, 1.36, 0); return b; }));
+  const band = inked(bands, { color: 0x7a1f14, outline: false }); band.material.side = THREE.DoubleSide; g.add(band);
+  const hair = inked(lathe([[0.56, 0], [0.6, 0.3], [0.5, 0.68], [0.25, 0.9], [0, 0.95]], 18), { color: 0xa39d94 }); hair.position.set(0, 3.38, 0.05); g.add(hair);
+  const bun = inked(new THREE.SphereGeometry(0.3, 12, 9), { color: 0xb2aca2 }); bun.position.set(0, 4.15, -0.2); g.add(bun);
+  const pencil = inked(new THREE.CylinderGeometry(0.03, 0.03, 0.95, 6), { color: 0x2a221c, ow: 0.01 }); pencil.position.set(0.15, 4.25, -0.2); pencil.rotation.z = -1.05; g.add(pencil);
+  const strandsM = new THREE.Mesh(merge([0, 1, 2, 3, 4, 5].map((i) => xf(new THREE.CylinderGeometry(0.015, 0.005, 0.5 + hash(i) * 0.3, 3), [-0.45 + i * 0.18, 3.4, 0.35 - Math.abs(i - 2.5) * 0.1], [0.3, 0, (i - 2.5) * 0.15]))), basic(0x8f877c)); g.add(strandsM);
+  return g;
+}
+export function makeIldeFace() { // occhiali tondi con ponte, naso, occhi socchiusi (figli della testa, raggio 0,5)
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(merge([xf(new THREE.TorusGeometry(0.13, 0.018, 4, 16), [-0.18, 0.02, 0.47]), xf(new THREE.TorusGeometry(0.13, 0.018, 4, 16), [0.18, 0.02, 0.47]), xf(new THREE.BoxGeometry(0.1, 0.02, 0.02), [0, 0.05, 0.5]),
+    xf(new THREE.BoxGeometry(0.11, 0.015, 0.015), [-0.17, -0.0, 0.48], [0, 0, 0.12]), xf(new THREE.BoxGeometry(0.11, 0.015, 0.015), [0.17, -0.0, 0.48], [0, 0, -0.12]), xf(new THREE.BoxGeometry(0.16, 0.012, 0.012), [0, -0.27, 0.45])]), basic(0x16110d)));
+  const nose = inked(new THREE.ConeGeometry(0.06, 0.18, 6), { color: 0xe2d4ba, outline: false }); nose.position.set(0, -0.08, 0.5); nose.rotation.x = 0.4; g.add(nose);
+  return g;
 }

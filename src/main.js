@@ -214,13 +214,7 @@ raft.mesh.position.y = -0.25;
 const stone = addEnt('stone', 'stone', mk(new THREE.DodecahedronGeometry(0.6, 0), 0x6b6258), 94.5, -19.5); stone.mesh.position.y = 0.45; stone.mesh.userData.height = 1; circles.push({ x: 94.5, z: -19.5, r: 0.6 });
 const lect2 = mk(new THREE.BoxGeometry(0.8, 1.1, 0.6), 0x4a3a2c, { y0: 0, y1: 1.1 }); lect2.position.set(95, 0.55, -11.5); scene.add(lect2); circles.push({ x: 95, z: -11.5, r: 0.5 });
 addGate('c2g2', X, -21, W.makeGate());
-const rileg = addEnt('rileg', 'rileg', (() => { const g = new THREE.Group(); const body = new THREE.Group(); g.add(body);
-  const coat = mk(new THREE.LatheGeometry([[0.55, 0], [0.5, 0.6], [0.38, 1.3], [0.2, 1.7]].map(([a, b]) => new THREE.Vector2(a, b)), 14), 0x3a3550, { shift: 0xd8cbb0, y0: 0, y1: 1.8 }); body.add(coat);
-  const head = mk(new THREE.SphereGeometry(0.28, 12, 10), 0xe8dcc0); head.position.y = 1.95; body.add(head);
-  const eyeB = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.03, 6, 12), new THREE.MeshBasicMaterial({ color: 0x16110d })); eyeB.position.set(0, 1.98, 0.26); body.add(eyeB);
-  const armor = new THREE.Group(); body.add(armor); for (let i = 0; i < 10; i++) { const t = mk(new THREE.TorusGeometry(0.5 - i * 0.03, 0.025, 4, 18), 0xd8cbb0, { outline: false }); t.rotation.x = Math.PI / 2 + (i % 2 ? 0.25 : -0.25); t.position.y = 0.2 + i * 0.15; armor.add(t); }
-  for (const sd of [-1, 1]) { const n = mk(new THREE.ConeGeometry(0.05, 1.3, 5), 0x9a9a9a); n.position.set(sd * 0.55, 1.1, 0.25); n.rotation.x = 1.2; body.add(n); }
-  g.userData = { body, armor, height: 2.3, r: 0.55 }; return g; })(), 106, -19, { hp: 4, maxHp: 4, armor: true, st: 'idle', t: 0, cd: 1.5, home: { x: 106, z: -19 } });
+const rileg = addEnt('rileg', 'rileg', W.makeRilegatore(), 106, -19, { hp: 4, maxHp: 4, armor: true, st: 'idle', t: 0, cd: 1.5, home: { x: 106, z: -19 } });
 rileg.mesh.visible = false; rileg.alive = false; setComp(rileg, rileg.mesh.userData.armor);
 // Pila
 const pile = addEnt('pile', 'pile', (() => { const g = new THREE.Group(); for (let i = 0; i < 9; i++) { const b = mk(new THREE.BoxGeometry(2.2 - (i % 3) * 0.2, 0.35, 1.5), [0x8a2416, 0x2b4a5a, 0xcdbd98, 0x4a3a2c][i % 4], { y0: 0, y1: 3.2 }); b.position.set((i % 2 ? 0.15 : -0.15), 0.18 + i * 0.36, 0); b.rotation.y = (i % 3 - 1) * 0.12; g.add(b); } g.userData.height = 3.4; return g; })(), X, -35.6); setComp(pile, pile.mesh);
@@ -1442,7 +1436,7 @@ function mazeFilmCamera(rdt) { const F = MZ.film, R = MZ.R; const T = F.t / FILM
 function endMazeFilm() { const im = MZ.wallIM; MZ.wallFinal.forEach((m, i) => im.setMatrixAt(i, m)); im.instanceMatrix.needsUpdate = true; MZ.crest.visible = true; MZ.film = null; S.lock = false; document.body.classList.remove('filming'); $('opSub').style.opacity = 0; camera.position.copy(camPos); if (MZ.afterFilm) { const f = MZ.afterFilm; MZ.afterFilm = null; setTimeout(f, 300); } }
 // Il Copista: guardiano della radura davanti al vuoto
 function spawnCopista() { const [x, z] = mzCell(MZ.EX, 2); const o = spawnMite(x, z, true); o.room = 'maze'; o.boss = true; o.hp = o.maxHp = 40; o.r = 0.95; o.aggroR = 8; o.home = { x, z }; o.mesh.scale.setScalar(3.1); o.summonT = 5; o.writeT = 8;
-  const q = W.makeDoc(); q.scale.setScalar(0.6); q.position.set(0, 0.3, -0.2); o.mesh.add(q); for (const sd of [-1, 1]) { const h = inked(new THREE.ConeGeometry(0.06, 0.4, 5), { color: 0xe8dcc0, outline: false }); h.position.set(sd * 0.15, 0.35, 0.1); h.rotation.z = sd * -0.5; o.mesh.add(h); }
+  o.mesh.add(W.makeCopistaExtras()); // tav. 068/070: aculei e registro macchiato; occhi rossi via userData.anim
   MZ.boss = o; const bar = document.createElement('div'); bar.id = 'miniBar'; bar.innerHTML = '<div class="bname">IL COPISTA</div><div class="hbar"><i></i></div>'; bar.style.display = 'none'; document.body.appendChild(bar); }
 function copistaAct(m, dt) { if (!m.engaged) { m.engaged = true; say([['narr', 'Il Copista alza la testa dal suo registro. Ricopia tutto: anche te.']]); sfx.tension(true); }
   m.summonT -= dt; m.writeT -= dt; if (m.hitT > 0) m.hitT -= dt;

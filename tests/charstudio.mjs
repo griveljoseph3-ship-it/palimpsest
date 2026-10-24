@@ -13,10 +13,10 @@ const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 async function studio(name, build, cam, look) {
   if (ONLY && !ONLY.includes(name)) return;
   const url = await pg.evaluate(async ([ver, build, cam, look]) => {
-    const THREE = await import(`/vendor/three.module.js?v=${ver}`); const W = await import(`/src/world.js?v=${ver}`); const A = await import(`/src/art.js?v=${ver}`);
+    const THREE = await import(`/vendor/three.module.js?v=${ver}`); const W = await import(`/src/world.js?v=${ver}`); const A = await import(`/src/art.js?v=${ver}`); const C = await import(`/src/chars.js?v=${ver}`);
     const r = PAL.renderer; const sc = new THREE.Scene(); sc.background = new THREE.Color(0xe9dfc8);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40).rotateX(-Math.PI / 2), A.inkMaster({ color: 0xe6dabf, texBlend: 0.9 })); A.withMask(floor.geometry, 0); sc.add(floor);
-    const objs = new Function('W', 'THREE', 'sc', build)(W, THREE, sc);
+    const objs = new Function('W', 'THREE', 'sc', 'C', 'A', build)(W, THREE, sc, C, A);
     const c = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 100); c.position.set(...cam); c.lookAt(...look);
     const post = window.__studioPost || (window.__studioPost = new A.Post(r)); const sz = r.getDrawingBufferSize(new THREE.Vector2()); post.setSize(sz.x, sz.y);
     return await new Promise((res) => { let n = 0; const step = () => { requestAnimationFrame(() => { const U = A.INK_UNIFORMS; const lp = U.uLamp.value.clone(), lr = U.uLampR.value; const pl = U.uPL.value.map((v) => v.clone());
@@ -38,6 +38,9 @@ await studio('studio-elara', `const e=W.makeElara(); e.rotation.y=0.3; sc.add(e)
 await studio('studio-lumi-acari', `const l=W.makeLumi(); l.position.set(-0.6,0.8,0); l.rotation.y=0.3; sc.add(l); for(let i=0;i<3;i++){const m=W.makeMite(); m.position.set(0.3+i*0.65,0.3,(i%2)*0.4); m.rotation.y=-0.3-i*0.3; if(i==2) m.scale.multiplyScalar(1.45); sc.add(m);} `, [0.5, 1.5, 5.2], [0.5, 0.5, 0]);
 await studio('studio-custode', `const c=W.makeCustode(); c.rotation.y=0.35; sc.add(c);`, [0.6, 2.6, 9.0], [0, 1.9, 0]);
 await studio('studio-charger', `const c=W.makeCharger(); c.rotation.y=0.5; c.scale.setScalar(1.4); sc.add(c);`, [0.5, 1.8, 5.5], [0, 0.9, 0]);
+await studio('studio-rilegatore', `const r=W.makeRilegatore(); r.rotation.y=0.5; sc.add(r); const q=W.makeRilegatore(); q.position.x=1.7; q.rotation.y=-1.2; sc.add(q);`, [0.85, 2.0, 7.2], [0.85, 1.1, 0]);
+await studio('studio-copista', `const m=W.makeMite(); m.scale.setScalar(3.1); m.position.y=0.95; m.rotation.y=0.3; m.add(W.makeCopistaExtras()); m.userData.anim(0,{boss:true}); sc.add(m);`, [0.3, 2.0, 6.5], [0, 0.9, 0]);
+await studio('studio-ilde', `const g=new THREE.Group(); g.add(C.makeIldeParts()); const h=A.inked(new THREE.SphereGeometry(0.5,20,16),{color:0xeadfc8,y0:3,y1:4.2}); h.scale.set(0.9,1.08,0.95); h.position.set(0,3.6,0.2); h.add(C.makeIldeFace()); g.add(h); g.scale.setScalar(0.42); g.rotation.y=0.35; sc.add(g);`, [0.3, 1.3, 5.2], [0, 0.95, 0]);
 // in partita
 if (ONLY && !ONLY.includes('game')) { console.log('errors', JSON.stringify(errs)); await b.close(); process.exit(0); }
 async function shot(name) { await pg.waitForTimeout(1600); await pg.screenshot({ path: `${OUT}/${PFX}-${name}.png` }); console.log('shot', name); }

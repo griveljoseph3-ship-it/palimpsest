@@ -15,7 +15,7 @@ import { loadModels, STATO as M3D } from './modelli.js?v=1.9.0-prova3d';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
 // v1.9.0-prova3d: prima di costruire il mondo carico i personaggi 3D (se non arrivano, restano quelli disegnati a mano)
-if (Q.get('3d') !== '0') { const vEl = $('ver'); if (vEl) vEl.textContent += ' · carico i personaggi 3D…'; await loadModels(); }
+if (Q.get('3d') !== '0') { const vEl = $('ver'); if (vEl) vEl.textContent += ' · carico i personaggi 3D…'; await loadModels(); if (vEl) vEl.textContent = vEl.textContent.replace('carico i personaggi 3D…', 'personaggi 3D: ' + M3D.caricati.length + '/12'); }
 const OPT_KEY = 'pal.options';
 const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto' }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
 const saveOpts = () => localStorage.setItem(OPT_KEY, JSON.stringify(opts));

@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=1.9.0-prova3d';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
@@ -41,11 +41,19 @@ export function inkMaster(opts = {}) {
       uShiftColor: { value: new THREE.Color(opts.shift ?? 0x7a1f14) },
       DissolveAmount: { value: 0 }, ColorShift: { value: 0 }, TextureBlend: { value: opts.texBlend ?? 0.85 },
       uRedraw: { value: -1 }, uMarks: { value: 0 }, uGlow: { value: new THREE.Color(0, 0, 0) }, uCrack: { value: 0 }, uHit: { value: 0 },
-      uH: { value: new THREE.Vector2(opts.y0 ?? 0, opts.y1 ?? 2) }, uScale: { value: opts.texScale ?? 0.25 },
+      uH: { value: new THREE.Vector2(opts.y0 ?? 0, opts.y1 ?? 2) }, uScale: { value: opts.texScale ?? 0.25 }, uMap: { value: opts.map || null },
     },
+    defines: opts.map ? { USE_M3D: '' } : {},
     vertexColors: true,
     vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
+#ifdef USE_M3D
+ varying vec2 vUv3;
+#endif
       void main(){ 
+#ifdef USE_M3D
+ vUv3=uv;
+#endif
+
 #ifdef USE_INSTANCING
  mat4 mm=modelMatrix*instanceMatrix;
 #else
@@ -54,18 +62,30 @@ export function inkMaster(opts = {}) {
  vec4 w=mm*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
     fragmentShader: `uniform vec4 uPL[12]; uniform vec3 uPC[12]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
+#ifdef USE_M3D
+      uniform sampler2D uMap; varying vec2 vUv3;
+#endif
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
         vec3 an=abs(n); vec2 uv= an.y>.6? vW.xz : (an.x>an.z? vW.zy: vW.xy);
         vec3 paper=texture2D(uPaper,uv*uScale).rgb;
         vec3 base=mix(uColor, uColor*paper*1.25, TextureBlend);
+#ifdef USE_M3D
+        // personaggio 3D: il colore è il disegno di Joseph (texture), appena velato dalla carta
+        base=texture2D(uMap,vUv3).rgb*mix(vec3(1.),paper*1.18,TextureBlend);
+#endif
         float wob=vnoise(vW.xz*2.+uTime*.15)*.12;
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
         vec2 sp=gl_FragCoord.xy/uPR; float hv=(sp.x+sp.y)*.16+vnoise(sp*.02)*1.5; float hw=fwidth(hv)*.75+.02; float hatch=smoothstep(.5-hw,.5+hw,fract(hv))*smoothstep(1.,1.-hw,fract(hv));
         float hv2=(sp.x-sp.y)*.16; float hatch2=smoothstep(.5-hw,.5+hw,fract(hv2))*smoothstep(1.,1.-hw,fract(hv2));
         float dark=1.-tone; float hm=mix(1.,.7,hatch*smoothstep(.35,.5,dark))*mix(1.,.78,hatch2*smoothstep(.7,.8,dark));
         float ao=mix(.68,1.,smoothstep(0.,.9,vW.y-uH.x+.05));
-        vec3 shadowC=base*vec3(.33,.33,.43); vec3 litC=base*vec3(1.04,1.,.92); vec3 col=mix(shadowC,litC,tone)*hm*ao;
+#ifdef USE_M3D
+        vec3 shadowC=base*vec3(.62,.6,.66); // il disegno ha già le sue ombre: luce più morbida
+#else
+        vec3 shadowC=base*vec3(.33,.33,.43);
+#endif
+        vec3 litC=base*vec3(1.04,1.,.92); vec3 col=mix(shadowC,litC,tone)*hm*ao;
         col+=vec3(1.,.82,.55)*pow(max(ndl,0.),3.)*.12; // luce calda
         float rim=pow(1.-abs(dot(n,normalize(cameraPosition-vW))),3.); col=mix(col,uInk,rim*.35*vMask);
         col=mix(col, uShiftColor*(.6+.4*tone), ColorShift*vMask);

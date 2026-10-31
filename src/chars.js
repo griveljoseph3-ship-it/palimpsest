@@ -1,8 +1,8 @@
 // Personaggi 3D ridisegnati sulle tavole ufficiali (docs/concept-art): Correttore (tav. 036/039/058), Elara (031/057/071),
 // Lumi (048), Acari d'inchiostro (019/028), Custode (040/049), Rilegatore con maschera a becco (010/034), Copista (068/070).
 // Tutto procedurale e leggero: le parti con lo stesso materiale sono fuse in una sola geometria (meno draw call su iPad).
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
-import { inked, INK_UNIFORMS } from './art.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=1.9.0-prova3d';
+import { inked, INK_UNIFORMS } from './art.js?v=1.9.0-prova3d';
 
 const V3 = THREE.Vector3;
 export const lathe = (pts, seg = 18, p0 = 0, pl = Math.PI * 2) => new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg, p0, pl);

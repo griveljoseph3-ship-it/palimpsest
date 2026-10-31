@@ -1,8 +1,7 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
-import * as CH from './chars.js?v=1.9.0';
-export const { makePlayer, makeElara, makeLumi, makeMite, makeCustode, makeRilegatore, makeCopistaExtras, makeCharger } = CH;
+import * as THREE from '../vendor/three.module.js?v=1.9.0-prova3d';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0-prova3d';
+export { makePlayer, makeElara, makeLumi, makeMite, makeCustode, makeRilegatore, makeCopistaExtras, makeCharger, makeStatue } from './chars3d.js?v=1.9.0-prova3d';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },

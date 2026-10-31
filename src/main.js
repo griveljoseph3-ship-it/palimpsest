@@ -1,18 +1,21 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
-import { EFFECTS } from './data.js?v=1.9.0';
-import { Grammar } from './resolver.js?v=1.9.0';
-import { Ink, INK } from './ink.js?v=1.9.0';
-import { Input } from './input.js?v=1.9.0';
-import { Sfx } from './audio.js?v=1.9.0';
-import { Tele } from './telemetry.js?v=1.9.0';
-import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.9.0';
-import * as W from './world.js?v=1.9.0';
-import * as ST from './story.js?v=1.9.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=1.9.0-prova3d';
+import { EFFECTS } from './data.js?v=1.9.0-prova3d';
+import { Grammar } from './resolver.js?v=1.9.0-prova3d';
+import { Ink, INK } from './ink.js?v=1.9.0-prova3d';
+import { Input } from './input.js?v=1.9.0-prova3d';
+import { Sfx } from './audio.js?v=1.9.0-prova3d';
+import { Tele } from './telemetry.js?v=1.9.0-prova3d';
+import { paperTexture, INK_UNIFORMS, Traces, Particles, Post, inked } from './art.js?v=1.9.0-prova3d';
+import * as W from './world.js?v=1.9.0-prova3d';
+import * as ST from './story.js?v=1.9.0-prova3d';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=1.9.0-prova3d';
+import { loadModels, STATO as M3D } from './modelli.js?v=1.9.0-prova3d';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
+// v1.9.0-prova3d: prima di costruire il mondo carico i personaggi 3D (se non arrivano, restano quelli disegnati a mano)
+if (Q.get('3d') !== '0') { const vEl = $('ver'); if (vEl) vEl.textContent += ' · carico i personaggi 3D…'; await loadModels(); }
 const OPT_KEY = 'pal.options';
 const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto' }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
 const saveOpts = () => localStorage.setItem(OPT_KEY, JSON.stringify(opts));
@@ -346,6 +349,9 @@ const arena = { t: 0, period: 4, loosenT: 0, window: 0, windowPlan: null, snappe
 const elara2 = W.makeElaraPage(false); elara2.position.set(-5.2, 0, -165.2); elara2.scale.setScalar(0.75); scene.add(elara2);
 // v1.5: Elara in 3D accanto alla sua pagina + luci extra (porta e arena)
 const elaraFig = W.makeElara(); elaraFig.position.set(2.6, 0, -98.1); elaraFig.rotation.y = -0.35; scene.add(elaraFig); circles.push({ x: 2.6, z: -98.1, r: 0.5 });
+// v1.9.0-prova3d · galleria nella prima stanza: personaggi di Joseph ancora senza un ruolo sicuro (solo da guardare)
+const gallery = []; for (const [n, h, x, z, ry] of [['robot', 1.9, -5.4, 8.2, 2.4], ['figura_velata', 2.0, -5.4, 4.6, 1.9], ['elara_bambina', 1.15, -5.4, 1.2, 1.6], ['creatura_spine', 1.9, 5.4, 8.2, -2.4], ['blob_tentacoli', 1.3, 5.4, 4.6, -1.9]]) {
+  const st = W.makeStatue(n, h); if (!st) continue; st.position.set(x, 0, z); st.rotation.y = ry; scene.add(st); circles.push({ x, z, r: 0.5 }); const sh = W.makeShadow(); sh.scale.setScalar(1.1); sh.position.set(x, 0.015, z); scene.add(sh); gallery.push(st); }
 const elaraFig2 = W.makeElara(); elaraFig2.position.set(-3.3, 0, -164.3); elaraFig2.rotation.y = 0.4; scene.add(elaraFig2);
 for (const [k, x, z] of [['candle', -1.9, -98.9], ['lamp', 6.5, -96.8], ['lamp', -14.5, -111.5], ['lamp', 14.5, -111.5], ['lamp', -14.5, -136.5], ['lamp', 14.5, -136.5], ['candle', -1.8, -163.8]]) {
   const m = k === 'candle' ? W.makeCandle(0.6) : W.makeLamp(); m.position.set(x, 0, z); scene.add(m);
@@ -368,6 +374,7 @@ function initAI(e, cfg) { Object.assign(e, { st: 'idle', t: 0, cd: 1.5, vx: 0, v
 initAI(charger, { speed: 3.4, charge: 13.5, windup: 0.55, chargeT: 1.0, recover: 0.85, armor: 14, r: 1.15, swipeR: 2.0, dmgCharge: 2, dmgSwipe: 1 });
 initAI(custode, { speed: 2.9, charge: 14, windup: 0.65, chargeT: 1.1, recover: 1.05, armor: 20, r: 0.95, swipeR: 2.5, dmgCharge: 2, dmgSwipe: 2 });
 setComp(charger, charger.mesh.userData.armor); setComp(custode, custode.mesh.userData.armor);
+for (const e of [charger, custode]) if (e.mesh.userData.model) e.compMats.push(...matsOf(e.mesh.userData.model)); // crepe e bagliori anche sul modello 3D
 let attackCounter = 0;
 function enemyAttack(e) { e.atkId = 'ea' + (++attackCounter); e.hitPlayer = false; }
 function damagePlayer(n, from, attackId) {
@@ -992,7 +999,7 @@ function defenseUpdate(dt) {
   if (D.t <= 0) { for (const m of door.mites) if (m.alive) { m.alive = false; scene.remove(m.mesh); particles.burst(m.x, 0.3, m.z, 10, 3); } door.defense = null; endEncounter('defense'); $('room').textContent = W.ROOMS[3].title;
     elara.userData.st.verdict = ''; elara.userData.st.mouth = 12; elara.userData.st.eyes = 190; elara.userData.redraw(); setRoute('trust'); }
 }
-const cBlue = new THREE.Color(), cHot = new THREE.Color(0.8, 0.2, 0.05), cDim = new THREE.Color(0.1, 0.02, 0), cEcho = new THREE.Color(0.3, 0.22, 0.12), vH = new THREE.Vector2();
+const cTell = new THREE.Color(), cBlue = new THREE.Color(), cHot = new THREE.Color(0.8, 0.2, 0.05), cDim = new THREE.Color(0.1, 0.02, 0), cEcho = new THREE.Color(0.3, 0.22, 0.12), vH = new THREE.Vector2();
 function visualUpdate(dt, rdt) {
   INK_UNIFORMS.uTime.value += rdt;
   const u = P.mesh.userData, sp = Math.hypot(P.vx, P.vz); P.mesh.position.set(P.x, 0, P.z); P.mesh.rotation.y = P.face;
@@ -1002,6 +1009,7 @@ function visualUpdate(dt, rdt) {
   for (const m of door.mites) if (m.alive && m.mesh.userData.anim) m.mesh.userData.anim(now, m);
   u.cloak.scale.set(1 + Math.sin(now * 9) * 0.03 * sp / 5, 1, 1 + sp * 0.03); const sq = P.st === 'heavy' && P.t > P.hitAt ? 0.9 : 1; u.body.scale.set(2 - sq, sq, 2 - sq);
   if (P.st === 'attack') u.quillPivot.rotation.y = lerp(1.6, -1.6, clamp(1 - (P.t - 0.05) / 0.27, 0, 1)); else if (P.st === 'heavy') { u.quillPivot.rotation.x = P.t > P.hitAt ? -1.2 : 0.6; u.quillPivot.rotation.y = 0; } else { u.quillPivot.rotation.y = lerp(u.quillPivot.rotation.y, 0.3, 0.2); u.quillPivot.rotation.x = lerp(u.quillPivot.rotation.x, 0, 0.2); }
+  if (u.is3d) u.quill.visible = P.st === 'attack' || P.st === 'heavy'; // a riposo si vede la penna del modello 3D
   if (!P.mats) P.mats = matsOf(P.mesh); setU(P.mats, 'DissolveAmount', P.st === 'dead' ? clamp(1.05 - P.t / 1.4 * 1.05, 0, 1.05) : 0);
   const wantOl = P.st !== 'dead'; if (P.olOn !== wantOl) { P.olOn = wantOl; setOutlines(P.mesh, wantOl); }
   if (P.st === 'dead') P.mesh.visible = P.t > -0.1; else P.mesh.visible = !(P.inv > 0 && P.st !== 'dodge' && Math.sin(now * 40) < -0.3);
@@ -1015,6 +1023,9 @@ function visualUpdate(dt, rdt) {
     if (e.boss) { const a1 = e.comp.userData['arm1'], a2 = e.comp.userData['arm-1']; a1.rotation.x = lerp(a1.rotation.x, e.st === 'swipeWU' ? -1.6 : e.st === 'swipe' ? 1.2 : Math.sin(now * 2) * 0.1, 0.3); a2.rotation.x = lerp(a2.rotation.x, e.st === 'swipe' ? 0.6 : Math.sin(now * 2 + 1) * 0.1, 0.3); m.userData.eye.material.color.setHex(e.st === 'windup' || e.st === 'swipeWU' ? 0xff3010 : 0x8a1a10); }
     if (!pvOn) { setU(e.compMats, 'uCrack', frag ? 0.75 : clamp(1 - e.armorHP / e.armorMax, 0, 0.8)); setU(e.compMats, 'uGlow', cond ? cBlue.setRGB(0.05, 0.2 + 0.1 * Math.sin(now * 10), 0.35) : BLACK); }
     setU(e.mats, 'ColorShift', caut ? 0.35 : 0);
+    if (m.userData.model) { const md = m.userData.model, mv = Math.min(1, Math.hypot(e.vx || 0, e.vz || 0) / 4); md.position.y = Math.sin(now * 2.2) * 0.02 + Math.abs(Math.sin(now * 9)) * 0.05 * mv; md.rotation.z = Math.sin(now * 1.3) * 0.02 + Math.sin(now * 9) * 0.05 * mv; // finto passo/respiro (il modello non ha scheletro)
+      if (e.boss) b.rotation.y = lerp(b.rotation.y, e.st === 'swipeWU' ? -0.6 : e.st === 'swipe' ? 0.7 : 0, 0.3);
+      if (!pvOn && (e.st === 'windup' || e.st === 'swipeWU')) setU([md.material], 'uGlow', cTell.setRGB(0.35 + 0.15 * Math.sin(now * 30), 0.04, 0.02)); }
     setU(matsOf(m.userData.core), 'uGlow', e.exposed > 0 || e.armorBroken ? cHot : cDim); m.userData.core.rotation.y += dt * 2;
     if (frag && frame % 14 === 0) particles.emit(e.x + rnd(-0.5, 0.5), 1.2, e.z + rnd(-0.5, 0.5), 0, 0, 0, 1.5, 0.15, 0.04, 0.03, 0.03, 6);
   }
@@ -1029,6 +1040,7 @@ function visualUpdate(dt, rdt) {
   for (const g of Object.values(gates)) if (g.mesh && g.open && g.mesh.position.y > -2) g.mesh.position.y -= dt * 2;
   if (door.open != null && door.open < 1) { door.open = Math.min(1, door.open + dt * 0.6); elara.rotation.y = door.open * (S.doorRoute === 'forced' ? 1.5 : 1.2); elara.position.x = -door.open * 1.3; }
   if (frame % 240 === 0 && S.room === 'door') { const st = elara.userData.st, e0 = st.eyes; st.eyes = 200; elara.userData.redraw(); setTimeout(() => { st.eyes = e0; elara.userData.redraw(); }, 140); }
+  for (let i = 0; i < gallery.length; i++) { const md = gallery[i].userData.model; md.position.y = Math.sin(now * 1.4 + i) * 0.015; md.rotation.z = Math.sin(now * 0.9 + i * 2) * 0.012; }
   elara.userData.page.position.y = 2 + Math.sin(now * 1.3) * 0.04; for (const f of [elaraFig, elaraFig2]) { const u = f.userData; u.body.position.y = 0.025 + Math.sin(now * 1.6) * 0.02; if (u.hair) { u.hair.rotation.z = Math.sin(now * 1.1) * 0.03; u.bow.rotation.z = Math.sin(now * 1.7) * 0.08; } u.orbit.rotation.y = now * 0.35; u.head.rotation.y = Math.sin(now * 0.5) * 0.25; } elara2.userData.page.rotation.y = Math.sin(now * 0.8) * 0.1;
   if (lumi.on) { lumi.x = lerp(lumi.x, P.x + 1.2, 0.03); lumi.z = lerp(lumi.z, P.z + 0.8, 0.03); lumi.mesh.position.set(lumi.x, 1.2 + Math.sin(now * 2) * 0.15, lumi.z); if (frame % 6 === 0) particles.emit(lumi.x, 1.1, lumi.z, rnd(-0.2, 0.2), -0.3, rnd(-0.2, 0.2), 1, 0.12, 0.05, 0.03, 0.04, 3); }
   for (const l of lumiTraces) l.position.y = 0.25 + Math.sin(now * 1.5 + l.position.x) * 0.06;
@@ -1454,3 +1466,4 @@ window.PAL = { MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeC
   choose: (i) => { if (dlg.active && dlg.opt.choices) pickChoice(i); }, attack: (heavy) => startAttack(heavy), quick: quickReapply, reset: resetPhrase, recompose,
   info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, pr, fps: window.__fps }), kill: () => { P.inv = 0; P.hp = 1; damagePlayer(5, null, null); }, room: () => S.room };
 if (Q.has('autostart')) startGame();
+window.PAL.M3D = M3D; window.PAL.P = P; window.PAL.charger = charger; window.PAL.custode = custode;

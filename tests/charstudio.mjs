@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 8941;
 const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 } })).newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message));
 await pg.goto(`http://localhost:${PORT}/?fast`); await pg.waitForTimeout(900); await pg.evaluate(() => PAL.start()); await pg.waitForTimeout(500); await pg.evaluate(() => PAL.skipDialog());
 const V = await pg.evaluate(() => [...document.querySelectorAll('script[type=module]')].map((s) => s.src).join(' ') + ' ' + (performance.getEntriesByType('resource').map((r) => r.name).find((n) => n.includes('world.js')) || ''));
-const ver = (V.match(/world\.js\?v=([\d.]+)/) || [])[1] || '1.9.0';
+const ver = (V.match(/world\.js\?v=([\w.-]+)/) || [])[1] || '1.9.0';
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 async function studio(name, build, cam, look, extra = {}) {
   if (ONLY && !ONLY.includes(name)) return;

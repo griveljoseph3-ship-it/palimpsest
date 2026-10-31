@@ -1,8 +1,9 @@
 // Prologo cinematografico in-engine: inquadrature, movimenti di camera, personaggi animati, letterbox, sottotitoli e voce narrante.
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
-import { inked, INK_UNIFORMS } from './art.js?v=1.9.0';
-import * as W from './world.js?v=1.9.0';
-import { makeIldeParts, makeIldeFace } from './chars.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=1.9.0-prova3d';
+import { inked, INK_UNIFORMS } from './art.js?v=1.9.0-prova3d';
+import * as W from './world.js?v=1.9.0-prova3d';
+import { makeIldeParts, makeIldeFace } from './chars.js?v=1.9.0-prova3d';
+import { makeModel } from './modelli.js?v=1.9.0-prova3d';
 
 const ease = (t) => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -67,6 +68,7 @@ export class Film {
     const fore = inked(new THREE.CylinderGeometry(0.13, 0.17, 2.2, 7), { color: 0x1f1a17 }); fore.position.set(0, -0.2, 1.0); fore.rotation.x = 1.15; this.arm.add(fore);
     const hand = inked(new THREE.SphereGeometry(0.16, 8, 6), { color: 0xeadfc8 }); hand.position.set(0, -0.65, 1.95); this.arm.add(hand);
     this.pen = new THREE.Group(); hand.add(this.pen);
+    { const m = makeModel('ilde', 4.35, { ow: 0.03 }); if (m) { ilde.children[0].visible = false; head.visible = false; m.position.set(0, 0, -0.1); ilde.add(m); this.ildeModel = m; for (const o of [fore, hand]) { o.material.visible = false; if (o.userData.outline) o.userData.outline.visible = false; } } } // v1.9.0-prova3d: Ilde 3D
     const quill = inked(new THREE.ConeGeometry(0.04, 0.9, 6), { color: 0x15100c }); quill.position.y = -0.1; quill.rotation.x = Math.PI; this.pen.add(quill);
     const feather = inked(new THREE.PlaneGeometry(0.2, 0.7), { color: 0xeee4cf, outline: false }); feather.material.side = THREE.DoubleSide; feather.position.y = 0.55; this.pen.add(feather);
     // gocce

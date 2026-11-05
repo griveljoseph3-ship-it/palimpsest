@@ -72,6 +72,15 @@ I modelli erano sul ramo `grok/personaggi-3d` (costruito sulla vecchia v1.9: NON
 - [ ] Da decidere con Joseph: Tipografo senza modello (resta di carta); robot, Ilde, Elara bambina non ancora in scena
 - [ ] Poi: animazioni d'attacco dedicate per i boss (oggi: torsione e inclinazione), panche del tribunale con giurati 3D
 
+## Giro 5 · Richieste di Joseph (novembre): ordine deciso con lui = regia+PONTE → riscrittura → boss → stanza CONDUTTIVO
+Regole: dopo OGNI parte mandargli schermate prima/dopo e ASPETTARE il suo ok prima della parte successiva. Non unire a main, non pubblicare.
+- [x] P2 · Regia (`regia()`, `regiaApply`, `trackSide`, `twoShot`, `orbitLow` in main.js; bande nere `#regiaBars`): PONTE dell'apertura e del labirinto ripresi di lato sulle assi scritte (`plankWords`); LIBERA in inquadratura a due. Strumenti: `tools/ponte-shots.mjs`, `tools/libera-shot.mjs`
+- [ ] P3 · Riscrittura «alla Light Yagami»: primo piano sulla penna, inchiostro, parola che si scrive, stacco sull'effetto. Versione lunga la prima volta per parola e nei momenti di storia, versione rapida (<1 s) le altre, saltabile
+- [ ] P4 · Presentazione di boss e mini-boss (Caricatore, Copista, Ladro, Custode, Compositore): entrata con la regia + 2-3 frasi su chi è e cosa l'ha reso così
+- [ ] P6 · Stanza CONDUTTIVO: botola del meccanismo che si apre e fa cadere nel labirinto (si vede), circuito più difficile in 2-3 passi, il robot = «Il Compositore» (mini-boss, cattivo triste, automa del Tipografo)
+- Idee già decise per dopo: Ilde = ricordo d'inchiostro nelle scene della lettera e nell'archivio; Elara bambina = flashback giocabile della notte del fiume prima del finale
+- Restano dalla lista di Joseph (non scelti ora): colpi che si sentono, nemici più vari, storia più chiara, più enigmi
+
 ## Dopo il giro 3 (da fare, in ordine di impatto)
 - [ ] Enigmi nuovi con vero «aha» (circuiti CONDUTTIVO a catena, specchi, ordine delle parole)
 - [ ] Tutorial più corto (8 → 4-5 passi, insegnare col mondo)

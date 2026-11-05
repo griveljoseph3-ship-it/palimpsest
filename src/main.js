@@ -623,7 +623,7 @@ function setRoute(r) {
   const L = { forced: [['elara', 'Hai strappato la pagina invece di leggerla. Lo ricorderò.']], evidence: [['elara', 'La prova. Il verdetto si spegne. Questa riga la tengo io.']], trust: [['elara', 'Fatto. Ho una riga mia, adesso. Vai: ti seguo con lo sguardo.']] }[r];
   say(L, { done: elaraTwist }); hint('');
 }
-function elaraTwist() { if (S.twistSeen) return; S.twistSeen = true; S.lock = true; S.camFocus = { x: 0, z: -99.4, t: 9 }; if (!opts.reduce) slowmo(0.8); regia({ id: 'libera', dur: 30, until: () => !S.lock, cam: orbitLow(0, -99.4, 4.2, 0.9, 0.9, 0.1, 1.6) }); /* v2.4: dal basso, gira piano attorno alla rivelazione */
+function elaraTwist() { if (S.twistSeen) return; S.twistSeen = true; S.lock = true; S.camFocus = { x: 0, z: -99.4, t: 9 }; if (!opts.reduce) slowmo(0.8); regia({ id: 'libera', dur: 30, until: () => !S.lock, cam: twoShot(elaraFig.position.x, elaraFig.position.z, 6.5, 1.5, 0) }); /* v2.4: dal basso, gira piano attorno alla rivelazione */
   say([['elara', 'Aspetta. Quella voce che ti guidava laggiù, nel labirinto… la sentivo anch\'io, attraverso la carta.'], ['elara', 'Conosco quella voce. Mi cantava sopra il fiume. È mia madre. È Ilde.']], { done: () => {
     const st = elara.userData.st; let k = 0; sfx.play('tear'); const flake = setInterval(() => { k++; for (let i = 0; i < 6; i++) particles.emit(rnd(-0.9, 0.9), 2 + rnd(-0.2, 0.3), -99.2, rnd(-0.6, 0.6), rnd(0.5, 2), rnd(0.3, 1), 1.4, rnd(0.08, 0.16), 0.55, 0.1, 0.06, 2); if (k === 18) { st.verdict = 'LIBERA'; st.vcol = '#1b5a7a'; st.mouth = 12; st.eyes = 190; elara.userData.redraw(); sfx.sting('secret'); S.flash = 0.5; } if (k > 30) clearInterval(flake); }, 60);
     setTimeout(() => say([['narr', 'Sotto COLPEVOLE il rosso si sfoglia come vernice vecchia. Sotto, scritta con un\'altra mano, più tremante: LIBERA.', 'libera'], ['elara-sorriso', 'LIBERA. Era questo che voleva scrivere. Allora perché non l\'ha fatto?'], ['lumi', 'Forse aveva paura di quello che sarebbe successo dopo. La paura scrive sempre più forte.']], { done: () => { S.lock = false; journal('Alla porta, Elara ha riconosciuto la voce di Ilde. Sotto il verdetto c\'era scritto LIBERA.'); Tele.log('twist_elara'); } }), FAST ? 50 : 2400); } }); }
@@ -1120,6 +1120,10 @@ function regiaApply(rdt) {
 const _rv = new THREE.Vector3(), _rl = new THREE.Vector3();
 // ripresa di lato che segue chi cammina (il PONTE): side = da che parte sta la telecamera, ahead = quanto guarda avanti
 function trackSide(side = 1, dist = 6, h = 1.7, ahead = -1.6) { return () => ({ pos: _rv.set(P.x + side * dist, h, P.z + 1.2), look: _rl.set(P.x, 0.9, P.z + ahead), fov: 30 }); }
+// inquadratura a due: di lato rispetto alla linea tra il protagonista e qualcuno, tutti e due in campo; deriva lenta
+function twoShot(bx, bz, dist = 6.5, h = 1.6, side = 1, drift = 0.04) { return (t) => { const mx = (P.x + bx) / 2, mz = (P.z + bz) / 2; let dx = bx - P.x, dz = bz - P.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+  let nx = -dz * (side || 1), nz = dx * (side || 1); if (side === 0) { const cr = W.ROOMS.find((q) => q.id === S.room); const ix = (cr ? cr.cx : mx) - mx, iz = (cr ? cr.cz : mz) - mz; if (nx * ix + nz * iz < 0) { nx = -nx; nz = -nz; } } /* side 0: dal lato dell'interno della stanza */ const a = t * drift; const cx = nx * Math.cos(a) - dx * Math.sin(a) * 0.6, cz = nz * Math.cos(a) - dz * Math.sin(a) * 0.6;
+  return { pos: _rv.set(mx + cx * dist, h, mz + cz * dist), look: _rl.set(mx, 1.3, mz), fov: 30 }; }; }
 // giro lento attorno a un punto, dal basso (rivelazioni)
 function orbitLow(x, z, r = 5, h = 1.1, a0 = 0.6, spd = 0.12, lookY = 1.4) { return (t) => ({ pos: _rv.set(x + Math.sin(a0 + t * spd) * r, h, z + Math.cos(a0 + t * spd) * r), look: _rl.set(x, lookY, z), fov: 28 }); }
 // ---------- loop ----------

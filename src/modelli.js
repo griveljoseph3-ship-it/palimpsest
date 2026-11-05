@@ -24,6 +24,8 @@ export const RIG = {
   rilegatore: { kind: 1, flutter: 0.8, hop: 0.12, hopRate: 4.5 },
 };
 export const NOMI = Object.keys(RIG);
+// si scaricano solo quelli che il gioco usa adesso (Ilde, Elara bambina e il robot entreranno con la storia nuova)
+export const USATI = ['correttore', 'macchia', 'caricatore', 'custode', 'rilegatore', 'creatura_spine', 'elara', 'figura_velata', 'blob_tentacoli'];
 const LOD = {}; // (provato su macchia: le colature aperte non si semplificano; meglio niente contorno per le macchie, vedi miteMesh)
 const CLEAN_BASE = new Set(['creatura_spine']); // ha una pozza piatta sotto i piedi
 const M = {}; export const STATO = { caricati: [], falliti: [], ms: 0, tris: {} };
@@ -59,11 +61,11 @@ function bake(root, n) {
 }
 
 let loading = null;
-export function loadModels(base = 'assets/modelli/') {
+export function loadModels(base = 'assets/modelli/', names = USATI) {
   if (loading) return loading; const t0 = performance.now(); const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
   const one = (n) => new Promise((res) => { loader.load(base + n + '.glb?v=2.3.0', (gl) => { try { const r = bake(gl.scene, n); if (r) { M[n] = r; STATO.caricati.push(n); for (const f of (WAIT[n] || [])) f(); delete WAIT[n]; } else STATO.falliti.push(n); } catch (e) { STATO.falliti.push(n + ' ' + e.message); } res(); },
     undefined, (e) => { STATO.falliti.push(n + ' ' + (e && e.message || 'errore')); res(); }); });
-  loading = (async () => { try { await MeshoptDecoder.ready; await MeshoptSimplifier.ready; } catch (e) { STATO.falliti.push('decoder ' + e.message); return STATO; } for (const n of NOMI) await one(n); STATO.ms = Math.round(performance.now() - t0); return STATO; })();
+  loading = (async () => { try { await MeshoptDecoder.ready; await MeshoptSimplifier.ready; } catch (e) { STATO.falliti.push('decoder ' + e.message); return STATO; } await Promise.all(names.map(one)); STATO.ms = Math.round(performance.now() - t0); return STATO; })();
   return loading;
 }
 const WAIT = {}; // chi aspetta un modello: quando arriva, il personaggio si «riveste»

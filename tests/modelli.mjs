@@ -7,7 +7,7 @@ pg.on('pageerror', (e) => errs.push(e.message)); pg.on('console', (m) => m.type(
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
 async function until(fn, ms, tick) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (tick) await E(tick); if (await E(fn)) return true; await W(200); } return false; }
 await pg.goto(BASE + '?fast'); await W(800); await E(() => PAL.start()); await until(() => !PAL.S.lock, 20000, () => PAL.skipDialog());
-check('i 12 modelli arrivano e si puliscono', await until(() => PAL.M3D.caricati.length === 12 && PAL.M3D.falliti.length === 0, 60000));
+check('i modelli usati arrivano e si puliscono', await until(() => PAL.M3D.caricati.length === 9 && PAL.M3D.falliti.length === 0, 60000));
 check('protagonista, Caricatore, Custode, Ladro, giurato e Lumi in 3D', await until(() => ['player', 'charger', 'custode', 'ladro', 'juror', 'lumi'].every((k) => PAL.M3[k]), 20000));
 check('la vecchia penna gigante è nascosta', await E(() => !PAL.P.mesh.userData.quill.visible));
 // a terra: la base di una macchia sta sul pavimento anche se il suo gruppo è sollevato

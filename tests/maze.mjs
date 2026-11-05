@@ -21,7 +21,9 @@ await E(() => { const m = PAL.swarm.find((q) => q.room === 'maze' && q.alive); P
 await E(() => { document.getElementById('bSkills').click(); }); await W(500); await S('4-skills'); await E(() => document.getElementById('skClose').click());
 // pagine del labirinto
 await E(() => { PAL.S.discovered.add('state.fragile'); PAL.S.discovered.add('element.conductive'); PAL.S.discovered.add('light.dark'); const r = PAL.MZS.reliq; PAL.P.hp = 6; PAL.tp(r.x, r.z + 1.8); PAL.face(r.x, r.z); PAL.rewrite('mzreliq', 'state.fragile'); PAL.attack(true); });
-check('reliquiario: FRAGILE + colpo forte', await until(() => { PAL.P.hp = 6; return PAL.MZS.found.has('reliq'); }, 8000)); await E(() => PAL.skipDialog());
+{ let ok = false; const t0 = Date.now(); while (!ok && Date.now() - t0 < 60000) { ok = await E(() => PAL.MZS.found.has('reliq')); if (ok) break; /* se una macchia interrompe il colpo, si riprova */
+  await E(() => { const r = PAL.MZS.reliq; PAL.P.hp = 6; if (PAL.P.st === 'idle') { if (!PAL.grammar.has('mzreliq', 'state.fragile')) PAL.rewrite('mzreliq', 'state.fragile'); PAL.tp(r.x, r.z + 1.8); PAL.face(r.x, r.z); PAL.attack(true); } PAL.skipDialog(); }); await W(400); }
+  check('reliquiario: FRAGILE + colpo forte', ok); } await E(() => PAL.skipDialog());
 await E(() => { const c = PAL.MZS.crystal; PAL.tp(c.x, c.z + 2); PAL.face(c.x, c.z); PAL.rewrite('mzcrystal', 'state.fragile'); PAL.rewrite('mzcrystal', 'element.conductive'); });
 check('cristallo: FRAGILE+CONDUTTIVO (Pennino d\'acciaio)', await until(() => { PAL.P.hp = 6; return PAL.MZS.found.has('crystal'); }, 5000)); await E(() => PAL.skipDialog()); await S('7-crystal');
 await E(() => { const [a, b] = [PAL.MZ.lamps[2], PAL.MZ.lamps[6]]; PAL.tp(a.x, a.z + 1.5); PAL.face(a.x, a.z); PAL.rewrite(a.id, 'light.dark'); PAL.tp(b.x, b.z + 1.5); PAL.face(b.x, b.z); PAL.rewrite(b.id, 'light.dark'); PAL.tp(PAL.MZS.darkAt.x, PAL.MZS.darkAt.z + 1); });

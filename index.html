@@ -12,7 +12,7 @@
 <div id="hud" class="hidden">
   <div id="inkWrap"><div id="inkLabel">INCHIOSTRO</div><div id="inkBar"><div id="inkFill"></div><div id="inkMark"></div></div><div id="inkNum">100</div></div>
   <div id="hp"></div><div id="phpBar" class="hbar"><div class="trail"></div><div class="fill"></div><span id="phpNum"></span></div>
-  <div id="room"></div><div id="goal"></div><div id="tut" class="hidden"><span id="tutStep"></span><span id="tutText"></span></div>
+  <div id="room"></div><div id="goal"></div><div id="tut" class="hidden"><span id="tutStep"></span><span id="tutText"></span><button id="tutSkip" type="button">Salta il tutorial ▸▸</button></div>
   <div id="prepared" class="hidden"><span>pronta</span><b id="prepWord"></b></div>
   <div id="hint"></div>
   <div id="toast"></div>
@@ -55,6 +55,7 @@
   <label>Scossa della camera <input type="range" id="oShake" min="0" max="1.5" step="0.1"></label>
   <label>Velocità del testo <input type="range" id="oText" min="0.5" max="2" step="0.1"></label>
   <label><input type="checkbox" id="oAim"> Mira assistita (il colpo si gira verso il nemico vicino)</label>
+  <label><input type="checkbox" id="oTut"> Tutorial a ogni nuova partita</label>
   <label>Scena di scrittura <select id="oScrivi"><option value="auto">Lunga la prima volta, poi breve</option><option value="lunga">Sempre lunga</option><option value="off">Spenta</option></select></label>
   <label>Indizi <select id="oHints"><option value="gradi">A gradini (prima cosa fare, poi come)</option><option value="sempre">Sempre completi</option></select></label>
   <label>Qualità <select id="oQ"><option value="alta">Alta (nitida)</option><option value="media">Media (più fluida)</option></select></label>

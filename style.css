@@ -274,3 +274,7 @@ body.regia #hud,body.regia #words{opacity:0!important;pointer-events:none!import
 #compoBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(150px + env(safe-area-inset-top));width:min(460px,50vw);z-index:5;pointer-events:none;text-align:center}#compoBar .bname{color:#efe5cf;letter-spacing:.2em;font-size:14px;text-shadow:0 2px 4px #000;margin-bottom:4px}#compoBar .hbar{height:14px;border:2px solid #efe5cf;background:rgba(0,0,0,.5)}#compoBar .hbar i{display:block;height:100%;background:#8a1a10;width:100%}
 #bossBar,#compoBar{top:calc(128px + env(safe-area-inset-top))}
   #tut,#bossBar,#compoBar{top:calc(190px + env(safe-area-inset-top))}
+
+/* v2.5 · tutorial: pulsante per saltarlo */
+#tutSkip{display:block;margin:8px auto 0;pointer-events:auto;background:none;border:0;color:#6b4a2a;font:italic calc(14px*var(--fs)) Georgia,serif;text-decoration:underline;cursor:pointer;padding:6px 10px}
+#tut{pointer-events:auto}

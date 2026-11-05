@@ -18,7 +18,7 @@ import { Film, FILM_LEN, SHOTS } from './film.js?v=2.3.0';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
 const OPT_KEY = 'pal.options';
-const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto', diff: 'normale', shakeK: 1, textK: 1, aim: true, hints: 'gradi', scrivi: 'auto' }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
+const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto', diff: 'normale', shakeK: 1, textK: 1, aim: true, hints: 'gradi', scrivi: 'auto', tut: true }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
 if (opts.easy && opts.diff === 'normale') opts.diff = 'storia'; // compatibilità con la vecchia opzione «meno danni»
 const DIFF = { storia: { dmg: 0.5, ink: 1.5, armor: 0.8 }, normale: { dmg: 1, ink: 1, armor: 1 }, secco: { dmg: 1.5, ink: 0.7, armor: 1.3 } };
 const saveOpts = () => localStorage.setItem(OPT_KEY, JSON.stringify(opts));
@@ -580,6 +580,7 @@ function doHit(heavy) {
   if (heavy && trySecretsOnHeavy()) any = true;
   if (ch2Hit(heavy, range, arc)) any = true;
   if (ladroHit(heavy, fin, range, arc)) any = true;
+  if (dummyHit(heavy, fin, range, arc)) any = true;
   if (compoHit(heavy, fin, range, arc)) any = true;
   if (any) input.rumble(0.3, heavy ? 0.7 : fin ? 0.5 : 0.3, 80);
 }
@@ -917,6 +918,8 @@ function popInk(t) { const d = document.createElement('div'); d.textContent = t;
 // ---------- tutorial interattivo (touch / controller / tastiera) ----------
 const TUT = [
   { id: 'move', room: 'intro', pulse: '#stickBase', t: { touch: 'Trascina il pollice sinistro per muoverti', pad: 'Muoviti con lo stick sinistro', kb: 'Muoviti con W A S D' }, done: () => Math.hypot(P.x - tut.sx, P.z - tut.sz) > 1.5 },
+  { id: 'attack', room: 'intro', pulse: '#tAttack', t: { touch: 'Vai dal manichino e tocca ⟋ COLPO tre volte di fila: i colpi si legano in una catena', pad: 'Vai dal manichino e premi X tre volte di fila: una catena di tre colpi', kb: 'Vai dal manichino e premi J tre volte di fila (o clic sinistro): una catena di tre colpi' }, done: () => DUMMY.hits >= 3 },
+  { id: 'dodge', room: 'intro', pulse: '#tDodge', t: { touch: 'Il manichino ti lancia una goccia d’inchiostro: tocca ≋ SCHIVA quando ti è vicina', pad: 'Il manichino ti lancia una goccia d’inchiostro: premi B quando ti è vicina', kb: 'Il manichino ti lancia una goccia d’inchiostro: premi Spazio quando ti è vicina' }, done: () => DUMMY.dodged },
   { id: 'look', room: 'intro', pulse: '#tInteract', t: { touch: 'Avvicinati alla tavola lacerata e tocca ◉ GUARDA', pad: 'Avvicinati alla tavola lacerata e premi A', kb: 'Avvicinati alla tavola lacerata e premi E' }, done: () => S.discovered.has('state.fragile') },
   { id: 'open', room: 'intro', pulse: '#tRewrite', t: { touch: 'Tocca ✎ RISCRIVI: le parole appaiono sopra il bersaglio più vicino (la tavola)', pad: 'Premi RB per RISCRIVERE: le parole appaiono sopra il bersaglio più vicino', kb: 'Premi Q per RISCRIVERE: le parole appaiono sopra il bersaglio più vicino' }, done: () => panel.open || grammar.has('board', 'state.fragile') },
   { id: 'pick', room: 'intro', pulse: '.bubble', t: { touch: 'Tocca FRAGILE: la scrivi subito sulla tavola', pad: '◀ ▶ scegli la parola · A la scrive · ▲▼ cambia bersaglio', kb: '◀ ▶ scegli la parola · Invio la scrive · ▲▼ cambia bersaglio' }, done: () => grammar.has('board', 'state.fragile'), back: () => !panel.open ? 2 : -1 },
@@ -965,7 +968,7 @@ function healthUpdate(dt) {
 function shownGoal() { const g = goalText(); if (opts.hints === 'sempre' || S.roomT > 45) return g; return g.replace(/\s*\([^)]*\)/, ''); } // prima il cosa, dopo 45 s anche il come
 function goalText() {
   switch (S.room) {
-    case 'intro': return !S.discovered.has('state.fragile') ? 'Obiettivo: guarda la tavola lacerata' : !board.broken ? (grammar.has('board', 'state.fragile') ? 'Obiettivo: rompi la tavola con un colpo forte' : 'Obiettivo: scrivi FRAGILE sulla tavola (✎)') : 'Obiettivo: prosegui verso nord';
+    case 'intro': if (dummyActive() && ['move', 'attack', 'dodge'].includes(TUT[tut.i].id)) return 'Obiettivo: allenati col manichino'; return !S.discovered.has('state.fragile') ? 'Obiettivo: guarda la tavola lacerata' : !board.broken ? (grammar.has('board', 'state.fragile') ? 'Obiettivo: rompi la tavola con un colpo forte' : 'Obiettivo: scrivi FRAGILE sulla tavola (✎)') : 'Obiettivo: prosegui verso nord';
     case 'charger': return charger.alive ? (charger.armorBroken ? 'Obiettivo: colpisci il nucleo rosso' : 'Obiettivo: rompi la corazza del Caricatore (FRAGILE + pilastro)') : 'Obiettivo: prosegui verso nord';
     case 'conduct': if (!PROG.mazeDone && !gates.r2.open) { if (CP.alive && CP.st !== 'sleep') return CP.shocks ? 'Obiettivo: ancora ' + (3 - CP.shocks) + ' scosse (CONDUTTIVO sul Compositore, poi la pressa)' : 'Obiettivo: ferma il Compositore: corregge la piastra (CONDUTTIVO… su chi?)'; if (MZ.entryOpen >= 1) return 'Obiettivo: scendi dalla botola'; return 'Obiettivo: porta l\'impulso alla serratura della botola (CONDUTTIVO sulla piastra)'; }
       return gates.r2.open ? 'Obiettivo: prosegui verso nord' : 'Obiettivo: fai passare l\'impulso della pressa fino al cancello (CONDUTTIVO sulla piastra)';
@@ -1065,7 +1068,7 @@ function startGame() {
   if (pendingChapter === 2) { pendingChapter = 0; tut.on = false; startChapter2(); return; }
   if (!pendingSave) resetProg(); applySkills(); renderSkills();
   if (pendingSave) { restoreSave(pendingSave); tut.on = false; $('bossBar').querySelector('.bname').textContent = 'IL CUSTODE DELLA FENDITURA'; enterRoom(W.ROOMS[ROOM_ORDER.indexOf(pendingSave.room)] || W.ROOMS[0]); pendingSave = null; S.lock = false; return; }
-  enterRoom(W.ROOMS[0]); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
+  enterRoom(W.ROOMS[0]); tut.on = opts.tut !== false; DUMMY.hits = 0; DUMMY.dodged = false; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
   say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } });
 }
 function controlsCard() {
@@ -1100,6 +1103,7 @@ function togglePause() { if (S.phase !== 'play') return; paused = !paused; $('pa
 function applyDiff() { const k = (DIFF[opts.diff] || DIFF.normale); INK.gainHit = Math.round(12 * k.ink); INK.gainDodge = Math.round(18 * k.ink); INK.gainInteract = Math.round(25 * k.ink); for (const e of [charger, custode]) if (!e.armorBroken && !e.diffK) { e.diffK = k.armor; e.armorHP = Math.round(e.armorHP * k.armor); e.armorMax = Math.round(e.armorMax * k.armor); } }
 function applyOpts() { document.body.classList.toggle('contrast', !!opts.contrast); document.body.classList.toggle('big', !!opts.big); post.comp.uniforms.reduce.value = opts.reduce ? 1 : 0; INK_UNIFORMS.uContrast.value = opts.contrast ? 1 : 0; }
 function bindUI() {
+  $('tutSkip').onclick = (ev) => { ev.stopPropagation(); tut.on = false; mem.tutDone = true; ST.saveMem(mem); toastSmall('Tutorial saltato · si riattiva dalle opzioni'); };
   $('bStart').onclick = () => beginWithIntro(false); $('fSkip').onclick = endFilm; $('fVoice').onclick = () => { voiceOn = !voiceOn; localStorage.setItem('pal_voice', voiceOn ? '1' : '0'); $('fVoice').textContent = voiceOn ? '🔊 Voce' : '🔇 Voce'; if (!voiceOn && window.speechSynthesis) speechSynthesis.cancel(); else speak($('fSub').textContent); }; $('bReplayIntro').onclick = () => beginWithIntro(true); setupTitle(); if (!mem.runs) $('bReplayIntro').classList.add('hidden'); $('tMem').textContent = mem.runs ? `Versioni già riscritte: ${mem.runs}. Il libro se ne ricorda.` : '';
   input.bindTouch($('stickZone'), $('stickKnob'), $('stickBase'), { attack: $('tAttack'), heavy: $('tHeavy'), dodge: $('tDodge'), rewrite: $('tRewrite'), erase: $('tErase'), quick: $('tQuick'), interact: $('tInteract'), reset: $('tReset') });
   $('bJournal').onclick = () => { $('jList').innerHTML = S.journal.map((j) => `<p>${j.text}</p>`).join('') || '<p>Ancora niente.</p>'; $('journal').classList.toggle('hidden'); };
@@ -1108,7 +1112,7 @@ function bindUI() {
   $('pRestart').onclick = () => location.reload();
   $('pTele').onclick = () => { const blob = new Blob([JSON.stringify(Tele.all(), null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'palimpsest-telemetria.json'; a.click(); };
   const bind = (id, k, f) => { const el = $(id); if (el.type === 'checkbox') { el.checked = !!opts[k]; el.onchange = () => { opts[k] = el.checked; saveOpts(); if (f) f(); }; } else { el.value = opts[k]; el.oninput = el.onchange = () => { opts[k] = el.type === 'range' ? +el.value : el.value; saveOpts(); if (f) f(); }; } };
-  bind('oVol', 'vol', () => sfx.setVol(opts.vol)); bind('oMus', 'mus', () => sfx.setMusic(opts.mus)); bind('oPauseFull', 'pauseFull'); bind('oReduce', 'reduce', applyOpts); bind('oContrast', 'contrast', applyOpts); bind('oBig', 'big', applyOpts); bind('oPanel', 'panel'); bind('oDiff', 'diff', applyDiff); bind('oShake', 'shakeK'); bind('oText', 'textK'); bind('oAim', 'aim'); bind('oScrivi', 'scrivi'); bind('oHints', 'hints'); bind('oQ', 'q', () => location.reload());
+  bind('oVol', 'vol', () => sfx.setVol(opts.vol)); bind('oMus', 'mus', () => sfx.setMusic(opts.mus)); bind('oPauseFull', 'pauseFull'); bind('oReduce', 'reduce', applyOpts); bind('oContrast', 'contrast', applyOpts); bind('oBig', 'big', applyOpts); bind('oPanel', 'panel'); bind('oDiff', 'diff', applyDiff); bind('oShake', 'shakeK'); bind('oText', 'textK'); bind('oAim', 'aim'); bind('oScrivi', 'scrivi'); bind('oTut', 'tut'); bind('oHints', 'hints'); bind('oQ', 'q', () => location.reload());
   applyOpts(); applyDiff();
 }
 
@@ -1530,7 +1534,7 @@ function opUpdate(dt) {
     OP.gapWords.material.opacity = Math.max(0, 1 - OP.t); if (OP.t > 1.9 && OP.chasm) { world.walls = world.walls.filter((w) => w !== OP.chasm); OP.chasm = null; opSub('E il viaggiatore, che non sapeva ancora di scrivere, attraversò.'); }
     if (P.z < R.cz - 8) { OP.stage = 'title'; OP.t = 0; S.lock = true; $('opSub').style.opacity = 0; $('opTitle').classList.remove('hidden'); sfx.play('seal'); } }
   if (OP.stage === 'title' && OP.t > 3.4) { OP.stage = null; $('opTitle').classList.add('hidden'); P.inv = 0; S.lastWord = null; S.prepared = null; renderPrepared();
-    zoneTransition('build', 'Capitolo I · La tavola', () => { const r = W.ROOMS[0]; P.x = 0; P.z = r.cz + r.d / 2 - 1.6; P.face = Math.PI; S.snapCam = true; enterRoom(r); tut.on = !mem.tutDone; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
+    zoneTransition('build', 'Capitolo I · La tavola', () => { const r = W.ROOMS[0]; P.x = 0; P.z = r.cz + r.d / 2 - 1.6; P.face = Math.PI; S.snapCam = true; enterRoom(r); tut.on = opts.tut !== false; DUMMY.hits = 0; DUMMY.dodged = false; tut.i = 0; tut.t = 0; tut.sx = P.x; tut.sz = P.z;
       setTimeout(() => { S.lock = true; say(ST.introLines(mem), { done: () => { S.lock = false; inkDrop(); } }); }, 1600); }); }
 }
 // ---- parola ostile: LENTO sull'ombra ----
@@ -1634,7 +1638,7 @@ const INTRO_SWAY = []; const MZ_SHEETS = []; const DOOR_JURY = {};
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
-  m3dUpdate(dt); compoUpdate(dt); opUpdate(dt); curseUpdate(dt); custodePhases(dt); questUpdate(dt); ladroUpdate(dt); picksUpdate(dt); placeLetterPieces(); if (CR.solved && !PICKS.lettera2 && !(PROG.quests.picked || {}).lettera2 && S.room === 'crypt') dropPickup('lettera2', -36.5, -33.2, 'letter'); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
+  m3dUpdate(dt); compoUpdate(dt); dummyUpdate(dt); opUpdate(dt); curseUpdate(dt); custodePhases(dt); questUpdate(dt); ladroUpdate(dt); picksUpdate(dt); placeLetterPieces(); if (CR.solved && !PICKS.lettera2 && !(PROG.quests.picked || {}).lettera2 && S.room === 'crypt') dropPickup('lettera2', -36.5, -33.2, 'letter'); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
   if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
   if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
   if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
@@ -2020,6 +2024,31 @@ function questUpdate(dt) {
   if (PROG.items.seppia && !panel.open && ink.v < 50 && S.phase === 'play') ink.v = Math.min(50, ink.v + dt * 2);
   if (tipo.visible) tipo.userData.card.rotation.y = Math.atan2(P.x - tipo.position.x, P.z - tipo.position.z) * 0.3;
 }
+// ================= v2.5 · Tutorial: il manichino d'inchiostro (prima stanza) =================
+// Ci si provano la catena di tre colpi e la schivata: la goccia che lancia non fa danno, insegna solo il tempo.
+const DUMMY = (() => { const g = new THREE.Group(); g.position.set(2.8, 0, 3.8); scene.add(g); const b = new THREE.Group(); g.add(b);
+  const post = inked(new THREE.CylinderGeometry(0.06, 0.08, 1.5, 8), { color: 0x4a3424, ow: 0.015 }); post.position.y = 0.75; g.add(post);
+  const foot = inked(new THREE.CylinderGeometry(0.42, 0.5, 0.1, 14), { color: 0x3a2a20, ow: 0.015 }); foot.position.y = 0.05; g.add(foot);
+  const sack = inked(new THREE.SphereGeometry(0.42, 16, 12), { color: 0xefe5cf, ow: 0.02 }); sack.scale.set(1, 1.25, 0.85); sack.position.y = 1.35; b.add(sack);
+  for (const r of [0.7, -0.7]) { const x = inked(new THREE.BoxGeometry(0.06, 0.5, 0.04), { color: 0x8a1a10, outline: false }); x.position.set(0, 1.4, 0.37); x.rotation.z = r; b.add(x); } // la X rossa da colpire
+  const rope = inked(new THREE.TorusGeometry(0.36, 0.03, 5, 16), { color: 0x6b4a2a, outline: false }); rope.rotation.x = Math.PI / 2; rope.position.y = 1.05; b.add(rope);
+  g.visible = false; g.traverse((o) => o.layers.set(1)); return { g, b, x: 2.8, z: 3.8, r: 0.5, hits: 0, dodged: false, wob: 0, fireT: 1.5, blob: null }; })();
+circles.push({ x: 2.8, z: 3.8, r: 0.45 });
+function dummyActive() { return tut.on && S.room === 'intro' && tut.i < TUT.length; }
+function dummyHit(heavy, fin, range, arc) { const d = DUMMY; if (!dummyActive() || !inArc(d, range + 0.6, arc + 0.2)) return false;
+  d.hits++; d.wob = 1; sfx.play('hit'); S.flash = Math.max(S.flash, 0.06); particles.burst(d.x, 1.35, d.z, 12, 3, [0.05, 0.03, 0.03], 0.12); traces.add(d.x + rnd(-0.4, 0.4), d.z + rnd(-0.4, 0.4), 0.7, 0, now);
+  dmgAt(d.x, 2.3, d.z, ['UNO', 'DUE', 'TRE!'][Math.min(2, (P.combo ?? d.hits - 1) % 3)] || '✦', d.hits % 3 === 0 ? 'big' : 'hit'); return true; }
+function dummyUpdate(dt) { const d = DUMMY, on = dummyActive(); d.g.visible = on || (tut.on && S.room === 'intro'); if (!on) { if (d.blob) { scene.remove(d.blob.m); d.blob = null; } return; }
+  d.wob = Math.max(0, d.wob - dt * 2.5); d.b.rotation.z = Math.sin(now * 15) * 0.35 * d.wob; d.b.rotation.x = -0.25 * d.wob;
+  if (TUT[tut.i].id !== 'dodge' || S.lock) return;
+  if (!d.blob) { d.fireT -= dt; if (d.fireT <= 0) { const dx = P.x - d.x, dz = P.z - d.z, l = Math.hypot(dx, dz) || 1; d.fireT = 2.6;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), new THREE.MeshBasicMaterial({ color: 0x0b0806 })); m.position.set(d.x, 1.2, d.z); m.layers.set(1); scene.add(m);
+      d.blob = { m, x: d.x, z: d.z, ux: dx / l, uz: dz / l, life: 4 }; laneWarn(d.x, d.z, dx / l, dz / l, Math.min(9, l + 1.5), 0.8, 0.7); sfx.play('warn'); d.wob = 0.6; } return; }
+  const q = d.blob; q.life -= dt; q.x += q.ux * 3.2 * dt; q.z += q.uz * 3.2 * dt; q.m.position.set(q.x, 1.0 + Math.sin(q.life * 9) * 0.05, q.z); if (frame % 3 === 0) particles.emit(q.x, 1, q.z, 0, -0.5, 0, 0.5, 0.08, 0.05, 0.04, 0.03, 3);
+  const dp = Math.hypot(P.x - q.x, P.z - q.z);
+  if (P.st === 'dodge' && dp < 1.8) { d.dodged = true; dmgAt(P.x, 2.4, P.z, 'SCHIVATA!', 'big'); sfx.play('dodge'); sfx.play('gain'); scene.remove(q.m); d.blob = null; return; }
+  if (dp < 0.5) { particles.burst(P.x, 1, P.z, 14, 3, [0.05, 0.03, 0.03], 0.12); sfx.play('splat'); S.shake = Math.max(S.shake, 0.25); toastSmall('Ti ha preso: schiva appena prima che ti tocchi'); scene.remove(q.m); d.blob = null; return; }
+  if (q.life <= 0) { scene.remove(q.m); d.blob = null; } }
 // ================= v2.4 · Stanza CONDUTTIVO: il Compositore, la botola, la caduta =================
 // Enigma in 3 passi: (1) CONDUTTIVO sulla piastra → il Compositore la ricorregge in ISOLANTE; (2) il pennino non lo graffia (è metallo):
 // CONDUTTIVO su di lui e, quando sale sulla piastra o sul filo, il colpo della pressa lo manda in corto (3 volte); (3) di nuovo CONDUTTIVO
@@ -2108,7 +2137,7 @@ function m3dUpdate(dt) {
   if (M3.lumi && lumi.on) lumi.mesh.rotation.y = lerpAng(lumi.mesh.rotation.y, Math.atan2(P.x - lumi.x, P.z - lumi.z), Math.min(1, dt * 4));
   if (M3.charger) M3.charger.rotation.x = lerp(M3.charger.rotation.x, charger.st === 'charge' ? 0.12 : 0, Math.min(1, dt * 6));
 }
-window.PAL = { CP, TD, fallInto, compoPulse, compoDown, SCR, REGIA, regia, confirmWord, panel, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { dodge: () => { if (P.st === 'dodge') return; P.dx = Math.sin(P.face); P.dz = Math.cos(P.face); P.st = 'dodge'; P.t = 0.22; P.inv = 0.32; P.cd = 0.5; P.dashT = 0.5; P.combo = 0; sfx.play('dodge'); }, DUMMY, tut, CP, TD, fallInto, compoPulse, compoDown, SCR, REGIA, regia, confirmWord, panel, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

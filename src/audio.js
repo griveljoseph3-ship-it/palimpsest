@@ -48,6 +48,7 @@ export class Sfx {
       case 'pulse': this.tone(t, 'square', 70, 50, 0.35, 0.2); this.noise(t, 0.3, 4000, 3, 0.2); break;
       case 'warn': this.tone(t, 'sine', 600, 600, 0.12, 0.06, false); break;
       case 'page': this.noise(t, 0.6, 3000, 0.4, 0.2); break;
+      case 'scratch': { const n = this.noise(t, 0.09 + 0.05 * x, 4200 + 1400 * x, 2.5, 0.22, 'bandpass'); n.frequency.setValueAtTime(4200 + 1400 * x, t); n.frequency.linearRampToValueAtTime(3000 + 900 * x, t + 0.12); break; } // pennino che graffia la carta (x varia il tratto)
       case 'gain': this.tone(t, 'sine', 660, 990, 0.12, 0.05, false); break;
       case 'seal': [262, 330, 392, 523].forEach((f, i) => this.tone(t + i * 0.12, 'triangle', f, f, 1.6, 0.1)); break;
       case 'death': this.tone(t, 'sine', 300, 60, 1.4, 0.25); this.noise(t, 1.2, 600, 0.5, 0.25, 'lowpass'); break;

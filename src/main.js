@@ -18,7 +18,7 @@ import { Film, FILM_LEN, SHOTS } from './film.js?v=2.3.0';
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
 const OPT_KEY = 'pal.options';
-const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto', diff: 'normale', shakeK: 1, textK: 1, aim: true, hints: 'gradi' }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
+const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto', diff: 'normale', shakeK: 1, textK: 1, aim: true, hints: 'gradi', scrivi: 'auto' }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
 if (opts.easy && opts.diff === 'normale') opts.diff = 'storia'; // compatibilità con la vecchia opzione «meno danni»
 const DIFF = { storia: { dmg: 0.5, ink: 1.5, armor: 0.8 }, normale: { dmg: 1, ink: 1, armor: 1 }, secco: { dmg: 1.5, ink: 0.7, armor: 1.3 } };
 const saveOpts = () => localStorage.setItem(OPT_KEY, JSON.stringify(opts));
@@ -705,8 +705,15 @@ function panelUpdate(dtReal) {
 function confirmWord() {
   const w = panel.words[panel.sel], e = panel.target; if (!w || !ink.canSelect()) return;
   if (w === 'reset') { doReset(e); closePanel(); return; }
+  if (wantScrittura() && canWrite(e, w)) { const b = panel.els[panel.sel]; if (b) b.classList.add('ripple'); closePanel(); scrittura(e, w, () => applyWord(e, w, 'panel')); return; } // v2.4: prima la scena, poi l'effetto
   if (applyWord(e, w, 'panel')) { const b = panel.els[panel.sel]; if (b) b.classList.add('ripple'); if (FAST) closePanel(); else setTimeout(closePanel, 130); }
 }
+// gli stessi controlli di applyWord, senza effetti: la scena parte solo se la parola attecchirà davvero
+function canWrite(e, w) {
+  if (!PROG.skills.nib2 && grammar.active(e.id).some((a) => EFFECTS[a].slot !== EFFECTS[w].slot)) return false;
+  if (e.boss && C3.shieldT > 0 && w === C3.shieldWord) return false;
+  if (e.id === 'mzbridge' && MZ.boss && MZ.boss.alive) return false;
+  return grammar.canApply(e.id, w).ok; }
 function applyWord(e, w, via) {
   if (!PROG.skills.nib2 && grammar.active(e.id).some((a) => EFFECTS[a].slot !== EFFECTS[w].slot)) { sfx.play('deny'); toastSmall('Due parole insieme: serve il Pennino d\'acciaio (✦)'); return false; }
   if (e.boss && C3.shieldT > 0 && w === C3.shieldWord) { sfx.play('deny'); toastSmall('«Conosco quel tratto.» Il Custode ha già letto ' + EFFECTS[w].word + ': usa un\'altra parola o il gommino'); dmgAt(e.x, 3.4, e.z, 'IMMUNE', 'block'); return false; }
@@ -1098,7 +1105,7 @@ function bindUI() {
   $('pRestart').onclick = () => location.reload();
   $('pTele').onclick = () => { const blob = new Blob([JSON.stringify(Tele.all(), null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'palimpsest-telemetria.json'; a.click(); };
   const bind = (id, k, f) => { const el = $(id); if (el.type === 'checkbox') { el.checked = !!opts[k]; el.onchange = () => { opts[k] = el.checked; saveOpts(); if (f) f(); }; } else { el.value = opts[k]; el.oninput = el.onchange = () => { opts[k] = el.type === 'range' ? +el.value : el.value; saveOpts(); if (f) f(); }; } };
-  bind('oVol', 'vol', () => sfx.setVol(opts.vol)); bind('oMus', 'mus', () => sfx.setMusic(opts.mus)); bind('oPauseFull', 'pauseFull'); bind('oReduce', 'reduce', applyOpts); bind('oContrast', 'contrast', applyOpts); bind('oBig', 'big', applyOpts); bind('oPanel', 'panel'); bind('oDiff', 'diff', applyDiff); bind('oShake', 'shakeK'); bind('oText', 'textK'); bind('oAim', 'aim'); bind('oHints', 'hints'); bind('oQ', 'q', () => location.reload());
+  bind('oVol', 'vol', () => sfx.setVol(opts.vol)); bind('oMus', 'mus', () => sfx.setMusic(opts.mus)); bind('oPauseFull', 'pauseFull'); bind('oReduce', 'reduce', applyOpts); bind('oContrast', 'contrast', applyOpts); bind('oBig', 'big', applyOpts); bind('oPanel', 'panel'); bind('oDiff', 'diff', applyDiff); bind('oShake', 'shakeK'); bind('oText', 'textK'); bind('oAim', 'aim'); bind('oScrivi', 'scrivi'); bind('oHints', 'hints'); bind('oQ', 'q', () => location.reload());
   applyOpts(); applyDiff();
 }
 
@@ -1126,6 +1133,66 @@ function twoShot(bx, bz, dist = 6.5, h = 1.6, side = 1, drift = 0.04) { return (
   return { pos: _rv.set(mx + cx * dist, h, mz + cz * dist), look: _rl.set(mx, 1.3, mz), fov: 30 }; }; }
 // giro lento attorno a un punto, dal basso (rivelazioni)
 function orbitLow(x, z, r = 5, h = 1.1, a0 = 0.6, spd = 0.12, lookY = 1.4) { return (t) => ({ pos: _rv.set(x + Math.sin(a0 + t * spd) * r, h, z + Math.cos(a0 + t * spd) * r), look: _rl.set(x, lookY, z), fov: 28 }); }
+// ================= v2.4 · La scrittura: il viaggiatore scrive la parola (momento alla «Death Note») =================
+// Il mondo si ferma; gli occhi dorati nel cappuccio; la pagina; il nome del bersaglio a matita; la parola scritta lettera per lettera
+// dal pennino, con l'inchiostro che cola; la parola si accende del suo colore; lampo; stacco dal basso sull'effetto nel mondo.
+// Versione lunga la prima volta per parola (e sui boss e i ponti), breve (<1 s) dopo. Un tocco la salta. Disegnata su un canvas 2D: leggera.
+const SCR = { on: false, seen: new Set(), cv: null, force: false, n: 0 };
+const SCR_COL = { 'state.fragile': '#9a1c12', 'element.conductive': '#1d6a92', 'temperament.cautious': '#4a3672', 'weight.heavy': '#3a2414', 'weight.light': '#7a8a9a', 'shape.bridge': '#9a1c12', 'light.dark': '#0c0806' };
+function wantScrittura() { return (!FAST || SCR.force) && opts.scrivi !== 'off' && !opts.reduce; }
+function scrittura(e, w, done) {
+  const long = opts.scrivi === 'lunga' || !SCR.seen.has(w) || !!e.boss || e.id === 'opbridge' || e.id === 'mzbridge'; SCR.seen.add(w); SCR.n++;
+  let cv = SCR.cv; if (!cv) { cv = SCR.cv = document.createElement('canvas'); cv.id = 'scrivi'; document.body.appendChild(cv); }
+  const dpr = Math.min(devicePixelRatio || 1, 1.5), Wd = innerWidth, Hd = innerHeight; cv.width = Wd * dpr; cv.height = Hd * dpr; cv.style.display = 'block'; cv.classList.remove('out');
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const wasPaused = paused, wasLock = S.lock; paused = true; SCR.on = true; SCR.long = long; S.lock = true;
+  const T = long ? 3.0 : 0.85, word = EFFECTS[w].word, name = (grammar.get(e.id).def.name || '').toUpperCase(), col = SCR_COL[w] || '#9a1c12';
+  const eyes = RITR_IMG.find((im) => im.src.includes('/you.jpg'));
+  const fs = Math.min(Hd * (long ? 0.15 : 0.13), Wd * 0.78 / (word.length * 0.66)); g.font = `italic bold ${fs}px Georgia, serif`; const ww = g.measureText(word).width;
+  const drops = []; let lastL = -1, t = 0, t0 = performance.now(), skip = false; window.__scrT = 0;
+  const onSkip = (ev) => { if (t > 0.3) { skip = true; ev.stopPropagation(); ev.preventDefault(); } }; cv.addEventListener('pointerdown', onSkip); addEventListener('keydown', onSkip, true);
+  sfx.play('breath'); if (long) sfx.sting('phase');
+  const wStart = long ? 0.85 : 0.06, wDur = long ? 1.25 : 0.45, glowAt = wStart + wDur;
+  function draw() {
+    g.clearRect(0, 0, Wd, Hd); const fade = Math.min(1, t / 0.25);
+    g.fillStyle = `rgba(6,4,3,${(long ? 0.84 : 0.5) * fade})`; g.fillRect(0, 0, Wd, Hd);
+    // gli occhi nel cappuccio (solo la versione lunga)
+    if (long && eyes && eyes.complete) { const a = clamp((t - 0.1) / 0.3, 0, 1) * (1 - clamp((t - 2.6) / 0.3, 0, 1)) * (t > wStart ? 0.55 : 1); if (a > 0) { g.save(); g.globalAlpha = a; const sh = Hd * 0.19, sw = Wd * 0.92, zx = 1 + t * 0.03;
+      g.drawImage(eyes, 0, 128, 256, 40, (Wd - sw * zx) / 2, Hd * 0.05, sw * zx, sh); /* la fascia degli occhi dorati nel cappuccio (ritratto «you») */ const gr = g.createLinearGradient(0, Hd * 0.05, 0, Hd * 0.05 + sh); gr.addColorStop(0, 'rgba(6,4,3,1)'); gr.addColorStop(0.3, 'rgba(6,4,3,0)'); gr.addColorStop(0.7, 'rgba(6,4,3,0)'); gr.addColorStop(1, 'rgba(6,4,3,1)'); g.fillStyle = gr; g.fillRect(0, Hd * 0.05, Wd, sh);
+      const gl = clamp((t - 0.35) / 0.25, 0, 1) * (1 - clamp((t - 0.8) / 0.4, 0, 1)); if (gl > 0) { g.globalCompositeOperation = 'lighter'; const yy = Hd * 0.05 + sh * 0.5, x0 = (Wd - sw * zx) / 2; for (const ex of [70 / 256, 133 / 256]) { const cx = x0 + sw * zx * ex, rg = g.createRadialGradient(cx, yy, 0, cx, yy, sh * 0.9); rg.addColorStop(0, `rgba(255,210,110,${0.9 * gl})`); rg.addColorStop(1, 'rgba(255,170,60,0)'); g.fillStyle = rg; g.fillRect(cx - sh, yy - sh, sh * 2, sh * 2); g.fillStyle = `rgba(255,200,100,${0.5 * gl})`; g.fillRect(cx - sw * 0.12, yy - 1.5, sw * 0.24, 3); } } /* il lampo negli occhi */
+      g.restore(); } }
+    // la pagina
+    const py = long ? Hd * 0.34 : Hd * 0.38, ph = long ? Hd * 0.54 : Hd * 0.26, px = Wd * 0.1, pw = Wd * 0.8; const slide = (1 - clamp(t / 0.3, 0, 1)) ** 3 * Hd * 0.5;
+    const writing = t > wStart && t < glowAt; const jit = writing ? 1.5 : 0;
+    g.save(); g.translate(Wd / 2 + rnd(-jit, jit), py + ph / 2 + slide + rnd(-jit, jit)); g.rotate(-0.025); g.translate(-Wd / 2, -(py + ph / 2));
+    g.fillStyle = '#efe5cf'; g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 30; g.fillRect(px, py, pw, ph); g.shadowBlur = 0;
+    g.strokeStyle = 'rgba(120,100,70,.35)'; g.lineWidth = 1; for (let y = py + 34; y < py + ph - 10; y += 30) { g.beginPath(); g.moveTo(px + 14, y); g.lineTo(px + pw - 14, y); g.stroke(); }
+    g.strokeStyle = 'rgba(154,28,18,.45)'; g.beginPath(); g.moveTo(px + 60, py); g.lineTo(px + 60, py + ph); g.stroke();
+    if (long) { const k = clamp((t - 0.35) / 0.4, 0, 1); g.save(); g.beginPath(); g.rect(px + 70, py, (pw - 80) * k, 60); g.clip(); g.fillStyle = 'rgba(60,44,30,.75)'; g.font = `italic ${Math.max(16, Hd * 0.03)}px Georgia, serif`; g.fillText(name + ' :', px + 74, py + 44); g.restore(); }
+    // la parola, lettera per lettera
+    const bx = Wd / 2 - ww / 2, by = py + ph * (long ? 0.62 : 0.68); const p = clamp((t - wStart) / wDur, 0, 1); const xe = bx + ww * p;
+    const L = Math.floor(p * word.length); if (L !== lastL && p < 1) { lastL = L; sfx.play('scratch', Math.random()); if (Math.random() < 0.7) drops.push({ x: xe, y: by + fs * 0.12, r: 2 + Math.random() * 5, t0: t }); }
+    const gk = clamp((t - glowAt) / 0.35, 0, 1);
+    g.font = `italic bold ${fs}px Georgia, serif`; g.textBaseline = 'alphabetic';
+    if (gk > 0) { g.save(); g.globalAlpha = gk; g.strokeStyle = col; g.lineWidth = 2; const cx = Wd / 2, cy = by - fs * 0.35; for (let i = 0; i < 18; i++) { const a = i / 18 * 6.283 + i, r0 = ww * 0.35, r1 = r0 + (ww * 0.25 + i % 5 * 12) * gk; g.beginPath(); g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0 * 0.35); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1 * 0.35); g.stroke(); } g.restore(); }
+    g.save(); g.beginPath(); g.rect(bx - 10, by - fs * 1.2, ww * p + 12, fs * 1.6); g.clip();
+    g.fillStyle = gk > 0 ? col : '#16100c'; if (gk > 0) { g.shadowColor = col; g.shadowBlur = 24 * gk; } g.fillText(word, bx, by); g.restore();
+    for (const d of drops) { const k = clamp((t - d.t0) / 0.6, 0, 1); g.fillStyle = '#16100c'; g.beginPath(); g.ellipse(d.x, d.y + k * d.r * 3, d.r * 0.7, d.r * (1 + k), 0, 0, 6.283); g.fill(); }
+    // il pennino
+    if (t > wStart - 0.15 && t < glowAt + 0.15) { const wob = writing ? Math.sin(t * 46) * fs * 0.12 : 0; const nx = writing ? xe : (t < wStart ? bx : bx + ww), ny = by - fs * 0.25 + wob;
+      g.save(); g.translate(nx, ny); g.rotate(-0.75); g.fillStyle = '#120c0a'; g.fillRect(14, -9, Math.max(180, fs * 2.2), 18); g.fillStyle = '#d8a63a'; g.fillRect(14 + fs * 0.6, -10, 8, 20);
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(16, -8); g.lineTo(16, 8); g.closePath(); g.fillStyle = '#e8be55'; g.fill(); g.strokeStyle = '#120c0a'; g.lineWidth = 1; g.beginPath(); g.moveTo(1, 0); g.lineTo(13, 0); g.stroke(); g.restore(); }
+    g.restore();
+    // lampo finale
+    const fl = clamp((t - (T - 0.22)) / 0.12, 0, 1); if (fl > 0) { g.fillStyle = `rgba(250,244,230,${fl * 0.9})`; g.fillRect(0, 0, Wd, Hd); }
+  }
+  function frameS() { const now2 = performance.now(); t = (now2 - t0) / 1000 * (SCR.speed || 1); /* SCR.speed: solo per le foto di prova */ if (skip && t < T - 0.24) { t0 -= (T - 0.24 - t) * 1000 / (SCR.speed || 1); t = T - 0.24; skip = false; } window.__scrT = t; draw(); if (t < T) requestAnimationFrame(frameS); else end(); }
+  function end() { cv.removeEventListener('pointerdown', onSkip); removeEventListener('keydown', onSkip, true); cv.classList.add('out'); setTimeout(() => { if (!SCR.on) cv.style.display = 'none'; }, 400);
+    SCR.on = false; paused = wasPaused; S.lock = wasLock; S.flash = 0.4; S.shake = Math.max(S.shake, long ? 0.5 : 0.25); sfx.play('splat');
+    const h = (e.mesh && e.mesh.userData.height) || 1.4, dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz) || 1;
+    regia({ id: 'stacco', dur: long ? 1.15 : 0.6, blendIn: 0.08, blendOut: 0.5, cam: () => ({ pos: _rv.set(e.x + dx / d * Math.min(d, 3.2) + dz / d * 1.2, Math.max(0.7, h * 0.35), e.z + dz / d * Math.min(d, 3.2) - dx / d * 1.2), look: _rl.set(e.x, h * 0.6, e.z), fov: 36 }) });
+    done(); }
+  requestAnimationFrame(frameS); }
 // ---------- loop ----------
 let last = performance.now(), acc = 0, frame = 0; const STEP = 1 / 60; let fpsAcc = 0, fpsN = 0, lowStreak = 0, slowT = 0;
 const camPos = new THREE.Vector3(0, 14, 14), camLook = new THREE.Vector3(0, 0.8, 2), tmpV = new THREE.Vector3();
@@ -1948,7 +2015,7 @@ function m3dUpdate(dt) {
   if (M3.lumi && lumi.on) lumi.mesh.rotation.y = lerpAng(lumi.mesh.rotation.y, Math.atan2(P.x - lumi.x, P.z - lumi.z), Math.min(1, dt * 4));
   if (M3.charger) M3.charger.rotation.x = lerp(M3.charger.rotation.x, charger.st === 'charge' ? 0.12 : 0, Math.min(1, dt * 6));
 }
-window.PAL = { REGIA, regia, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { SCR, REGIA, regia, confirmWord, panel, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

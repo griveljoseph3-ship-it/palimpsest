@@ -263,3 +263,6 @@ body.reduce-motion #bossCard.on{animation-duration:2.6s}
 #regiaBars{position:fixed;inset:0;pointer-events:none;z-index:13}#regiaBars i{position:absolute;left:0;right:0;height:0;background:#050302;transition:height .6s cubic-bezier(.3,.8,.3,1)}#regiaBars i:first-child{top:0}#regiaBars i:last-child{bottom:0}
 body.regia #regiaBars i{height:10.5vh}
 body.regia #hud,body.regia #words{opacity:0!important;pointer-events:none!important;transition:opacity .4s}body.regia #touch{opacity:.35;transition:opacity .4s} /* i comandi restano usabili: durante la ripresa si cammina */
+
+/* v2.4 · la scrittura */
+#scrivi{position:fixed;inset:0;width:100vw;height:100vh;z-index:15;display:none;opacity:1;transition:opacity .35s}#scrivi.out{opacity:0;pointer-events:none}

@@ -269,3 +269,8 @@ body.regia #hud,body.regia #words{opacity:0!important;pointer-events:none!import
 
 /* v2.4 · presentazione dei boss: la frase di storia tra le bande nere */
 #bossLore{position:fixed;left:8vw;right:8vw;bottom:3.2vh;z-index:14;text-align:center;color:#f3ead6;font:italic clamp(17px,2.4vw,26px) Georgia,serif;text-shadow:0 2px 8px #000;opacity:0;pointer-events:none}
+
+/* v2.4 · barra del Compositore: come quella del Copista */
+#compoBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(150px + env(safe-area-inset-top));width:min(460px,50vw);z-index:5;pointer-events:none;text-align:center}#compoBar .bname{color:#efe5cf;letter-spacing:.2em;font-size:14px;text-shadow:0 2px 4px #000;margin-bottom:4px}#compoBar .hbar{height:14px;border:2px solid #efe5cf;background:rgba(0,0,0,.5)}#compoBar .hbar i{display:block;height:100%;background:#8a1a10;width:100%}
+#bossBar,#compoBar{top:calc(128px + env(safe-area-inset-top))}
+  #tut,#bossBar,#compoBar{top:calc(190px + env(safe-area-inset-top))}

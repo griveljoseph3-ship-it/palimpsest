@@ -580,6 +580,7 @@ function doHit(heavy) {
   if (heavy && trySecretsOnHeavy()) any = true;
   if (ch2Hit(heavy, range, arc)) any = true;
   if (ladroHit(heavy, fin, range, arc)) any = true;
+  if (compoHit(heavy, fin, range, arc)) any = true;
   if (any) input.rumble(0.3, heavy ? 0.7 : fin ? 0.5 : 0.3, 80);
 }
 function coreHit(e) {
@@ -762,7 +763,7 @@ function devicesUpdate(dt) {
   // III: impulso ogni 4 s di simulazione, anticipazione di 1 s
   devR2.t += dt; pressAnim(press1, devR2.t % devR2.period);
   if (devR2.t >= devR2.period) { devR2.t -= devR2.period; if (S.room === 'conduct') sfx.play('pulse'); pulseWire(wireA);
-    if (grammar.has('plate', 'element.conductive')) { pulseWire(wireB); pulseWire(wireC, 0xffb070); particles.burst(7.8, 0.9, -61.6, 10, 2, [1, 0.6, 0.2], 0.15);
+    compoPulse(); if (grammar.has('plate', 'element.conductive')) { pulseWire(wireB); pulseWire(wireC, 0xffb070); pulseWire(wireT, 0xffb070); particles.burst(7.8, 0.9, -61.6, 10, 2, [1, 0.6, 0.2], 0.15);
       if (!gates.r2.open && !PROG.mazeDone) mazeHintPulse(); if (!gates.r2.open && PROG.mazeDone) { openGate('r2'); Tele.log('device', { what: 'r2_gate' }); journal('Hai dato una strada all\'impulso: CONDUTTIVO non crea energia, la trasporta.'); toast('IL CANCELLO SI APRE'); hint(''); } } }
   // IV: il relè del giudizio pulsa ogni 3 s
   door.relayT += dt; if (door.relayT > 3) { door.relayT = 0; if (!relay.broken) { pulseWire(wireD, 0xff5530); setU(relayBoxMats, 'uGlow', new THREE.Color(0.6, 0.1, 0.05)); setTimeout(() => setU(relayBoxMats, 'uGlow', BLACK), 250);
@@ -776,7 +777,7 @@ function devicesUpdate(dt) {
       if (cond) { pulseWire(wireF, 0xffb070); arena.hazardT = 0.6; foldPulse(); }
       if (grammar.has('custode', 'element.conductive') && Math.abs(custode.z + 133.2) < 3.2 && custode.st !== 'dead') custodeShock(); } }
   if (arena.hazardT > 0) { arena.hazardT -= dt; hazard.material.uniforms.uGlow.value.setRGB(0.8, 0.25, 0.05); if (P.x < -12 && P.z > -121.6 && P.z < -116.8) damagePlayer(1, null, 'hz' + Math.floor(now)); } else hazard.material.uniforms.uGlow.value.setRGB(0, 0, 0);
-  for (const w of [wireA, wireB, wireC, wireD, wireE, wireF]) if (w.userData.flash > 0) { w.userData.flash -= dt; if (w.userData.flash <= 0) for (const m of w.userData.segs) m.material.color.set(0x3a2a20); }
+  for (const w of [wireA, wireB, wireC, wireD, wireE, wireF, wireT]) if (w.userData.flash > 0) { w.userData.flash -= dt; if (w.userData.flash <= 0) for (const m of w.userData.segs) m.material.color.set(0x3a2a20); }
 }
 function foldPulse() { // la piega laterale del ponte sposta il Custode; il ramo secondario alimenta il pericolo
   sfx.play('electric'); for (let x = -12; x <= 12; x += 1.2) particles.emit(x, 0.3, -133.2, 0, rnd(1, 3), rnd(-1, 1), 0.5, 0.2, 0.25, 0.75, 1, 3);
@@ -808,7 +809,8 @@ function enterRoom(r) {
   if (r.id === 'charger' && !S.discovered.has('temperament.cautious') && charger.alive) { S.discovered.add('temperament.cautious'); S.encounter = 'charger'; ink.encounterEnd(); Tele.log('encounter_start', { id: 'charger' }); sfx.tension(true);
     bossIntro('charger', () => ({ x: charger.x, z: charger.z, rot: charger.mesh.rotation.y, h: 1.6 }), () => say([['narr', 'Il Caricatore è VIGILE. Sempre vigile. Ma anche la vigilanza è solo una parola.'], ['narr', 'Sotto, scritta a matita: CAUTO.']])); hint(ST.HINTS.charger); journal('Hai trovato la parola CAUTO.'); }
   if (r.id === 'conduct' && !S.discovered.has('element.conductive')) { S.discovered.add('element.conductive'); grammar.snapshot('conduct', ['plate'], () => ({}));
-    say([['narr', 'La piastra di rame dice ISOLANTE. Qualcuno ha cancellato male: si legge ancora CONDUTTIVO.']]); hint(ST.HINTS.press); journal('Hai trovato la parola CONDUTTIVO.'); }
+    if (CP.alive && !PROG.mazeDone) { CP.st = 'hunt'; CP.cd = 2; } const plateLine = () => say([['narr', 'La piastra di rame dice ISOLANTE. Qualcuno ha cancellato male: si legge ancora CONDUTTIVO.'], ['narr', 'Un filo va dalla piastra alla botola di servizio. Sulla serratura, a mano: «si apre con la corrente».']]);
+    if (CP.alive && !PROG.mazeDone) bossIntro('compositore', () => ({ x: CP.x, z: CP.z, rot: CP.ent.mesh.rotation.y, h: 2.3 }), plateLine); else plateLine(); hint(ST.HINTS.press); journal('Hai trovato la parola CONDUTTIVO.'); }
   if (r.id === 'door' && prev !== 'door' && !S.doorRoute) { cinePlate('tribunale', 'IV · La porta che giudica'); grammar.snapshot('door', ['relay', 'evplate'], () => ({ hasDoc: door.hasDoc, docPlaced: door.docPlaced })); say(ST.elaraDoor(mem).slice(0, 2)); hint(ST.HINTS.door); }
   if (r.id === 'arena' && S.encounter !== 'arena' && !S.victory) { S.encounter = 'arena'; ink.encounterEnd(); sfx.tension(true); if (!S.arenaIntro) { S.arenaIntro = true; S.lock = true; cinePlate('custode', 'V · Il Custode della Fenditura', () => { custode.rise = 2.6; S.camFocus = { x: custode.x, z: custode.z, t: 3 }; sfx.sting('phase'); sfx.play('tear'); setTimeout(() => bossIntro('custode', () => ({ x: custode.x, z: custode.z, rot: custode.mesh.rotation.y, h: 3.3 }), () => { S.lock = false; say(ST.custodeLines(S.arenaDeaths, mem)); }), FAST ? 100 : 2700); }); } else say(ST.custodeLines(S.arenaDeaths, mem)); hint(ST.HINTS.arena); Tele.log('encounter_start', { id: 'arena' }); }
 }
@@ -965,7 +967,8 @@ function goalText() {
   switch (S.room) {
     case 'intro': return !S.discovered.has('state.fragile') ? 'Obiettivo: guarda la tavola lacerata' : !board.broken ? (grammar.has('board', 'state.fragile') ? 'Obiettivo: rompi la tavola con un colpo forte' : 'Obiettivo: scrivi FRAGILE sulla tavola (✎)') : 'Obiettivo: prosegui verso nord';
     case 'charger': return charger.alive ? (charger.armorBroken ? 'Obiettivo: colpisci il nucleo rosso' : 'Obiettivo: rompi la corazza del Caricatore (FRAGILE + pilastro)') : 'Obiettivo: prosegui verso nord';
-    case 'conduct': return gates.r2.open ? 'Obiettivo: prosegui verso nord' : 'Obiettivo: fai passare l\'impulso della pressa fino al cancello (CONDUTTIVO sulla piastra)';
+    case 'conduct': if (!PROG.mazeDone && !gates.r2.open) { if (CP.alive && CP.st !== 'sleep') return CP.shocks ? 'Obiettivo: ancora ' + (3 - CP.shocks) + ' scosse (CONDUTTIVO sul Compositore, poi la pressa)' : 'Obiettivo: ferma il Compositore: corregge la piastra (CONDUTTIVO… su chi?)'; if (MZ.entryOpen >= 1) return 'Obiettivo: scendi dalla botola'; return 'Obiettivo: porta l\'impulso alla serratura della botola (CONDUTTIVO sulla piastra)'; }
+      return gates.r2.open ? 'Obiettivo: prosegui verso nord' : 'Obiettivo: fai passare l\'impulso della pressa fino al cancello (CONDUTTIVO sulla piastra)';
     case 'door': return S.doorRoute ? 'Obiettivo: attraversa la porta' : door.defense ? 'Obiettivo: difendi Elara dalle macchie' : 'Obiettivo: apri la porta che giudica (3 modi: forza il relè · porta la prova · parla con Elara)';
     case 'arena': return S.victory ? '' : (arena.snapped || arena.window > 0) ? 'Obiettivo: tocca il sigillo rosso a nord, ora!' : 'Obiettivo: spezza il legame tra il Custode e il nucleo, poi tocca il sigillo';
     case 'end': return 'La storia ricorda come l\'hai riscritta';
@@ -1404,7 +1407,7 @@ function mazeAggro(m) { const d = Math.hypot(P.x - m.x, P.z - m.z); let R = m.ag
   if (P.hidden) R = Math.min(R, 3); if (m.hunting && d < R * 1.6) return true; m.hunting = d < R; return m.hunting; }
 function mazeWander(m, dt) { m.wt = (m.wt || 0) - dt; if (m.wt <= 0) { m.wt = 1 + Math.random() * 2; const a = Math.random() * 6.28; m.wdx = Math.sin(a); m.wdz = Math.cos(a); if (Math.hypot(m.x - m.home.x, m.z - m.home.z) > 5) { m.wdx = m.home.x - m.x; m.wdz = m.home.z - m.z; const l = Math.hypot(m.wdx, m.wdz); m.wdx /= l; m.wdz /= l; } }
   m.x += m.wdx * 0.9 * dt; m.z += m.wdz * 0.9 * dt; collide(m, m.r, false); m.mesh.position.set(m.x, 0.3 + Math.abs(Math.sin(now * 3 + m.x)) * 0.08, m.z); m.mesh.rotation.y = Math.atan2(m.wdx, m.wdz); }
-function mazeHintPulse() { if (MZ.hintT > 0) return; MZ.hintT = 8; MZ.entryOpen = Math.max(MZ.entryOpen, 0.001); if (S.room === 'conduct') { toast('LA PRESSA SFONDA LA PAGINA'); say([['ilde', 'Il filo non arriva al cancello. La pressa ha sfondato il foglio: le pagine cadute girano in un vortice.'], ['ilde', 'Segui il filo fino alla sua piastra. Poi l\'impulso avrà una strada.']]); journal('Il filo della pressa scende nel labirinto: va riacceso dall\'altra parte.'); } }
+function mazeHintPulse() { if (MZ.hintT > 0 || (CP.alive && !PROG.mazeDone)) return; MZ.hintT = 8; MZ.entryOpen = Math.max(MZ.entryOpen, 0.001); if (S.room === 'conduct') { trapdoorShot(); toast('LA SERRATURA SCATTA: SI APRE LA BOTOLA'); say([['ilde', 'La corrente è arrivata alla serratura: la botola di servizio si è aperta.'], ['ilde', 'Il filo del cancello scende lì sotto, nel labirinto, ed è spezzato. Va riacceso dall\'altra parte.']]); journal('L\'impulso ha aperto la botola della tipografia: sotto c\'è il labirinto del filo.'); } } /* v2.4: niente più vortice «magico»: è la serratura elettrica della botola */
 // pagina piegata nella stanza della pressa: si spiega e diventa l'ingresso
 const entryPage = new THREE.Group(); entryPage.position.set(-8.8, 0.02, -52.2); scene.add(entryPage);
 const entryHole = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x0b0806 })); entryHole.scale.setScalar(0.01); entryPage.add(entryHole);
@@ -1417,7 +1420,7 @@ function enterMaze() { cinePlate('labirinto', 'III · Il labirinto del filo'); z
   if (!MZ.guide.has('in')) { MZ.guide.add('in'); MZ.afterFilm = () => say([['ilde', 'Sono Ilde. Ho scritto io queste pareti, tanto tempo fa. Ti guido io.'], ['ilde', 'Le macchie dormono finché non ti sentono. Vicino alle lampade accese ti vedono da lontano.'], ['ilde', 'In fondo, a nord, c\'è la piastra del filo. Scrivici CONDUTTIVO.']]); } }); }
 function exitMaze() { zoneTransition('rise', 'La scala si scrive gradino dopo gradino e ti riporta alla pressa.', () => { mazeActivate(false); P.x = 0; P.z = -62.5; P.face = Math.PI; S.snapCam = true; enterRoom(W.ROOMS[2]); openGate('r2'); pulseWire(wireA); pulseWire(wireB); toast('IL CANCELLO SI APRE'); journal('Hai riacceso il filo nel labirinto: l\'impulso ora arriva al cancello.'); }); }
 function mazeInteractables(L) {
-  if (S.room === 'conduct' && MZ.entryOpen >= 1 && !PROG.mazeDone) L.push({ x: -8.8, z: -52.2, r: 2.2, label: 'tuffati', fn: enterMaze });
+  if (S.room === 'conduct' && MZ.entryOpen >= 1 && !PROG.mazeDone) L.push({ x: -8.8, z: -52.2, r: 2.2, label: 'scendi', fn: fallInto });
   if (S.room !== 'maze') return;
   for (const n of MZ.notes) if (!MZ.guide.has(n.id)) L.push({ x: n.x, z: n.z, r: 1.8, label: 'leggi', fn: () => readGuide(n.id) });
   if (MZ.stairsT >= 1) { const s = MZ.steps[0]; L.push({ x: s.position.x, z: s.position.z - 1, r: 2.4, label: 'sali', fn: exitMaze }); }
@@ -1631,7 +1634,7 @@ const INTRO_SWAY = []; const MZ_SHEETS = []; const DOOR_JURY = {};
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
-  m3dUpdate(dt); opUpdate(dt); curseUpdate(dt); custodePhases(dt); questUpdate(dt); ladroUpdate(dt); picksUpdate(dt); placeLetterPieces(); if (CR.solved && !PICKS.lettera2 && !(PROG.quests.picked || {}).lettera2 && S.room === 'crypt') dropPickup('lettera2', -36.5, -33.2, 'letter'); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
+  m3dUpdate(dt); compoUpdate(dt); opUpdate(dt); curseUpdate(dt); custodePhases(dt); questUpdate(dt); ladroUpdate(dt); picksUpdate(dt); placeLetterPieces(); if (CR.solved && !PICKS.lettera2 && !(PROG.quests.picked || {}).lettera2 && S.room === 'crypt') dropPickup('lettera2', -36.5, -33.2, 'letter'); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
   if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
   if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
   if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
@@ -2017,6 +2020,70 @@ function questUpdate(dt) {
   if (PROG.items.seppia && !panel.open && ink.v < 50 && S.phase === 'play') ink.v = Math.min(50, ink.v + dt * 2);
   if (tipo.visible) tipo.userData.card.rotation.y = Math.atan2(P.x - tipo.position.x, P.z - tipo.position.z) * 0.3;
 }
+// ================= v2.4 · Stanza CONDUTTIVO: il Compositore, la botola, la caduta =================
+// Enigma in 3 passi: (1) CONDUTTIVO sulla piastra → il Compositore la ricorregge in ISOLANTE; (2) il pennino non lo graffia (è metallo):
+// CONDUTTIVO su di lui e, quando sale sulla piastra o sul filo, il colpo della pressa lo manda in corto (3 volte); (3) di nuovo CONDUTTIVO
+// sulla piastra: l'impulso arriva alla serratura, la botola si apre (si vede) e ci si cala nel labirinto.
+const wireT = W.makeWire([[-0.9, -55.2], [-4.2, -52.2], [-7.6, -52.2]]); scene.add(wireT);
+const CP = { alive: !PROG.mazeDone && !PROG.compoDone, st: 'sleep', x: 5.2, z: -51.5, t: 0, cd: 0, fixCd: 0, fixT: 0, shocks: 0, saidFix: false, saidHit: false, bar: null, lane: null };
+CP.ent = addEnt('compositore', 'compositore', (() => { const g = new THREE.Group(); const b = new THREE.Group(); g.add(b);
+  const body = inked(new THREE.BoxGeometry(0.9, 1.1, 0.6), { color: 0x9a9080, y0: 0.7, y1: 1.8 }); body.position.y = 1.25; b.add(body); const head = inked(new THREE.BoxGeometry(0.6, 0.45, 0.5), { color: 0x8a8070 }); head.position.y = 2.05; b.add(head);
+  for (const sd of [-1, 1]) { const leg = inked(new THREE.BoxGeometry(0.25, 0.7, 0.3), { color: 0x6a6258 }); leg.position.set(sd * 0.25, 0.35, 0); b.add(leg); const arm = inked(new THREE.BoxGeometry(0.2, 0.8, 0.25), { color: 0x6a6258 }); arm.position.set(sd * 0.6, 1.2, 0); b.add(arm); }
+  g.userData = { body: b, height: 2.3 }; return g; })(), CP.x, CP.z); CP.ent.r = 0.7; CP.ent.mesh.visible = CP.alive; CP.ent.alive = CP.alive;
+CP.ent.mesh.traverse((o) => o.layers.set(W.ROOMS.findIndex((r) => r.id === 'conduct') + 1));
+if (USE3D) whenModel('robot', () => { const u = CP.ent.mesh.userData; hideKids(u.body); const m = makeModel('robot', 2.3, { ow: 0.018 }); u.body.add(m); CP.ent.model = m; remat(CP.ent); M3.compositore = m; });
+CP.bar = (() => { const b = document.createElement('div'); b.id = 'compoBar'; b.innerHTML = '<div class="bname">IL COMPOSITORE</div><div class="hbar"><i></i></div>'; b.style.display = 'none'; document.body.appendChild(b); return b; })();
+// la botola di servizio: telaio, due ante di legno, serratura di rame, targhetta; si apre con MZ.entryOpen (0 → 1)
+const TD = (() => { const g = new THREE.Group(); g.position.set(-8.8, 0.02, -52.2); scene.add(g); const L = W.ROOMS.findIndex((r) => r.id === 'conduct') + 1;
+  for (const [x, z, w, d] of [[0, -1.25, 2.7, 0.2], [0, 1.25, 2.7, 0.2], [-1.25, 0, 0.2, 2.7], [1.25, 0, 0.2, 2.7]]) { const f = inked(new THREE.BoxGeometry(w, 0.12, d), { color: 0x3a2a1e, ow: 0.02 }); f.position.set(x, 0.06, z); g.add(f); }
+  const flaps = []; for (const sd of [-1, 1]) { const hinge = new THREE.Group(); hinge.position.set(sd * 1.15, 0.08, 0); g.add(hinge); const fl = inked(new THREE.BoxGeometry(1.15, 0.08, 2.3), { color: 0x7a5434, ow: 0.02 }); fl.position.x = -sd * 0.575; hinge.add(fl);
+    for (const zz of [-0.7, 0.7]) { const st = inked(new THREE.BoxGeometry(1.0, 0.1, 0.12), { color: 0x2a1c12, outline: false }); st.position.set(-sd * 0.575, 0.05, zz); hinge.add(st); } flaps.push({ hinge, sd }); }
+  const latch = inked(new THREE.CylinderGeometry(0.16, 0.16, 0.25, 12), { color: 0xb87333, shift: 0xffb070 }); latch.position.set(1.35, 0.15, 0); g.add(latch);
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x2 = c.getContext('2d'); x2.fillStyle = '#e6d9bd'; x2.fillRect(0, 0, 512, 128); x2.strokeStyle = '#3a2a1e'; x2.lineWidth = 6; x2.strokeRect(6, 6, 500, 116); x2.fillStyle = '#2a1c12'; x2.font = 'bold 40px Georgia'; x2.fillText('BOTOLA DI SERVIZIO', 40, 58); x2.font = 'italic 30px Georgia'; x2.fillText('si apre con la corrente', 80, 100);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; const plq = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: t })); plq.position.set(0, 0.03, 1.75); g.add(plq);
+  const hole = new THREE.Mesh(new THREE.PlaneGeometry(2.35, 2.35).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x050302 })); hole.position.y = 0.012; hole.visible = false; g.add(hole); // il buio sotto le ante
+  g.traverse((o) => o.layers.set(L)); return { g, flaps, latch, hole, open: 0 }; })();
+entryLeaf.visible = false; entryWhirl.visible = false; // la vecchia pagina piegata e il vortice non servono più: c'è la botola
+function trapdoorShot() { if (!REGIA.shot) regia({ id: 'botola', dur: 2.6, cam: orbitLow(-8.8, -52.2, 4.6, 1.6, 0.9, 0.18, 0.2) }); }
+function onWire(o) { const ax = -7.2, bx = -1.6, z = -56; const tx = clamp(o.x, ax, bx); const dw = Math.hypot(o.x - tx, o.z - z); return dw < 1.0 || (Math.abs(o.x) < 1.1 && Math.abs(o.z + 56) < 1.1); }
+function compoPulse() { if (!CP.alive || CP.st === 'sleep' || S.room !== 'conduct') return; if (!grammar.has('compositore', 'element.conductive') || !onWire(CP)) return;
+  CP.shocks++; CP.st = 'stun'; CP.t = 2.4; CP.fixT = 0; grammar.resetPhrase('compositore'); sfx.play('electric'); sfx.play('heavy'); S.shake = Math.max(S.shake, 0.8); S.flash = 0.35; KICK.a = Math.max(KICK.a, 0.15);
+  particles.burst(CP.x, 1.4, CP.z, 40, 6, [0.3, 0.8, 1], 0.18); dmgAt(CP.x, 2.8, CP.z, 'CORTOCIRCUITO', 'big'); if (CP.ent.model) setU([CP.ent.model.material], 'uGlow', new THREE.Color(0.2, 0.6, 1)); setTimeout(() => { if (CP.ent.model) setU([CP.ent.model.material], 'uGlow', new THREE.Color(0, 0, 0)); }, 500);
+  if (CP.shocks === 1) say([['ilde', 'Il rame non sceglie chi attraversare. Ancora due volte.']]);
+  if (CP.shocks >= 3) compoDown(); }
+function compoDown() { CP.alive = false; CP.ent.alive = false; CP.st = 'down'; CP.t = 0; hint(''); PROG.compoDone = true; saveProg(); grammar.resetPhrase('compositore'); sfx.play('break'); S.shake = 1; gainDrops(10);
+  bossBeat('IL COMPOSITORE SI FERMA', 'ora la piastra resta come l\'hai scritta', CP); Tele.log('enemy_defeated', { id: 'compositore' }); journal('Hai fermato il Compositore: la corrente è passata attraverso di lui.');
+  setTimeout(() => say([['narr', 'Le lettere di piombo gli scivolano dalle mani. «…composizione… terminata.»'], ['ilde', 'Adesso nessuno corregge più la piastra. Riscrivila: il filo porta alla serratura della botola.']]), FAST ? 50 : 1400); }
+function compoHit(heavy, fin, range, arc) { const e = CP; if (!e.alive || e.st === 'sleep' || S.room !== 'conduct' || !inArc(e, range + 0.8, arc + 0.2)) return false;
+  const dx = e.x - P.x, dz = e.z - P.z, d = Math.hypot(dx, dz) || 1, push = heavy ? 1.5 : 0.4; e.x += dx / d * push; e.z += dz / d * push; collide(e, 0.7, false); /* il colpo forte lo spinge: anche sul filo */
+  sfx.play('glass'); particles.burst(e.x, 1.3, e.z, 10, 3, [0.9, 0.85, 0.7], 0.08); dmgAt(e.x, 2.6, e.z, heavy ? 'SPINTO' : 'TOC', 'block'); if (heavy && e.st !== 'stun') { e.st = 'hunt'; e.cd = Math.max(e.cd, 0.8); }
+  if (!e.saidHit) { e.saidHit = true; toastSmall('Il pennino non graffia il metallo. Ma il metallo… conduce.'); } return true; }
+function fallInto() { if (S.falling) return; S.falling = { t: 0 }; S.lock = true; P.x = -8.8; P.z = -52.2; sfx.play('tear');
+  regia({ id: 'caduta', dur: 1.3, blendIn: 0.25, cam: () => ({ pos: _rv.set(-8.8 + 3.2, 3.4, -52.2 + 3.4), look: _rl.set(-8.8, -0.8, -52.2), fov: 38 }) }); }
+function compoUpdate(dt) {
+  // ante della botola
+  const k = Math.min(1, MZ.entryOpen || 0); for (const f of TD.flaps) f.hinge.rotation.z = f.sd * k * 1.85; TD.hole.visible = k > 0.02; if (k >= 1 && S.room === 'conduct' && frame % 7 === 0) particles.emit(-8.8 + rnd(-0.8, 0.8), 0.1, -52.2 + rnd(-0.8, 0.8), rnd(-0.3, 0.3), rnd(1.5, 2.5), rnd(-0.3, 0.3), 1.4, rnd(0.12, 0.22), 0.94, 0.9, 0.82, 0); /* pagine che salgono dal buco */ TD.latch.material.uniforms && setU([TD.latch.material], 'uGlow', new THREE.Color(k > 0 ? 0.6 : 0, k > 0 ? 0.35 : 0, 0.05));
+  if (S.falling) { S.falling.t += dt; P.yOff = -S.falling.t * S.falling.t * 5; if (frame % 2 === 0) particles.emit(P.x + rnd(-0.6, 0.6), 0.2, P.z + rnd(-0.6, 0.6), 0, 1.5, 0, 0.8, 0.15, 0.85, 0.78, 0.62, 3);
+    if (S.falling.t > 1.0) { S.falling = null; P.yOff = 0; S.lock = false; enterMaze(); } return; }
+  if (S.room === 'conduct' && MZ.entryOpen >= 1 && !PROG.mazeDone && !S.lock && Math.hypot(P.x + 8.8, P.z + 52.2) < 0.9) fallInto(); // ci cammini sopra: cadi
+  const e = CP, m = e.ent.mesh; if (PROG.mazeDone && e.alive) { e.alive = false; e.ent.alive = false; m.visible = false; }
+  if (e.st === 'down') { e.t += dt; m.rotation.x = Math.min(1.35, e.t * e.t * 3); m.position.set(e.x, Math.max(-0.4, -e.t * 0.3), e.z); CP.bar.style.display = 'none'; return; }
+  CP.bar.style.display = S.room === 'conduct' && e.alive && e.st !== 'sleep' ? 'block' : 'none'; CP.bar.querySelector('i').style.width = ((3 - e.shocks) / 3 * 100) + '%';
+  if (!e.alive || S.room !== 'conduct' || S.lock) { m.position.set(e.x, 0, e.z); return; }
+  const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz) || 1; e.cd -= dt; e.fixCd -= dt;
+  if (e.st === 'sleep') { if (d < 6 || grammar.has('plate', 'element.conductive')) { e.st = 'hunt'; e.cd = 1.5; } }
+  else if (e.st === 'stun') { e.t -= dt; m.rotation.z = Math.sin(now * 30) * 0.08 * Math.max(0, e.t); if (e.t <= 0) { m.rotation.z = 0; e.st = 'hunt'; e.cd = 1; } }
+  else if (e.st === 'wind') { e.t -= dt; if (e.t <= 0) { const ux = e.ux, uz = e.uz, px = P.x - e.x, pz = P.z - e.z, along = px * ux + pz * uz, side = Math.abs(px * uz - pz * ux); if (along > -0.3 && along < 3.2 && side < 0.8) damagePlayer(1, e, 'cp' + (++attackCounter)); sfx.play('heavy'); S.shake = Math.max(S.shake, 0.4); e.st = 'hunt'; e.cd = 2.2; } }
+  else if (e.st === 'fix') { const tx = 0, tz = -56, fx = tx - e.x, fz = tz - e.z, fd = Math.hypot(fx, fz); if (!grammar.has('plate', 'element.conductive')) { e.st = 'hunt'; e.fixT = 0; }
+    else if (fd > 0.35) { e.x += fx / fd * 1.7 * dt; e.z += fz / fd * 1.7 * dt; m.rotation.y = Math.atan2(fx, fz); }
+    else { e.fixT += dt; if (frame % 5 === 0) particles.emit(e.x + rnd(-0.4, 0.4), 0.2, e.z + rnd(-0.4, 0.4), 0, 1, 0, 0.4, 0.08, 0.1, 0.08, 0.06, 2); if (frame % 12 === 0) sfx.play('scratch', Math.random());
+      if (e.fixT > 2.6) { e.fixT = 0; e.fixCd = 5; e.st = 'hunt'; grammar.resetPhrase('plate'); sfx.play('seal'); dmgAt(0, 1.4, -56, 'ISOLANTE', 'block'); traces.add(0, -56, 1.4, 1, now);
+        if (!e.saidFix) { e.saidFix = true; say([['compositore', 'ISOLANTE. Come era scritto. Come deve restare.'], ['ilde', 'Corregge tutto ciò che scrivi… Ma il rame non sceglie chi attraversare.']]); hint('CONDUTTIVO sul Compositore, poi aspetta che salga sulla piastra quando la pressa batte'); } } } }
+  else { // hunt
+    if (grammar.has('plate', 'element.conductive') && e.fixCd <= 0) { e.st = 'fix'; }
+    else { if (d > 1.6) { e.x += dx / d * 1.35 * dt; e.z += dz / d * 1.35 * dt; } m.rotation.y = Math.atan2(dx, dz); collide(e, 0.7, false);
+      if (d < 2.6 && e.cd <= 0) { e.st = 'wind'; e.t = 0.9; e.ux = dx / d; e.uz = dz / d; laneWarn(e.x, e.z, e.ux, e.uz, 3.2, 1.5, 0.9); sfx.play('warn'); } } }
+  e.ent.x = e.x; e.ent.z = e.z; m.position.set(e.x, 0, e.z); }
 // ================= v2.3 · Personaggi 3D: i modelli di Joseph «rivestono» i personaggi =================
 // Le parti di gioco restano (nucleo rosso, corazza che si rompe, penna dei colpi, sacca del Ladro): si nascondono solo i vecchi corpi.
 const hideKids = (g, keep = []) => { for (const c of g.children) if (!keep.includes(c)) c.visible = false; };
@@ -2041,7 +2108,7 @@ function m3dUpdate(dt) {
   if (M3.lumi && lumi.on) lumi.mesh.rotation.y = lerpAng(lumi.mesh.rotation.y, Math.atan2(P.x - lumi.x, P.z - lumi.z), Math.min(1, dt * 4));
   if (M3.charger) M3.charger.rotation.x = lerp(M3.charger.rotation.x, charger.st === 'charge' ? 0.12 : 0, Math.min(1, dt * 6));
 }
-window.PAL = { SCR, REGIA, regia, confirmWord, panel, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { CP, TD, fallInto, compoPulse, compoDown, SCR, REGIA, regia, confirmWord, panel, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

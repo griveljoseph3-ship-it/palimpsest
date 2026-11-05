@@ -7,9 +7,10 @@ const S = (n) => pg.screenshot({ path: `/workspace/palimpsest-shots/m-${n}.png` 
 async function until(fn, ms) { ms *= 3; const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await E(fn)) return true; await W(200); } return false; }
 await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
 await E(() => PAL.tp(0, -49)); await until(() => PAL.S.room === 'conduct', 4000); await E(() => PAL.skipDialog()); await E(() => PAL.tp(0, -54.3));
+await E(() => { if (PAL.CP && PAL.CP.alive) PAL.compoDown(); }); await W(800); await E(() => PAL.skipDialog()); /* v2.4: prima va fermato il Compositore (vedi conduttivo.mjs) */
 await E(() => PAL.rewrite('plate', 'element.conductive')); await W(1500); await E(() => PAL.skipDialog());
 check('cancello chiuso finché il labirinto non è fatto', await E(() => !PAL.gates.r2.open));
-check('la pagina si spiega', await until(() => PAL.MZ.entryOpen >= 1, 12000));
+check('la botola si apre', await until(() => PAL.MZ.entryOpen >= 1, 12000));
 await E(() => { PAL.tp(-8.8, -50.2); }); await W(400); await S('1-page'); await E(() => PAL.enterMaze()); await W(400); await S('2-transition');
 check('entrato nel labirinto', await until(() => PAL.S.room === 'maze' && PAL.MZ.active, 8000)); await W(1500); await E(() => PAL.skipDialog()); await W(600); await S('3-maze');
 check('muri del labirinto nelle collisioni', await E(() => PAL.MZ.walls.length > 80));

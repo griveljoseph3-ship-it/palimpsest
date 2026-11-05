@@ -17,7 +17,7 @@ export const RIG = {
   figura_velata: { kind: 0, stride: 0.035, swing: 0.02, step: 0.35, flutter: 1.4 }, // il velo striscia e si gonfia più dei piedi
   custode: { kind: 0, stride: 0.13, swing: 0.1, step: 0.42, flutter: 0.25, heavy: true },
   creatura_spine: { kind: 0, stride: 0.12, swing: 0.1, step: 0.45, flutter: 1.5, heavy: true },
-  robot: { kind: 0, stride: 0.08, swing: 0.07, step: 0.5, flutter: 0.1 },
+  robot: { kind: 0, stride: 0.1, swing: 0.09, step: 0.5, flutter: 0.1, heavy: true },
   caricatore: { kind: 2, stride: 0.16, step: 0.3, flutter: 0.35 },
   macchia: { kind: 1, flutter: 1.2, hop: 0.32, hopRate: 7 },
   blob_tentacoli: { kind: 1, flutter: 1.4, hop: 0.38, hopRate: 6 },
@@ -25,7 +25,7 @@ export const RIG = {
 };
 export const NOMI = Object.keys(RIG);
 // si scaricano solo quelli che il gioco usa adesso (Ilde, Elara bambina e il robot entreranno con la storia nuova)
-export const USATI = ['correttore', 'macchia', 'caricatore', 'custode', 'rilegatore', 'creatura_spine', 'elara', 'figura_velata', 'blob_tentacoli'];
+export const USATI = ['correttore', 'macchia', 'caricatore', 'custode', 'rilegatore', 'creatura_spine', 'elara', 'figura_velata', 'blob_tentacoli', 'robot']; // robot = il Compositore
 const LOD = {}; // (provato su macchia: le colature aperte non si semplificano; meglio niente contorno per le macchie, vedi miteMesh)
 const CLEAN_BASE = new Set(['creatura_spine']); // ha una pozza piatta sotto i piedi
 const M = {}; export const STATO = { caricati: [], falliti: [], ms: 0, tris: {} };

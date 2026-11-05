@@ -258,3 +258,8 @@ body.reduce-motion #bossCard.on{animation-duration:2.6s}
 @media (prefers-reduced-motion:reduce){#plate .pimg{animation:none}}
 #title{background:radial-gradient(ellipse at center,rgba(11,8,7,.05) 30%,rgba(11,8,7,.75)),url(assets/scene/copertina.jpg) center/cover no-repeat,#0b0807}
 #title .tpage{background:rgba(239,229,207,.9)}
+
+/* v2.4 · regia: bande nere da film e HUD nascosto durante le inquadrature */
+#regiaBars{position:fixed;inset:0;pointer-events:none;z-index:13}#regiaBars i{position:absolute;left:0;right:0;height:0;background:#050302;transition:height .6s cubic-bezier(.3,.8,.3,1)}#regiaBars i:first-child{top:0}#regiaBars i:last-child{bottom:0}
+body.regia #regiaBars i{height:10.5vh}
+body.regia #hud,body.regia #words{opacity:0!important;pointer-events:none!important;transition:opacity .4s}body.regia #touch{opacity:.35;transition:opacity .4s} /* i comandi restano usabili: durante la ripresa si cammina */

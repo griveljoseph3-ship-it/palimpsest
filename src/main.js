@@ -623,7 +623,7 @@ function setRoute(r) {
   const L = { forced: [['elara', 'Hai strappato la pagina invece di leggerla. Lo ricorderò.']], evidence: [['elara', 'La prova. Il verdetto si spegne. Questa riga la tengo io.']], trust: [['elara', 'Fatto. Ho una riga mia, adesso. Vai: ti seguo con lo sguardo.']] }[r];
   say(L, { done: elaraTwist }); hint('');
 }
-function elaraTwist() { if (S.twistSeen) return; S.twistSeen = true; S.lock = true; S.camFocus = { x: 0, z: -99.4, t: 9 }; if (!opts.reduce) slowmo(0.8);
+function elaraTwist() { if (S.twistSeen) return; S.twistSeen = true; S.lock = true; S.camFocus = { x: 0, z: -99.4, t: 9 }; if (!opts.reduce) slowmo(0.8); regia({ id: 'libera', dur: 30, until: () => !S.lock, cam: orbitLow(0, -99.4, 4.2, 0.9, 0.9, 0.1, 1.6) }); /* v2.4: dal basso, gira piano attorno alla rivelazione */
   say([['elara', 'Aspetta. Quella voce che ti guidava laggiù, nel labirinto… la sentivo anch\'io, attraverso la carta.'], ['elara', 'Conosco quella voce. Mi cantava sopra il fiume. È mia madre. È Ilde.']], { done: () => {
     const st = elara.userData.st; let k = 0; sfx.play('tear'); const flake = setInterval(() => { k++; for (let i = 0; i < 6; i++) particles.emit(rnd(-0.9, 0.9), 2 + rnd(-0.2, 0.3), -99.2, rnd(-0.6, 0.6), rnd(0.5, 2), rnd(0.3, 1), 1.4, rnd(0.08, 0.16), 0.55, 0.1, 0.06, 2); if (k === 18) { st.verdict = 'LIBERA'; st.vcol = '#1b5a7a'; st.mouth = 12; st.eyes = 190; elara.userData.redraw(); sfx.sting('secret'); S.flash = 0.5; } if (k > 30) clearInterval(flake); }, 60);
     setTimeout(() => say([['narr', 'Sotto COLPEVOLE il rosso si sfoglia come vernice vecchia. Sotto, scritta con un\'altra mano, più tremante: LIBERA.', 'libera'], ['elara-sorriso', 'LIBERA. Era questo che voleva scrivere. Allora perché non l\'ha fatto?'], ['lumi', 'Forse aveva paura di quello che sarebbe successo dopo. La paura scrive sempre più forte.']], { done: () => { S.lock = false; journal('Alla porta, Elara ha riconosciuto la voce di Ilde. Sotto il verdetto c\'era scritto LIBERA.'); Tele.log('twist_elara'); } }), FAST ? 50 : 2400); } }); }
@@ -1102,6 +1102,26 @@ function bindUI() {
   applyOpts(); applyDiff();
 }
 
+// ================= v2.4 · Regia: inquadrature da film nei momenti importanti =================
+// regia({ dur, cam(t, sh) → {pos, look, fov?}, until?() }) : la telecamera di gioco passa morbida all'inquadratura e poi torna.
+// Bande nere e HUD nascosto mentre dura. Leggera: solo una telecamera che si muove, niente oggetti in più.
+const REGIA = { shot: null, k: 0, pos: new THREE.Vector3(), look: new THREE.Vector3(), fov: 34 };
+const regiaBars = (() => { const d = document.createElement('div'); d.id = 'regiaBars'; d.innerHTML = '<i></i><i></i>'; document.body.appendChild(d); return d; })();
+function regia(spec) { if (opts.reduce && !spec.always) { if (spec.done) spec.done(); return; } REGIA.shot = { t: 0, dur: 3, blendIn: 0.6, blendOut: 0.7, ...spec }; document.body.classList.add('regia'); Tele.log('shot', { id: spec.id || '?' }); }
+function regiaApply(rdt) {
+  const sh = REGIA.shot; if (!sh) return false; sh.t += rdt;
+  const going = sh.t < sh.dur && !(sh.until && sh.until()); if (!going && !sh.ended) { sh.ended = true; sh.tEnd = sh.t; document.body.classList.remove('regia'); if (sh.done) sh.done(); }
+  const kIn = Math.min(1, sh.t / sh.blendIn), kOut = sh.ended ? Math.max(0, 1 - (sh.t - sh.tEnd) / sh.blendOut) : 1; const k = Math.min(kIn, kOut), e = k * k * (3 - 2 * k);
+  const c = sh.cam(sh.t, sh); REGIA.pos.copy(c.pos); REGIA.look.copy(c.look);
+  camera.position.lerp(REGIA.pos, e); tmpV.copy(camLook).lerp(REGIA.look, e); camera.lookAt(tmpV);
+  const fov = lerp(34, c.fov || 34, e); if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.near = e > 0.5 && c.near ? c.near : 0.5; camera.updateProjectionMatrix(); }
+  if (sh.ended && kOut <= 0) { REGIA.shot = null; camera.fov = 34; camera.near = 0.5; camera.updateProjectionMatrix(); }
+  return true; }
+const _rv = new THREE.Vector3(), _rl = new THREE.Vector3();
+// ripresa di lato che segue chi cammina (il PONTE): side = da che parte sta la telecamera, ahead = quanto guarda avanti
+function trackSide(side = 1, dist = 6, h = 1.7, ahead = -1.6) { return () => ({ pos: _rv.set(P.x + side * dist, h, P.z + 1.2), look: _rl.set(P.x, 0.9, P.z + ahead), fov: 30 }); }
+// giro lento attorno a un punto, dal basso (rivelazioni)
+function orbitLow(x, z, r = 5, h = 1.1, a0 = 0.6, spd = 0.12, lookY = 1.4) { return (t) => ({ pos: _rv.set(x + Math.sin(a0 + t * spd) * r, h, z + Math.cos(a0 + t * spd) * r), look: _rl.set(x, lookY, z), fov: 28 }); }
 // ---------- loop ----------
 let last = performance.now(), acc = 0, frame = 0; const STEP = 1 / 60; let fpsAcc = 0, fpsN = 0, lowStreak = 0, slowT = 0;
 const camPos = new THREE.Vector3(0, 14, 14), camLook = new THREE.Vector3(0, 0.8, 2), tmpV = new THREE.Vector3();
@@ -1174,7 +1194,7 @@ function visualUpdate(dt, rdt) {
   const cf = S.camFocus && S.camFocus.t > 0 ? S.camFocus : null; if (S.room === 'end') { tx = 0; tz = -161; } if (S.room === 'arena') { tx = P.x * 0.6; tz = lerp(P.z, -124, 0.3); }
   if (cf) { cf.T0 = cf.T0 || cf.t; cf.t -= rdt; const k = Math.max(0, Math.min(1, cf.t / 0.4, (cf.T0 - cf.t) / 0.3 + 0.2)); /* entra in 0,3 s, esce in 0,4 s, qualunque durata */ tx = lerp(tx, (cf.x + P.x) / 2, k * 0.8); tz = lerp(tz, (cf.z + P.z) / 2, k * 0.8); }
   camLook.lerp(tmpV.set(tx, 0.8 + (P.yOff || 0), tz), S.snapCam ? 1 : 1 - Math.pow(0.004, rdt)); camPos.set(camLook.x, camLook.y + dy, camLook.z + dz); if (S.snapCam && !MZ.film) { camera.position.copy(camPos); S.snapCam = false; }
-  if (MZ.film) mazeFilmCamera(rdt); else camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3 * (opts.shakeK ?? 1); camera.position.x += rnd(-sh, sh) + KICK.x * KICK.a; camera.position.y += rnd(-sh, sh) - KICK.a * 0.4; camera.position.z += KICK.z * KICK.a; KICK.a = Math.max(0, KICK.a - rdt * 1.6); if (!MZ.film) camera.lookAt(camLook);
+  if (MZ.film) mazeFilmCamera(rdt); else camera.position.lerp(camPos, 1 - Math.pow(0.002, rdt)); const sh = opts.reduce ? 0 : S.shake * S.shake * 0.3 * (opts.shakeK ?? 1); camera.position.x += rnd(-sh, sh) + KICK.x * KICK.a; camera.position.y += rnd(-sh, sh) - KICK.a * 0.4; camera.position.z += KICK.z * KICK.a; KICK.a = Math.max(0, KICK.a - rdt * 1.6); if (!MZ.film && !regiaApply(rdt)) camera.lookAt(camLook);
   S.shake = Math.max(0, S.shake - rdt * 2.2); S.flash = Math.max(0, S.flash - rdt * 2); post.comp.uniforms.flash.value = opts.reduce ? 0 : S.flash * 0.5;
 }
 function loop() {
@@ -1287,7 +1307,7 @@ function buildMaze() {
     fragmentShader: 'uniform float uTime; varying vec2 vU; void main(){ float w=sin(vU.x*30.+uTime*2.)*.5+.5; float e=smoothstep(0.,.18,vU.y)*smoothstep(1.,.82,vU.y); vec3 c=mix(vec3(.02,.015,.012),vec3(.35,.06,.04),w*.25*(1.-e)+(1.-e)*.3); gl_FragColor=vec4(c,1.); }' }));
   chm.position.set(px, 0.015, cz); MZ.group.add(chm);
   MZ.bridgeEnt = addEnt('mzbridge', 'mzbridge', new THREE.Group(), px, cz); MZ.bridgeEnt.mesh.userData.height = 0.6; MZ.group.add(MZ.bridgeEnt.mesh);
-  for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(2.4, 0.14, 0.38), { color: 0xd8cbb0, ow: 0.02 }); pl.position.set(px, -3, cz - 1.25 + i * 0.31); pl.visible = false; MZ.group.add(pl); MZ.planks.push(pl); }
+  for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(2.4, 0.14, 0.38), { color: 0xffffff, ow: 0.02, map: plankWords(i), texBlend: 0.3 }); pl.position.set(px, -3, cz - 1.25 + i * 0.31); pl.visible = false; MZ.group.add(pl); MZ.planks.push(pl); }
   MZ.plate = addEnt('mzplate', 'mzplate', W.makePlate(1.6, 1.6), px, pz); MZ.group.add(MZ.plate.mesh);
   const [ex2, ez2] = mzCell(MZ.EX, N - 1); // la scala d'uscita si scrive all'ingresso: per uscire bisogna tornare indietro
   for (let i = 0; i < 7; i++) { const s = inked(new THREE.BoxGeometry(2.2, 0.3, 0.7), { color: 0xcbbd9e, ow: 0.02 }); s.position.set(ex2 - 1.9 + i * 0.6, -1, ez2 + 0.6); s.scale.set(0.27, 1, 2.2); s.visible = false; MZ.group.add(s); MZ.steps.push(s); }
@@ -1390,6 +1410,7 @@ function mazeUpdate(dt) {
   if (!MZ.bridged && grammar.has('mzbridge', 'shape.bridge') && MZ.bridgeT < 0) { MZ.bridgeT = 0; toast('IL PONTE SI SCRIVE'); sfx.play('page'); }
   if (MZ.bridgeT >= 0 && MZ.bridgeT < 1) { MZ.bridgeT = Math.min(1, MZ.bridgeT + dt * 0.45); MZ.planks.forEach((pl, i) => { const t = clamp(MZ.bridgeT * 1.8 - i * 0.09, 0, 1); pl.visible = t > 0; pl.position.y = lerp(4, 0.04, 1 - Math.pow(1 - t, 3)); pl.rotation.z = (1 - t) * 1.4; if (t > 0.95 && !pl.userData.d) { pl.userData.d = 1; particles.burst(pl.position.x, 0.1, pl.position.z, 6, 2); sfx.play('hit', 0.6); } });
     if (MZ.bridgeT >= 1) { MZ.bridged = true; world.walls = world.walls.filter((w) => w !== MZ.chasm); journal('Hai scritto un PONTE sul vuoto.'); } }
+  if (MZ.bridged && !MZ.ponteShot && MZ.chasm && P.x > MZ.chasm.minX && P.x < MZ.chasm.maxX && Math.abs(P.z - (MZ.chasm.minZ + MZ.chasm.maxZ) / 2) < 2.6) { MZ.ponteShot = true; const c = MZ.chasm; regia({ id: 'ponte-labirinto', dur: 7, until: () => P.z < c.minZ - 1.2 || P.z > c.maxZ + 1.2, cam: trackSide(-1, 4.2, 1.3) }); } /* v2.4: la prima volta che lo attraversi */
   // piastra del filo
   if (!MZ.done && grammar.has('mzplate', 'element.conductive')) { MZ.done = true; PROG.mazeDone = true; saveProg(); pulseWire(MZ.wire); for (const m of swarm) if (m.alive && m.room === 'maze') m.aggroR = 30; toast('IL FILO SI RIACCENDE · SCAPPA'); sfx.tension(true); S.shake = 0.8; MZ.stairsT = 0; floodStart(); say([['ilde', 'Senti? Hai riacceso il filo e la Fenditura se n\'è accorta. L\'inchiostro sale da nord.'], ['ilde', 'La scala si sta scrivendo all\'ingresso, dove sei entrato. Corri! Se ti perdi, guarda la mappa.']]); }
   if (MZ.stairsT >= 0 && MZ.stairsT < 1) { MZ.stairsT = Math.min(1, MZ.stairsT + dt * 0.35); MZ.steps.forEach((s, i) => { const t = clamp(MZ.stairsT * 1.6 - i * 0.08, 0, 1); s.visible = t > 0; s.position.y = lerp(-1, 0.15 + i * 0.3, 1 - Math.pow(1 - t, 3)); if (frame % 4 === 0 && t > 0 && t < 1) particles.emit(s.position.x + rnd(-1, 1), s.position.y, s.position.z, 0, 1.5, 0, 0.8, 0.12, 0.85, 0.78, 0.62, 3); }); }
@@ -1413,7 +1434,7 @@ function buildOpening() { if (OP.built) return; OP.built = true; const R = OP.R;
   const gw = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.5).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: gtx, transparent: true, depthWrite: false })); gw.position.set(R.cx, 0.04, R.cz); scene.add(gw); OP.gapWords = gw;
   for (let i = 0; i < 22; i++) for (const sd of [-1, 1]) { const t = inked(new THREE.ConeGeometry(0.22, 0.6 + Math.random() * 0.5, 3), { color: 0xefe5cf, outline: false }); t.rotation.x = sd * Math.PI / 2; t.position.set(R.cx - 7.6 + i * 0.72, 0.01, R.cz + sd * 1.75); scene.add(t); }
   OP.bridge = addEnt('opbridge', 'opbridge', new THREE.Group(), R.cx, R.cz); OP.bridge.mesh.userData.height = 0.5;
-  for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(3, 0.14, 0.4), { color: 0xd8cbb0, ow: 0.02 }); pl.position.set(R.cx, -3, R.cz - 1.7 + i * 0.42); pl.visible = false; scene.add(pl); OP.planks.push(pl); }
+  for (let i = 0; i < 9; i++) { const pl = inked(new THREE.BoxGeometry(3, 0.14, 0.4), { color: 0xffffff, ow: 0.02, map: plankWords(i), texBlend: 0.3 }); pl.position.set(R.cx, -3, R.cz - 1.7 + i * 0.42); pl.visible = false; scene.add(pl); OP.planks.push(pl); }
   for (const [x, z, k] of [[-5, 14, 'lamp'], [5, 6, 'candle'], [-5, -6, 'lamp'], [5, -14, 'lamp'], [0, -19, 'candle']]) { const m = k === 'lamp' ? W.makeLamp() : W.makeCandle(0.6); m.position.set(R.cx + x, 0, R.cz + z); scene.add(m); storyLights.push({ m, x: R.cx + x, y: m.userData.ly, z: R.cz + z, r: k === 'lamp' ? 6 : 3.6, col: k === 'lamp' ? [1.3, 0.95, 0.55] : [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: k }); }
 }
 function startOpening() {
@@ -1430,7 +1451,7 @@ function opUpdate(dt) {
   if (OP.stage === 'tilt') { const k = clamp((OP.t - 1.2) / 2.6, 0, 1); OP.leaf.rotation.x = -0.32 * Math.sin(k * Math.PI * 0.5) * (k < 1 ? 1 : 1);
     if (OP.t > 1.6) { const sk = clamp((OP.t - 1.6) / 2.4, 0, 1); P.z = lerp(R.cz + 19, R.cz + 2.6, sk * sk); P.x = R.cx + Math.sin(OP.t * 3) * 0.4 * (1 - sk); P.face = Math.PI; if (frame % 3 === 0) particles.emit(P.x, 0.2, P.z, rnd(-1, 1), 0.6, 1, 0.6, 0.15, 0.85, 0.78, 0.62, 3); }
     if (OP.t > 4.2) { OP.stage = 'gap'; OP.t = 0; S.lock = false; S.shake = 0.5; sfx.play('tear'); S.discovered.add('shape.bridge'); opSub('Tra le due sponde rimase soltanto ______.'); hint(input.mode === 'touch' ? 'Tocca ✎ RISCRIVI e poi la parola PONTE' : input.mode === 'pad' ? 'Premi RB e scegli PONTE' : 'Premi Q e scegli PONTE'); $('tRewrite').classList.add('pulse'); } }
-  if (OP.stage === 'gap') { OP.leaf.rotation.x = lerp(OP.leaf.rotation.x, 0, 0.05); P.hp = P.max; if (grammar.has('opbridge', 'shape.bridge')) { OP.stage = 'build'; OP.t = 0; hint(''); $('tRewrite').classList.remove('pulse'); opSub('Tra le due sponde rimase soltanto un PONTE.'); sfx.play('page'); cinePlate('ponte', 'Tra le due sponde rimase soltanto un PONTE.'); } }
+  if (OP.stage === 'gap') { OP.leaf.rotation.x = lerp(OP.leaf.rotation.x, 0, 0.05); P.hp = P.max; if (grammar.has('opbridge', 'shape.bridge')) { OP.stage = 'build'; OP.t = 0; hint(''); $('tRewrite').classList.remove('pulse'); opSub('Tra le due sponde rimase soltanto un PONTE.'); sfx.play('page'); regia({ id: 'ponte-apertura', dur: 60, until: () => OP.stage !== 'build', cam: trackSide(1, 6.2, 1.5) }); } /* v2.4: ripresa di lato sulle parole appena scritte */ }
   if (OP.stage === 'build') { P.hp = P.max; OP.planks.forEach((pl, i) => { const t = clamp(OP.t * 1.1 - i * 0.1, 0, 1); pl.visible = t > 0; pl.position.y = lerp(4, 0.04, 1 - Math.pow(1 - t, 3)); pl.rotation.z = (1 - t) * 1.2; });
     OP.gapWords.material.opacity = Math.max(0, 1 - OP.t); if (OP.t > 1.9 && OP.chasm) { world.walls = world.walls.filter((w) => w !== OP.chasm); OP.chasm = null; opSub('E il viaggiatore, che non sapeva ancora di scrivere, attraversò.'); }
     if (P.z < R.cz - 8) { OP.stage = 'title'; OP.t = 0; S.lock = true; $('opSub').style.opacity = 0; $('opTitle').classList.remove('hidden'); sfx.play('seal'); } }
@@ -1693,6 +1714,12 @@ function copistaUpdate() { const m = MZ.boss; const bar = $('miniBar'); if (!m |
   if (!m.alive && !m.dead) { m.dead = true; sfx.play('break'); S.shake = 1; S.flash = 0.4; toast('IL COPISTA È CANCELLATO'); gainDrops(15); spawnVial(m.x, m.z, true); journal('Hai sconfitto il Copista: il vuoto davanti alla piastra si può scrivere.'); sfx.tension(false); hint('Ora scrivi PONTE sul vuoto'); } }
 
 const PLATES = {};
+// v2.4: le assi del PONTE sono la parola scritta (PONTE in corsivo, con la riga di prima cancellata sotto)
+const PLANK_TEX = []; function plankWords(i) { const k = i % 3; if (PLANK_TEX[k]) return PLANK_TEX[k]; const c = document.createElement('canvas'); c.width = 512; c.height = 96; const g = c.getContext('2d');
+  g.fillStyle = '#e6d9bd'; g.fillRect(0, 0, 512, 96); g.strokeStyle = 'rgba(60,40,28,.35)'; g.lineWidth = 2; for (let y = 18; y < 96; y += 22) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y + (k - 1) * 2); g.stroke(); }
+  g.fillStyle = 'rgba(30,20,14,.9)'; g.font = 'italic bold 62px Georgia'; g.textBaseline = 'middle'; g.fillText(['PONTE', 'ponte · ponte', 'P O N T E'][k], 26 + k * 30, 50);
+  g.strokeStyle = 'rgba(138,26,16,.55)'; g.lineWidth = 4; g.beginPath(); g.moveTo(330, 74); g.lineTo(500, 70); g.stroke();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return (PLANK_TEX[k] = t); }
 // ================= v2.1 · Fondali dipinti: ogni stanza è una tavola illustrata a inchiostro =================
 (() => { const R0 = mzRng(91);
   const sk = (g, pts, w = 3, n = 2) => { for (let k = 0; k < n; k++) { g.lineWidth = w * (0.6 + R0() * 0.6); g.beginPath(); pts.forEach(([x, y], i) => { const jx = (R0() - 0.5) * 6, jy = (R0() - 0.5) * 6; i ? g.lineTo(x + jx, y + jy) : g.moveTo(x + jx, y + jy); }); g.stroke(); } }; // tratto a mano: due passate tremolanti
@@ -1917,7 +1944,7 @@ function m3dUpdate(dt) {
   if (M3.lumi && lumi.on) lumi.mesh.rotation.y = lerpAng(lumi.mesh.rotation.y, Math.atan2(P.x - lumi.x, P.z - lumi.z), Math.min(1, dt * 4));
   if (M3.charger) M3.charger.rotation.x = lerp(M3.charger.rotation.x, charger.st === 'charge' ? 0.12 : 0, Math.min(1, dt * 6));
 }
-window.PAL = { M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+window.PAL = { REGIA, regia, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

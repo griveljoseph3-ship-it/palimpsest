@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=2.2.0';
+import * as THREE from '../vendor/three.module.js?v=2.3.0';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
@@ -34,6 +34,30 @@ export const NL = 8;
 export const INK_UNIFORMS = { uPR: { value: 1 }, uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 },
   uPL: { value: Array.from({ length: NL }, () => new THREE.Vector4(0, -99, 0, 1)) }, uPC: { value: Array.from({ length: NL }, () => new THREE.Vector3()) } };
 
+// v2.3 · Movimento dei modelli 3D (senza scheletro): il modello, alto 1 e con i piedi a y=0, viene piegato nel vertex shader.
+// Gambe a forbice e braccia opposte (bipede), zampe a onda (strisciante), schiacciamento e allungamento (rimbalzo),
+// e il «secondario»: le parti esterne (mantello, piume, spine, colature) restano indietro e tremano a ogni passo.
+// Le stesse uniform guidano corpo e contorno, così la linea d'inchiostro segue la forma.
+export function animUniforms(o = {}) { return { uPh: { value: 0 }, uSpd: { value: 0 }, uSq: { value: 0 }, uKind: { value: o.kind ?? 0 }, uStride: { value: o.stride ?? 0.09 }, uSwing: { value: o.swing ?? 0.06 },
+  uFlut: { value: o.flutter ?? 1 }, uHW: { value: o.hw ?? 0.3 }, uSeed: { value: Math.random() * 10 }, uDrag: { value: new THREE.Vector2() }, uLean: { value: new THREE.Vector2() }, uBreath: { value: o.breath ?? 1 } }; }
+export const ANIM_GLSL = `uniform float uPh,uSpd,uSq,uKind,uStride,uSwing,uFlut,uHW,uSeed,uBreath; uniform vec2 uDrag,uLean;
+vec3 animPos(vec3 p){ float h=clamp(p.y,0.,1.), s=uSpd, side=p.x<0.?-1.:1., ax=abs(p.x)/uHW, r=length(p.xz)/uHW;
+  p.y*=1.+uSq; p.xz*=1.-uSq*.5;                                                   // schiaccia e allunga (atterraggi, colpi)
+  p.xz*=1.+sin(uTime*2.1+uSeed)*.012*uBreath*smoothstep(.3,.7,h);                  // respiro
+  if(uKind<.5){ float leg=1.-smoothstep(.0,.36,h), foot=1.-smoothstep(.0,.12,h);   // bipede
+    p.z+=sin(uPh)*side*uStride*leg*s; p.y+=max(0.,cos(uPh)*side)*.05*foot*s;
+    float arm=smoothstep(.36,.5,h)*(1.-smoothstep(.62,.74,h))*smoothstep(.5,.85,ax); p.z-=sin(uPh)*side*uSwing*arm*s;
+    p.y+=abs(cos(uPh))*.022*s*smoothstep(.14,.42,h); p.x+=sin(uPh)*.016*s*smoothstep(.2,.6,h); }
+  else if(uKind<1.5){ float drip=1.-smoothstep(.0,.3,h);                            // rimbalzo: le colature restano indietro
+    p.xz+=uDrag*drip*.9; }
+  else { float leg=(1.-smoothstep(.0,.42,h))*smoothstep(.35,.7,ax), ph=uPh*2.+p.z*12./max(uHW,.1)+side*1.57; // strisciante: zampe a onda
+    p.z+=sin(ph)*uStride*leg*s; p.y+=max(0.,cos(ph))*.09*leg*s; p.y+=abs(sin(uPh*2.))*.012*s*smoothstep(.3,.6,h); }
+  p.xz+=uLean*h*h;                                                                   // si sporge nel movimento
+  float w=smoothstep(.55,1.05,r)*uFlut;                                              // parti esterne: mantello, piume, spine
+  p.xz+=uDrag*w*(.35+h);
+  p.xz+=vec2(sin(uTime*7.3+p.y*21.+uSeed+uPh*2.),cos(uTime*6.1+p.x*17.+uSeed+uPh*2.))*.007*w*(1.+s*4.);
+  return p; }`;
+
 export function inkMaster(opts = {}) {
   const m = new THREE.ShaderMaterial({
     uniforms: {
@@ -45,23 +69,44 @@ export function inkMaster(opts = {}) {
       uRedraw: { value: -1 }, uMarks: { value: 0 }, uGlow: { value: new THREE.Color(0, 0, 0) }, uCrack: { value: 0 }, uHit: { value: 0 },
       uH: { value: new THREE.Vector2(opts.y0 ?? 0, opts.y1 ?? 2) }, uScale: { value: opts.texScale ?? 0.25 },
       uSkin: { value: opts.skin || null }, uSkinK: { value: 0 }, uSkinS: { value: opts.skinScale ?? 0.4 }, // v2.2: texture dalle tavole (muri)
+      uMap: { value: opts.map || null }, ...(opts.anim || {}), // v2.3: texture e movimento dei modelli 3D
     },
+    defines: { ...(opts.map ? { USE_M3D: '' } : {}), ...(opts.anim ? { USE_ANIM: '' } : {}) },
     vertexColors: true,
-    vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
-      void main(){ 
+    vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; uniform float uTime;
+#ifdef USE_M3D
+ varying vec2 vUv3;
+#endif
+#ifdef USE_ANIM
+ ${ANIM_GLSL}
+#endif
+      void main(){ vec3 pos=position;
+#ifdef USE_M3D
+ vUv3=uv;
+#endif
+#ifdef USE_ANIM
+ pos=animPos(pos);
+#endif
+
 #ifdef USE_INSTANCING
  mat4 mm=modelMatrix*instanceMatrix;
 #else
  mat4 mm=modelMatrix;
 #endif
- vec4 w=mm*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
+ vec4 w=mm*vec4(pos,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
     fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH; uniform sampler2D uSkin; uniform float uSkinK,uSkinS;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
+#ifdef USE_M3D
+ uniform sampler2D uMap; varying vec2 vUv3;
+#endif
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
         vec3 an=abs(n); vec2 uv= an.y>.6? vW.xz : (an.x>an.z? vW.zy: vW.xy);
         vec3 paper=texture2D(uPaper,uv*uScale).rgb;
         vec3 base=mix(uColor, uColor*paper*1.25, TextureBlend);
+#ifdef USE_M3D
+        base=texture2D(uMap,vUv3).rgb*mix(vec3(1.),paper*1.18,TextureBlend); // il colore del modello (dalle tavole), con la grana della carta
+#endif
         if(uSkinK>0.&&an.y<.6){ vec3 sk=texture2D(uSkin,uv*uSkinS).rgb; base=mix(base,sk*1.12,uSkinK); }
         float wob=vnoise(vW.xz*2.+uTime*.15)*.12;
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
@@ -99,10 +144,18 @@ export function inkMaster(opts = {}) {
 }
 
 // Contorno a scafo invertito con linea "viva" che tremola appena.
-export function outlineMat(w = 0.035) {
+export function outlineMat(w = 0.035, anim = null) {
   return new THREE.ShaderMaterial({
-    uniforms: { uTime: INK_UNIFORMS.uTime, uW: { value: w }, uCol: { value: new THREE.Color(0x15100c) } }, side: THREE.BackSide,
-    vertexShader: `uniform float uTime,uW; void main(){ vec3 p=position+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)); gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
+    uniforms: { uTime: INK_UNIFORMS.uTime, uW: { value: w }, uCol: { value: new THREE.Color(0x15100c) }, ...(anim || {}) }, side: THREE.BackSide, defines: anim ? { USE_ANIM: '' } : {},
+    vertexShader: `uniform float uTime,uW;
+#ifdef USE_ANIM
+ ${ANIM_GLSL}
+#endif
+      void main(){ vec3 q=position;
+#ifdef USE_ANIM
+ q=animPos(q);
+#endif
+ vec3 p=q+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)); gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
     fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor=vec4(uCol,1.); }`,
   });
 }

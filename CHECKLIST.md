@@ -63,6 +63,15 @@ Note del giro 3 per chi riprende:
 - Memoria grafica stimata: pavimenti ≈ 26 MB, figure ≈ 8 MB, mattoni ≈ 1,4 MB (si caricano sulla scheda grafica solo quando la stanza viene vista). Draw call uguali o minori (una sagoma = 1 draw call contro 2 del corpo 3D con contorno); nel labirinto il test misura 2,2 fps contro 1,7 prima (rendering software).
 - Prossimi passi grafici: figure anche per Ladro (tavole 059/047), Custode (040/049), Caricatore (002), Elara (071) mantenendo le parti che si rompono; animare le sagome (respiro, inclinazione quando attaccano); tavole 001/024/010/016/027 ancora da usare (chiedere a Joseph chi è la maschera a becco).
 
+## Giro 4 · Personaggi 3D dai modelli di Joseph (v2.3.0)
+I modelli erano sul ramo `grok/personaggi-3d` (costruito sulla vecchia v1.9: NON unito). Presi solo `assets/modelli/*.glb` e i loader in `vendor/`.
+- [x] Caricamento e pulizia (`src/modelli.js`): pezzetti staccati via, pozza sotto la creatura con le spine via, piedi a y=0, altezza 1
+- [x] Movimento senza scheletro (`ANIM_GLSL` in art.js, `animateModels` in modelli.js, chiamato una volta per fotogramma dopo `visualUpdate`): passi legati ai metri percorsi (i piedi non scivolano), gambe a forbice, braccia, bacino; zampe a onda (Caricatore); salti con schiacciamento (macchie, Lumi, Ladro); mantello/piume/spine/colature che restano indietro e tremano a ogni passo; respiro da fermi; mai fluttuare (la base è riportata sul pavimento)
+- [x] Chi è chi: correttore = giocatore (penna vecchia nascosta, il busto gira nei colpi) · macchia = acari, bruto, Sputacchio (tiene becco 3D), Risguardo (tiene lo scudo) · creatura_spine = Copista · caricatore · custode (nucleo davanti al petto, si torce nella carica) · rilegatore = Ladro (si gonfia con la sacca) · elara (porta e finale) · figura_velata = giurato senza volto · blob_tentacoli = Lumi (rimbalza a terra accanto a te)
+- [x] Test `tests/modelli.mjs`; strumenti `tools/studio.html` + `tools/studio.mjs` (4 lati) e `tools/passi.html` + `tools/passi.mjs` (5 momenti del passo)
+- [ ] Da decidere con Joseph: Tipografo senza modello (resta di carta); robot, Ilde, Elara bambina non ancora in scena
+- [ ] Poi: animazioni d'attacco dedicate per i boss (oggi: torsione e inclinazione), panche del tribunale con giurati 3D
+
 ## Dopo il giro 3 (da fare, in ordine di impatto)
 - [ ] Enigmi nuovi con vero «aha» (circuiti CONDUTTIVO a catena, specchi, ordine delle parole)
 - [ ] Tutorial più corto (8 → 4-5 passi, insegnare col mondo)

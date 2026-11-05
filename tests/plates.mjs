@@ -35,8 +35,8 @@ check('non si ripete nella stessa partita', await E(() => window.__pd === 2 && !
 await E(() => { PAL.PLATE.force = false; });
 // figure di carta dalle tavole
 const fig = await E(() => { const a = PAL.spawnMite(0, 2), b2 = PAL.spawnSpitter(1, 2), c = PAL.spawnShield(-1, 2); const r = [a, b2, c].map((o) => !!o.mesh.userData.card && !o.mesh.children[0].visible); for (const o of [a, b2, c]) { o.alive = false; PAL.scene.remove(o.mesh); } return r; });
-check('acari, sputacchio e Risguardo sono figure di carta (corpo 3D nascosto)', fig.every(Boolean));
-check('Tipografo, giurato e Lumi dalle tavole', await until(() => !!(PAL.tipo.userData.paper && PAL.juror.userData.paper && PAL.lumi.mesh.userData.paper), 10000));
+check('acari, sputacchio e Risguardo: figura di carta o modello 3D (vecchio corpo nascosto)', fig.every(Boolean));
+check('Tipografo, giurato e Lumi dalle tavole (o in 3D)', await until(() => !!(PAL.tipo.userData.paper && (PAL.juror.userData.paper || PAL.juror.userData.model) && (PAL.lumi.mesh.userData.paper || PAL.lumi.mesh.userData.model)), 20000));
 await E(() => { PAL.giveItem('sacca'); PAL.toggleBag(true); });
 check('icona dell\'oggetto dalla tavola nella borsa', await until(() => { const im = document.querySelector('#bag .item img'); return im && im.src.includes('assets/icone/sack.jpg') && im.naturalWidth === 160; }, 10000));
 await W(800); await shot('plate-bag'); await E(() => PAL.toggleBag(false));

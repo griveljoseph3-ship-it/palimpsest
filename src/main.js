@@ -1,17 +1,19 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=2.2.0';
-import { EFFECTS } from './data.js?v=2.2.0';
-import { Grammar } from './resolver.js?v=2.2.0';
-import { Ink, INK } from './ink.js?v=2.2.0';
-import { Input } from './input.js?v=2.2.0';
-import { Sfx } from './audio.js?v=2.2.0';
-import { Tele } from './telemetry.js?v=2.2.0';
-import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG } from './art.js?v=2.2.0';
+import * as THREE from '../vendor/three.module.js?v=2.3.0';
+import { EFFECTS } from './data.js?v=2.3.0';
+import { Grammar } from './resolver.js?v=2.3.0';
+import { Ink, INK } from './ink.js?v=2.3.0';
+import { Input } from './input.js?v=2.3.0';
+import { Sfx } from './audio.js?v=2.3.0';
+import { Tele } from './telemetry.js?v=2.3.0';
+import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG } from './art.js?v=2.3.0';
 const FIG_READY = (k) => FIG[k] && FIG[k].ready, FIGT = (k) => FIG[k].tex;
 loadFigures(['acaro', 'acaro-bruto', 'acaro-sputo', 'copista', 'tipo', 'giurato', 'giurato-volto', 'lumi']); // v2.2: figure di carta dalle tavole
-import * as W from './world.js?v=2.2.0';
-import * as ST from './story.js?v=2.2.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=2.2.0';
+import * as W from './world.js?v=2.3.0';
+import { loadModels, whenModel, makeModel, animateModels, STATO as M3D, LIVE as M3D_LIVE, has as hasModel } from './modelli.js?v=2.3.0';
+const USE3D = !/[?&]3d=0/.test(location.search); if (USE3D) loadModels(); // v2.3: personaggi 3D (?3d=0 = quelli di prima, per confronto)
+import * as ST from './story.js?v=2.3.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=2.3.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -131,8 +133,10 @@ function makeMiteV(brute) { const m = W.makeMite(); if (brute) m.scale.setScalar
 /* v2.2: la macchia è una figura di carta ritagliata dalle tavole (065); il corpo 3D resta nascosto sotto (stessa logica) e torna visibile se l'immagine non è arrivata */
 const FIG_H = { acaro: 0.7, 'acaro-bruto': 0.66, 'acaro-sputo': 0.66, copista: 0.85 };
 function miteMesh(brute, fig) { const g = new THREE.Group(); const body = W.makeMite(); body.position.set(0, 0, 0); g.add(body); if (brute) g.scale.setScalar(1.45);
-  const k = fig || (brute ? 'acaro-bruto' : 'acaro'); const card = figure(k, FIG_H[k] || 0.62, { flip: true }); if (card) { body.visible = false; g.add(card); g.userData.card = card; } return g; }
-function hideIfPaper(o, ...parts) { if (o.mesh.userData.card) for (const p of parts) p.visible = false; }
+  const k = fig || (brute ? 'acaro-bruto' : 'acaro'); const mk = k === 'copista' ? 'creatura_spine' : 'macchia';
+  if (USE3D && hasModel(mk)) { const md = makeModel(mk, k === 'copista' ? 0.8 : 0.7, k === 'copista' ? { ow: 0.02 } : { outline: false }); /* le macchie sono tante: niente contorno (metà dei triangoli) */ body.visible = false; g.add(md); g.userData.card = md; g.userData.model = md; if (k === 'acaro-sputo') g.userData.keepParts = true; return g; } // v2.3
+  const card = figure(k, FIG_H[k] || 0.62, { flip: true }); if (card) { body.visible = false; g.add(card); g.userData.card = card; } return g; }
+function hideIfPaper(o, ...parts) { if (o.mesh.userData.card && !o.mesh.userData.keepParts) for (const p of parts) p.visible = false; } /* lo Sputacchio 3D tiene il becco e la cresta: si vede dove mira */
 // macchie più furbe: aggirano i muri, non si accatastano, scattano quando sono vicine (con preavviso)
 function mitePursue(m, tx, tz, dt, group) { let dx = tx - m.x, dz = tz - m.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
   let sx = 0, sz = 0; for (const o of group) { if (o === m || !o.alive) continue; const ox = m.x - o.x, oz = m.z - o.z, d = Math.hypot(ox, oz); if (d < 0.9 && d > 1e-3) { sx += ox / d * (0.9 - d); sz += oz / d * (0.9 - d); } }
@@ -1122,7 +1126,7 @@ const cBlue = new THREE.Color(), cHot = new THREE.Color(0.8, 0.2, 0.05), cDim = 
 function visualUpdate(dt, rdt) {
   INK_UNIFORMS.uTime.value += rdt;
   const u = P.mesh.userData, sp = Math.hypot(P.vx, P.vz); P.mesh.position.set(P.x, P.yOff || 0, P.z); P.mesh.rotation.y = P.face;
-  u.body.rotation.x = lerp(u.body.rotation.x, sp * 0.03 + (P.st === 'dodge' ? 0.5 : 0), 0.2); u.body.position.y = Math.abs(Math.sin(now * 11)) * 0.05 * Math.min(1, sp / 4);
+  u.body.rotation.x = lerp(u.body.rotation.x, sp * 0.03 + (P.st === 'dodge' ? 0.5 : 0), 0.2); u.body.position.y = u.model ? 0 : Math.abs(Math.sin(now * 11)) * 0.05 * Math.min(1, sp / 4);
   u.cloak.scale.set(1 + Math.sin(now * 9) * 0.03 * sp / 5, 1, 1 + sp * 0.03); const sq = P.st === 'heavy' && P.t > P.hitAt ? 0.9 : 1; u.body.scale.set(2 - sq, sq, 2 - sq); if (u.scarf) { const run = Math.min(1, sp / 5) + (P.st === 'dodge' ? 0.8 : 0); for (const pv of u.scarf) { const k = pv.userData.k, ph = now * (5 + run * 4) + k * 1.1 + pv.userData.side * 9; pv.rotation.x = (k ? 0.12 : 0.3 + run * 0.95) + Math.sin(ph) * (0.07 + 0.12 * run); pv.rotation.z = Math.sin(ph * 0.7) * 0.1 * (1 + k); } } /* sciarpa al vento */
   if (P.st === 'attack') { const T0 = [0.3, 0.28, 0.42][P.combo || 0], k = clamp(1 - (P.t - 0.05) / (T0 - 0.05), 0, 1); if (P.combo === 2) { u.quillPivot.rotation.y = 0; u.quillPivot.rotation.x = lerp(0.9, -1.1, k); } else u.quillPivot.rotation.y = P.combo === 1 ? lerp(-1.6, 1.6, k) : lerp(1.6, -1.6, k); } else if (P.st === 'heavy') { u.quillPivot.rotation.x = P.t > P.hitAt ? -1.2 : 0.6; u.quillPivot.rotation.y = 0; } else { u.quillPivot.rotation.y = lerp(u.quillPivot.rotation.y, 0.3, 0.2); u.quillPivot.rotation.x = lerp(u.quillPivot.rotation.x, 0, 0.2); }
   if (!P.mats) P.mats = matsOf(P.mesh); setU(P.mats, 'DissolveAmount', P.st === 'dead' ? clamp(1.05 - P.t / 1.4 * 1.05, 0, 1.05) : 0);
@@ -1186,7 +1190,7 @@ function loop() {
       let scale = panel.open ? (opts.pauseFull ? 0 : INK.worldScale) : 1; if (S.hitstop > 0) { S.hitstop -= rdt; scale *= 0.08; } if (slowT > 0) { slowT -= rdt; scale *= 0.4; }
       playerActions();
       acc += rdt * scale; let n = 0; while (acc >= STEP && n < 6) { step(STEP); acc -= STEP; n++; } if (n === 6) acc = 0;
-      panelUpdate(rawDt); dlgUpdate(rdt); hudUpdate(rdt); visualUpdate(rdt * scale, rdt);
+      panelUpdate(rawDt); dlgUpdate(rdt); hudUpdate(rdt); visualUpdate(rdt * scale, rdt); animateModels(rdt * scale); /* una volta per fotogramma, dopo che tutti si sono mossi */
     } else if (S.phase === 'title') { INK_UNIFORMS.uTime.value += rdt; camera.position.set(Math.sin(t / 4000) * 2.5, 7.5, 6.5); camera.lookAt(0, 0.8, -3); particles.update(rdt); if (frame % 8 === 0) particles.emit(rnd(-5, 5), 3.5, rnd(-5, 2), 0, -0.4, 0, 3, 0.07, 0.95, 0.85, 0.6, 0); }
   } catch (err) { console.error(err); }
   renderer.info.reset(); post.render(scene, camera);
@@ -1535,7 +1539,7 @@ const INTRO_SWAY = []; const MZ_SHEETS = []; const DOOR_JURY = {};
 })();
 function v16Update(dt) {
   if (S.room === 'intro') for (const p of INTRO_SWAY) { p.rotation.z = Math.sin(now * 1.3 + p.userData.sw) * 0.25; p.position.y += Math.sin(now * 0.8 + p.userData.sw) * 0.002; }
-  opUpdate(dt); curseUpdate(dt); custodePhases(dt); questUpdate(dt); ladroUpdate(dt); picksUpdate(dt); placeLetterPieces(); if (CR.solved && !PICKS.lettera2 && !(PROG.quests.picked || {}).lettera2 && S.room === 'crypt') dropPickup('lettera2', -36.5, -33.2, 'letter'); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
+  m3dUpdate(dt); opUpdate(dt); curseUpdate(dt); custodePhases(dt); questUpdate(dt); ladroUpdate(dt); picksUpdate(dt); placeLetterPieces(); if (CR.solved && !PICKS.lettera2 && !(PROG.quests.picked || {}).lettera2 && S.room === 'crypt') dropPickup('lettera2', -36.5, -33.2, 'letter'); zoneUpdate(); mazeRichUpdate(dt); copistaUpdate();
   if (SUP.t >= 0 && SUP.t < 1) { SUP.t = Math.min(1, SUP.t + dt * 1.2); const k = SUP.t * SUP.t; SUP.mesh.userData.col.rotation.z = -k * 1.45; SUP.mesh.userData.col.position.set(k * 1.5, 1.6 - k * 1.1, 0); SUP.mesh.userData.balc.rotation.z = -k * 0.42; SUP.mesh.userData.balc.position.y = 3.25 - k * 1.6; }
   if (MZ.active && MZ.stack && !MZ.stack.broken && grammar.has('mzstack', 'state.fragile') && grammar.has('mzstack', 'weight.heavy')) { MZ.stack.broken = true; MZ.walls.splice(MZ.walls.indexOf(MZ.stackBox), 1); world.walls = world.walls.filter((w) => w !== MZ.stackBox); sfx.play('break'); S.shake = 1; particles.burst(MZ.stack.x, 1, MZ.stack.z, 40, 6, [0.5, 0.35, 0.2], 0.2); MZ.stack.mesh.visible = false; toast('LA PILA CROLLA SOTTO IL SUO PESO'); gainDrops(8); journal('Due parole insieme: la pila di registri è crollata.'); }
   if (MZ.active) for (const m of swarm) if (m.scribe && m.alive && m.room === 'maze' && m.hunting && !P.curse && Math.hypot(m.x - P.x, m.z - P.z) < 5) { m.scd = (m.scd || 0) - dt; if (m.scd <= 0) { m.scd = 14; curseStart('Uno scrivano'); } }
@@ -1808,7 +1812,7 @@ const _qi = questInteractables; questInteractables = function (L) { _qi(L);
     else if (q.step === 2) L.push({ ...at, label: 'restituisci', fn: () => { S.camFocus = { x: at.x, z: at.z, t: 1.6 }; jurorFace(); say([['giurato', '…Ci vedo. Ci vedo di nuovo.'], ['giurato', 'Quel giorno votai COLPEVOLE perché me lo dissero. Tutti lo votammo. Nessuno guardò Elara in faccia: era una bambina bagnata fradicia.'], ['giurato', 'Adesso che ho una faccia, mi vergogno. Tieni il calamaio. E se vedi Elara… dille che uno di noi ha cambiato idea.']], { done: () => questAdvance('giuria', 3) }); } }); }
 };
 /* v2.2: Tipografo e giurato diventano le figure delle tavole (018/069 e 026) appena le immagini sono arrivate; la sagoma disegnata resta come riserva */
-function folkPaper(grp, k, h) { const t = setInterval(() => { const c = figure(k, h, { tilt: 0.45 }); if (!c) return; clearInterval(t); c.layers.mask = grp.userData.card.layers.mask; grp.userData.card.visible = false; grp.add(c); grp.userData.paper = c; }, 300); }
+function folkPaper(grp, k, h) { const t = setInterval(() => { if (grp.userData.model) { clearInterval(t); return; } const c = figure(k, h, { tilt: 0.45 }); if (!c) return; clearInterval(t); c.layers.mask = grp.userData.card.layers.mask; grp.userData.card.visible = false; grp.add(c); grp.userData.paper = c; }, 300); }
 function jurorFace() { if (juror.userData.paper && FIG_READY('giurato-volto')) { juror.userData.paper.material.uniforms.map.value = FIGT('giurato-volto'); sfx.sting('word'); particles.burst(juror.position.x, 2, juror.position.z, 20, 2, [1, 0.9, 0.6], 0.12); return; } const card = juror.userData.card; const c = document.createElement('canvas'); c.width = 256; c.height = 384; const g = c.getContext('2d'); g.drawImage(card.material.map.image, 0, 0); g.fillStyle = '#efe5cf'; g.beginPath(); g.arc(128, 70, 44, 0, 6.3); g.fill(); g.fillStyle = '#16110d'; g.beginPath(); g.arc(112, 66, 6, 0, 6.3); g.arc(144, 66, 6, 0, 6.3); g.fill(); g.strokeStyle = '#16110d'; g.lineWidth = 4; g.beginPath(); g.moveTo(110, 92); g.quadraticCurveTo(128, 86, 146, 92); g.stroke(); g.fillStyle = 'rgba(60,90,140,.6)'; g.beginPath(); g.arc(150, 84, 5, 0, 6.3); g.fill();
   card.material.map = new THREE.CanvasTexture(c); card.material.map.colorSpace = THREE.SRGBColorSpace; card.material.needsUpdate = true; sfx.sting('word'); particles.burst(juror.position.x, 2, juror.position.z, 20, 2, [1, 0.9, 0.6], 0.12); }
 let lettersPlaced = false;
@@ -1860,7 +1864,7 @@ const drawTipo = (g) => { g.fillStyle = '#efe5cf'; g.strokeStyle = '#16110d'; g.
 const tipo = paperFolk(drawTipo); tipo.position.set(-8.4, 0, -62.3); scene.add(tipo); circles.push({ x: -8.4, z: -62.3, r: 0.5 }); tipo.traverse((o) => o.layers.set(W.ROOMS.findIndex((r) => r.id === 'conduct') + 1));
 folkPaper(tipo, 'tipo', 1.95); folkPaper(juror, 'giurato', 2.0);
 /* Lumi: la goccia della tavola 048 al posto della pallina 3D (che resta sotto finché l'immagine non arriva) */
-{ const t = setInterval(() => { const c = figure('lumi', 0.8, { ground: false, flip: true, tilt: 0.7 }); if (!c) return; clearInterval(t); c.position.y = -0.38; for (const o of lumi.mesh.children) o.visible = false; lumi.mesh.add(c); lumi.mesh.userData.paper = c; }, 300); }
+{ const t = setInterval(() => { if (lumi.mesh.userData.model) { clearInterval(t); return; } const c = figure('lumi', 0.8, { ground: false, flip: true, tilt: 0.7 }); if (!c) return; clearInterval(t); c.position.y = -0.38; for (const o of lumi.mesh.children) o.visible = false; lumi.mesh.add(c); lumi.mesh.userData.paper = c; }, 300); }
 const LETTERS = { list: [], built: false };
 function letterMesh(ch) { const g = new THREE.Group(); const b = inked(new THREE.BoxGeometry(0.42, 0.42, 0.42), { color: 0x8a6a4a, shift: 0xd8a63a, ow: 0.02 }); g.add(b);
   const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); x.fillStyle = '#16110d'; x.fillRect(0, 0, 128, 128); x.fillStyle = '#efe5cf'; x.font = 'bold 96px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.save(); x.translate(64, 66); x.scale(-1, 1); x.fillText(ch, 0, 0); x.restore(); // i caratteri da stampa sono a specchio
@@ -1889,7 +1893,31 @@ function questUpdate(dt) {
   if (PROG.items.seppia && !panel.open && ink.v < 50 && S.phase === 'play') ink.v = Math.min(50, ink.v + dt * 2);
   if (tipo.visible) tipo.userData.card.rotation.y = Math.atan2(P.x - tipo.position.x, P.z - tipo.position.z) * 0.3;
 }
-window.PAL = { drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
+// ================= v2.3 · Personaggi 3D: i modelli di Joseph «rivestono» i personaggi =================
+// Le parti di gioco restano (nucleo rosso, corazza che si rompe, penna dei colpi, sacca del Ladro): si nascondono solo i vecchi corpi.
+const hideKids = (g, keep = []) => { for (const c of g.children) if (!keep.includes(c)) c.visible = false; };
+const M3 = {};
+function remat(e) { if (!e) return; e.mats = matsOf(e.mesh); e.fxMats = null; if (e.comp) e.compMats = [...matsOf(e.comp), ...(e.model ? [e.model.material] : [])]; } /* le parole (crepe, rosso, bagliore) si vedono anche sul modello */
+if (USE3D) {
+  whenModel('correttore', () => { const u = P.mesh.userData; hideKids(u.body, [u.quillPivot]); u.quill.visible = false; /* la penna è quella del modello; la punta invisibile resta per luce e scia dei colpi */ const m = makeModel('correttore', 1.9, { ground: false, ow: 0.016 }); u.body.add(m); u.model = m; P.mats = null; M3.player = m; });
+  whenModel('caricatore', () => { const u = charger.mesh.userData; hideKids(u.body, [u.core, u.armor]); for (const c of u.armor.children) c.visible = false;
+    const m = makeModel('caricatore', 1.15, { ow: 0.014 }); u.body.add(m); u.core.position.set(0, 1.0, -0.35); u.core.scale.setScalar(0.45); charger.model = m; remat(charger); M3.charger = m; });
+  whenModel('custode', () => { const u = custode.mesh.userData; hideKids(u.body, [u.core, u.armor]); for (const c of u.armor.children) c.visible = false;
+    const m = makeModel('custode', 3.3, { ow: 0.022 }); u.body.add(m); u.core.position.set(0, 2.0, 0.62); u.core.scale.setScalar(0.7); custode.model = m; remat(custode); M3.custode = m; });
+  whenModel('rilegatore', () => { const u = LD.ent.mesh.userData; hideKids(u.body); const m = makeModel('rilegatore', 2.2, { ow: 0.016 }); u.body.add(m); LD.ent.model = m; remat(LD.ent); M3.ladro = m; });
+  whenModel('elara', () => { for (const f of [elaraFig, elaraFig2]) { const u = f.userData; if (!u.body) continue; hideKids(u.body); const m = makeModel('elara', 1.62, { ow: 0.01 }); u.body.add(m); u.model = m; } });
+  whenModel('figura_velata', () => { hideKids(juror); const m = makeModel('figura_velata', 2.0, { ow: 0.012 }); m.layers.mask = juror.userData.card.layers.mask; m.userData.outline.layers.mask = m.layers.mask; juror.add(m); juror.userData.model = m; M3.juror = m; });
+  whenModel('blob_tentacoli', () => { hideKids(lumi.mesh); const m = makeModel('blob_tentacoli', 0.55, { ow: 0.01 }); lumi.mesh.add(m); lumi.mesh.userData.model = m; M3.lumi = m; });
+}
+// gesti che il movimento non basta a spiegare: la carica del Custode, la sacca del Ladro, Lumi che ti guarda
+function m3dUpdate(dt) {
+  if (M3.player) { const u = P.mesh.userData, m = M3.player; const atk = P.st === 'attack' || P.st === 'heavy'; m.rotation.y = lerp(m.rotation.y, atk ? -u.quillPivot.rotation.y * 0.45 : 0, Math.min(1, dt * (atk ? 22 : 8))); m.rotation.x = lerp(m.rotation.x, P.st === 'heavy' ? -u.quillPivot.rotation.x * 0.12 : 0, Math.min(1, dt * 14)); } // il busto accompagna il colpo
+  if (M3.custode) { const m = M3.custode, st = custode.st; const tw = st === 'swipeWU' ? -0.45 : st === 'swipe' ? 0.55 : 0; m.rotation.y = lerp(m.rotation.y, tw, Math.min(1, dt * 10)); m.rotation.x = lerp(m.rotation.x, st === 'swipe' ? 0.18 : st === 'stun' ? -0.12 : 0, Math.min(1, dt * 8)); }
+  if (M3.ladro) { const k = 1 + (LD.sack || 0) / 100 * 0.35; M3.ladro.scale.set(2.2 * k, 2.2 * (1 + ((LD.sack || 0) / 100) * 0.08), 2.2 * k); }
+  if (M3.lumi && lumi.on) lumi.mesh.rotation.y = lerpAng(lumi.mesh.rotation.y, Math.atan2(P.x - lumi.x, P.z - lumi.z), Math.min(1, dt * 4));
+  if (M3.charger) M3.charger.rotation.x = lerp(M3.charger.rotation.x, charger.st === 'charge' ? 0.12 : 0, Math.min(1, dt * 6));
+}
+window.PAL = { M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },

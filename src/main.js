@@ -806,11 +806,11 @@ function enterRoom(r) {
   $('inkWrap').classList.toggle('safe', zoneSafe());
   if (r.id === 'intro') grammar.snapshot('intro', ['board'], () => ({}));
   if (r.id === 'charger' && !S.discovered.has('temperament.cautious') && charger.alive) { S.discovered.add('temperament.cautious'); S.encounter = 'charger'; ink.encounterEnd(); Tele.log('encounter_start', { id: 'charger' }); sfx.tension(true);
-    say([['narr', 'Il Caricatore è VIGILE. Sempre vigile. Ma anche la vigilanza è solo una parola.'], ['narr', 'Sotto, scritta a matita: CAUTO.']]); hint(ST.HINTS.charger); journal('Hai trovato la parola CAUTO.'); }
+    bossIntro('charger', () => ({ x: charger.x, z: charger.z, rot: charger.mesh.rotation.y, h: 1.6 }), () => say([['narr', 'Il Caricatore è VIGILE. Sempre vigile. Ma anche la vigilanza è solo una parola.'], ['narr', 'Sotto, scritta a matita: CAUTO.']])); hint(ST.HINTS.charger); journal('Hai trovato la parola CAUTO.'); }
   if (r.id === 'conduct' && !S.discovered.has('element.conductive')) { S.discovered.add('element.conductive'); grammar.snapshot('conduct', ['plate'], () => ({}));
     say([['narr', 'La piastra di rame dice ISOLANTE. Qualcuno ha cancellato male: si legge ancora CONDUTTIVO.']]); hint(ST.HINTS.press); journal('Hai trovato la parola CONDUTTIVO.'); }
   if (r.id === 'door' && prev !== 'door' && !S.doorRoute) { cinePlate('tribunale', 'IV · La porta che giudica'); grammar.snapshot('door', ['relay', 'evplate'], () => ({ hasDoc: door.hasDoc, docPlaced: door.docPlaced })); say(ST.elaraDoor(mem).slice(0, 2)); hint(ST.HINTS.door); }
-  if (r.id === 'arena' && S.encounter !== 'arena' && !S.victory) { S.encounter = 'arena'; ink.encounterEnd(); sfx.tension(true); if (!S.arenaIntro) { S.arenaIntro = true; S.lock = true; cinePlate('custode', 'V · Il Custode della Fenditura', () => { custode.rise = 2.6; S.camFocus = { x: custode.x, z: custode.z, t: 3 }; sfx.sting('phase'); sfx.play('tear'); setTimeout(() => { S.lock = false; say(ST.custodeLines(S.arenaDeaths, mem)); }, FAST ? 100 : 2700); }); } else say(ST.custodeLines(S.arenaDeaths, mem)); hint(ST.HINTS.arena); Tele.log('encounter_start', { id: 'arena' }); }
+  if (r.id === 'arena' && S.encounter !== 'arena' && !S.victory) { S.encounter = 'arena'; ink.encounterEnd(); sfx.tension(true); if (!S.arenaIntro) { S.arenaIntro = true; S.lock = true; cinePlate('custode', 'V · Il Custode della Fenditura', () => { custode.rise = 2.6; S.camFocus = { x: custode.x, z: custode.z, t: 3 }; sfx.sting('phase'); sfx.play('tear'); setTimeout(() => bossIntro('custode', () => ({ x: custode.x, z: custode.z, rot: custode.mesh.rotation.y, h: 3.3 }), () => { S.lock = false; say(ST.custodeLines(S.arenaDeaths, mem)); }), FAST ? 100 : 2700); }); } else say(ST.custodeLines(S.arenaDeaths, mem)); hint(ST.HINTS.arena); Tele.log('encounter_start', { id: 'arena' }); }
 }
 function endEncounter(id) { if (S.encounter && !opts.reduce) { slowmo(0.45); S.flash = Math.max(S.flash, 0.15); } S.encounter = null; ink.encounterEnd(); sfx.tension(false); Tele.log('encounter_end', { id }); popInk('Inchiostro pieno'); }
 function die() {
@@ -1748,7 +1748,7 @@ function spawnCopista() { const [x, z] = mzCell(MZ.EX, 2); const o = spawnMite(x
   const q = W.makeDoc(); q.scale.setScalar(0.6); q.position.set(0, 0.3, -0.2); o.mesh.add(q); for (const sd of [-1, 1]) { const h = inked(new THREE.ConeGeometry(0.06, 0.4, 5), { color: 0xe8dcc0, outline: false }); h.position.set(sd * 0.15, 0.35, 0.1); h.rotation.z = sd * -0.5; o.mesh.add(h); hideIfPaper(o, h); } hideIfPaper(o, q);
   MZ.boss = o; const bar = document.createElement('div'); bar.id = 'miniBar'; bar.innerHTML = '<div class="bname">IL COPISTA</div><div class="hbar"><i></i></div>'; bar.style.display = 'none'; document.body.appendChild(bar); }
 function copistaAct(m, dt) {
-  if (!m.engaged) { m.engaged = true; m.st = 'walk'; m.atkT = 2.6; say([['narr', 'Il Copista alza la testa dal suo registro. Ricopia tutto: anche te.']]); sfx.tension(true); bossBeat('IL COPISTA', 'ricopia tutto, anche te', m); }
+  if (!m.engaged) { m.engaged = true; m.st = 'walk'; m.atkT = 2.6; bossIntro('copista', () => ({ x: m.x, z: m.z, rot: m.mesh.rotation.y, h: 2.5 }), () => say([['narr', 'Il Copista alza la testa dal suo registro. Ricopia tutto: anche te.']])); sfx.tension(true); }
   m.summonT -= dt; m.writeT -= dt; if (m.hitT > 0) m.hitT -= dt; const p2 = m.hp < m.maxHp / 2;
   if (p2 && !m.p2) { m.p2 = true; m.st = 'walk'; m.atkT = 1.2; bossBeat('IL COPISTA · FASE 2', 'il registro si apre: due righe alla volta', m); m.mesh.scale.setScalar(3.4); }
   if (m.summonT <= 0) { m.summonT = p2 ? 7 : 9; for (let i = 0; i < (p2 ? 2 : 1); i++) { const a = Math.random() * 6.28; const c = spawnMite(m.x + Math.sin(a) * 2, m.z + Math.cos(a) * 2, false); c.room = 'maze'; c.aggroR = 30; c.home = { x: c.x, z: c.z }; } particles.burst(m.x, 1, m.z, 20, 4); sfx.play('voice', 0.2); toastSmall('Il Copista ricopia le sue macchie'); }
@@ -1779,6 +1779,32 @@ function inkPool(x, z, r, life) { const m = new THREE.Mesh(new THREE.CircleGeome
 function poolsUpdate(dt) { P.slow = 1; for (let i = pools.length - 1; i >= 0; i--) { const q = pools[i]; q.life -= dt; q.m.material.opacity = Math.min(0.8, q.life); if (Math.hypot(P.x - q.x, P.z - q.z) < q.r && P.st !== 'dodge') P.slow = 0.55; if (q.life <= 0) { scene.remove(q.m); q.m.geometry.dispose(); q.m.material.dispose(); pools.splice(i, 1); } } }
 // momento del boss: rallentatore, camera sul boss, scritta grande, accordo
 function comboBeat(title, sub) { if (!opts.reduce) slowmo(0.5); S.flash = Math.max(S.flash, 0.2); const el = $('bossCard'); el.innerHTML = title + '<small>' + sub + '</small>'; el.classList.remove('on'); el.classList.add('combo'); void el.offsetWidth; el.classList.add('on'); setTimeout(() => el.classList.remove('combo'), 2300); Tele.log('combo_discovered', { title }); }
+// ================= v2.4 · Presentazione dei boss: chi è e cosa l'ha reso così =================
+// Prima volta: ripresa larga dal basso che gli gira davanti, poi primo piano che avanza sul volto, tre frasi brevi, il nome.
+// Dopo (se muori e torni): solo il nome. Un tocco salta. Con ?fast e «riduci movimento» resta solo il nome.
+const LORE = {
+  charger: { name: 'IL CARICATORE', sub: 'porta il verdetto, e non si ferma', lines: ['Era il carro della tipografia: portava le pagine fresche al tribunale.', 'Ilde gli ordinò di non fermarsi mai, perché nessuno leggesse il verdetto per strada.', 'Nessuno gli ha mai detto basta. Ora carica tutto ciò che si muove.'] },
+  copista: { name: 'IL COPISTA', sub: 'ricopia tutto, anche te', lines: ['Un tempo ricopiava le storie, una riga perfetta dopo l\'altra.', 'Quando il libro si chiuse, nessuno gli disse di posare la penna.', 'Ora ricopia chi entra nel labirinto. E chi viene ricopiato, resta.'] },
+  ladro: { name: 'IL LADRO D\'INCHIOSTRO', sub: 'beve l\'inchiostro vivo e lo usa contro di te', lines: ['Qui sotto Ilde versava le versioni scartate della storia.', 'Lui le ha bevute tutte. Più beveva, più dimenticava chi era.', 'La maschera che porta l\'ha rubata al giurato. Una faccia sua non ce l\'ha più.'] },
+  custode: { name: 'IL CUSTODE DELLA FENDITURA', sub: 'non lascia cambiare la storia', lines: ['Ilde lo scrisse per ultimo: un guardiano di libri, perché la Fenditura restasse chiusa.', 'Gli diede un solo ordine: che nessuno cambi più la storia.', 'Non sa che anche lei, alla fine, voleva cambiarla.'] },
+  compositore: { name: 'IL COMPOSITORE', sub: 'l\'automa che corregge tutto', lines: ['Il Tipografo lo costruì per comporre le pagine, lettera per lettera.', 'Quando il Tipografo smise di venire, nessuno gli disse cosa comporre.', 'Così ha cominciato a correggere tutto. Anche chi passa.'] },
+};
+const INTRO_SEEN = new Set();
+const loreEl = (() => { const d = document.createElement('div'); d.id = 'bossLore'; document.body.appendChild(d); return d; })();
+function bossIntro(k, get, done) {
+  const L = LORE[k]; const card = () => bossBeat(L.name, L.sub, get());
+  if ((FAST && !SCR.force) || opts.reduce || INTRO_SEEN.has(k)) { INTRO_SEEN.add(k); card(); if (done) done(); return; } INTRO_SEEN.add(k);
+  const wasLock = S.lock; S.lock = true; P.inv = Math.max(P.inv, 99); sfx.sting('phase'); sfx.tension(true); Tele.log('boss_intro', { k });
+  const per = 2.4, T = 1.2 + L.lines.length * per + 0.4; let li = -1, skipped = false; const t0 = performance.now();
+  const onSkip = (ev) => { if (performance.now() - t0 > 600) { skipped = true; ev.stopPropagation(); } }; addEventListener('pointerdown', onSkip, true); addEventListener('keydown', onSkip, true);
+  regia({ id: 'intro-' + k, always: true, dur: T, blendIn: 0.9, blendOut: 0.8, until: () => skipped, cam: (t) => {
+    const b = get(), H = b.h, fx = Math.sin(b.rot), fz = Math.cos(b.rot);
+    const idx = Math.min(L.lines.length - 1, Math.floor((t - 0.6) / per)); if (t > 0.6 && idx !== li) { li = idx; loreEl.textContent = L.lines[idx]; }
+    { const u = t - 0.6 - Math.max(0, idx) * per; loreEl.style.opacity = t < 0.6 ? 0 : Math.min(1, u / 0.35, (per - u) / 0.4); } /* la frase segue il tempo della ripresa */
+    if (t < 1.4 + per * 1.1) { const a = 0.75 - t * 0.09, r = Math.max(4.5, H * 2.6); return { pos: _rv.set(b.x + Math.sin(b.rot + a) * r, Math.max(0.6, H * 0.3), b.z + Math.cos(b.rot + a) * r), look: _rl.set(b.x, H * 0.62, b.z), fov: 32 }; } // largo, dal basso
+    const k2 = clamp((t - 1.4 - per * 1.1) / (T - 1.4 - per * 1.1), 0, 1), dd = lerp(Math.max(3, H * 1.9), Math.max(2.2, H * 1.15), k2 * k2); // primo piano che avanza
+    return { pos: _rv.set(b.x + fx * dd + fz * 0.6, H * 0.82, b.z + fz * dd - fx * 0.6), look: _rl.set(b.x, H * 0.76, b.z), fov: 28 }; },
+    done: () => { removeEventListener('pointerdown', onSkip, true); removeEventListener('keydown', onSkip, true); loreEl.style.opacity = 0; P.inv = 0; card(); setTimeout(() => { S.lock = wasLock; if (done) done(); }, 1500); } }); } /* il nome si vede da solo, poi si parla */
 function bossBeat(title, sub, at) { if (!opts.reduce) slowmo(0.6); S.shake = Math.max(S.shake, 0.7); sfx.sting('phase'); S.camFocus = { x: at.x, z: at.z, t: 1.4 };
   const el = $('bossCard'); el.innerHTML = title + (sub ? '<small>' + sub + '</small>' : ''); el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); Tele.log('boss_beat', { title }); }
 function copistaUpdate() { const m = MZ.boss; const bar = $('miniBar'); if (!m || !bar) return; const show = m.alive && m.engaged && S.room === 'maze'; bar.style.display = show ? 'block' : 'none'; if (show) bar.querySelector('i').style.width = (Math.max(0, m.hp) / m.maxHp * 100) + '%';
@@ -1837,13 +1863,13 @@ LD.ent = addEnt('ladro', 'ladro', (() => { const g = new THREE.Group(); const bo
 const ldTether = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 6), new THREE.MeshBasicMaterial({ color: 0x0b0806 })); ldTether.visible = false; scene.add(ldTether);
 const ldBar = (() => { const b = document.createElement('div'); b.id = 'ladroBar'; b.innerHTML = '<div class="bname">IL LADRO D\'INCHIOSTRO</div><div class="hbar"><i></i></div><div class="sack"><i></i></div>'; b.style.display = 'none'; document.body.appendChild(b); return b; })();
 function ladroAwake() { if (LD.awake) return; LD.awake = true; LD.alive = true; LD.ent.alive = true; LD.ent.mesh.visible = true; LD.st = 'rise'; LD.t = 2.2; LD.ent.mesh.position.set(LD.x, -2.4, LD.z); S.lock = true; sfx.play('splat'); sfx.play('tear');
-  setTimeout(() => { say([['ladro', 'Shhh. Non svegliare l\'archivio. Sto bevendo.', 'archivio'], ['ladro', 'Tutto l\'inchiostro che Ilde ha versato qui sotto… e adesso anche il tuo. Quello vivo ha un sapore migliore.']], { done: () => { S.lock = false; bossBeat('IL LADRO D\'INCHIOSTRO', 'beve l\'inchiostro vivo e lo usa contro di te', LD); hint('Schiva per strappare il filo · colpisci la sacca quando è gonfia · CONDUTTIVO mentre beve…'); } }); }, FAST ? 100 : 1600); }
+  setTimeout(() => { say([['ladro', 'Shhh. Non svegliare l\'archivio. Sto bevendo.', 'archivio'], ['ladro', 'Tutto l\'inchiostro che Ilde ha versato qui sotto… e adesso anche il tuo. Quello vivo ha un sapore migliore.']], { done: () => { S.lock = false; } }); }, FAST ? 100 : 1600); } /* v2.4: la presentazione parte quando è uscito dalle pozze (vedi «rise») */
 function ladroUpdate(dt) { if (!LD.alive) { ldTether.visible = false; ldBar.style.display = 'none'; return; } const e = LD, m = e.ent.mesh, u = m.userData;
   ldBar.style.display = S.room === 'archive' && e.st !== 'rise' ? 'block' : 'none'; ldBar.querySelector('.hbar i').style.width = (e.hp / e.max * 100) + '%'; ldBar.querySelector('.sack i').style.width = e.sack + '%';
   if (S.room !== 'archive' || S.lock) { ldTether.visible = e.st === 'siphon'; return; }
   const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz) || 1, caut = grammar.has('ladro', 'temperament.cautious'), cond = grammar.has('ladro', 'element.conductive'), p2 = e.hp < e.max / 2; e.t -= dt;
   if (p2 && !e.p2) { e.p2 = true; bossBeat('IL LADRO · FASE 2', 'beve più in fretta; le pozze si svegliano', e); for (const [x, z] of [[30, -19], [50, -25]]) spawnMite(x, z); }
-  if (e.st === 'rise') { m.position.y = lerp(-2.4, 0, 1 - Math.max(0, e.t) / 2.2); if (frame % 2 === 0) particles.emit(e.x + rnd(-1, 1), 0.2, e.z + rnd(-1, 1), 0, rnd(1, 3), 0, 0.8, 0.2, 0.04, 0.05, 0.08, 6); if (e.t <= 0) { e.st = 'stalk'; e.t = 2; } }
+  if (e.st === 'rise') { m.position.y = lerp(-2.4, 0, 1 - Math.max(0, e.t) / 2.2); if (frame % 2 === 0) particles.emit(e.x + rnd(-1, 1), 0.2, e.z + rnd(-1, 1), 0, rnd(1, 3), 0, 0.8, 0.2, 0.04, 0.05, 0.08, 6); if (e.t <= 0) { e.st = 'stalk'; e.t = 2; if (!LD.introDone) { LD.introDone = true; bossIntro('ladro', () => ({ x: LD.x, z: LD.z, rot: m.rotation.y, h: 2.2 }), () => hint('Schiva per strappare il filo · colpisci la sacca quando è gonfia · CONDUTTIVO mentre beve…')); } } }
   else if (e.st === 'stalk') { const want = caut ? 7 : 4.5, k = d > want + 0.5 ? 1 : d < want - 0.5 ? -1 : 0; e.x += (dx / d * k + (-dz / d) * 0.6) * (p2 ? 2.6 : 1.9) * dt; e.z += (dz / d * k + (dx / d) * 0.6) * (p2 ? 2.6 : 1.9) * dt;
     if (e.t <= 0) { if (e.sack >= (caut ? 999 : 45)) { e.st = 'cast'; e.t = 1.0; sfx.play('warn'); ring(P.x, P.z, 1.3, 1.0, 0x3fc1ff); } else { e.st = 'siphonWU'; e.t = p2 ? 0.55 : 0.8; e.lane = laneWarn(e.x, e.z, dx / d, dz / d, Math.min(d, 9), 0.4, e.t); sfx.play('warn'); } } }
   else if (e.st === 'siphonWU') { if (e.t <= 0) { if (d < 9.5) { e.st = 'siphon'; e.t = 3.6; e.sid = 'ld' + (++attackCounter); sfx.play('breath'); } else { e.st = 'stalk'; e.t = 1; } } }
@@ -1999,7 +2025,7 @@ function remat(e) { if (!e) return; e.mats = matsOf(e.mesh); e.fxMats = null; if
 if (USE3D) {
   whenModel('correttore', () => { const u = P.mesh.userData; hideKids(u.body, [u.quillPivot]); u.quill.visible = false; /* la penna è quella del modello; la punta invisibile resta per luce e scia dei colpi */ const m = makeModel('correttore', 1.9, { ground: false, ow: 0.016 }); u.body.add(m); u.model = m; P.mats = null; M3.player = m; });
   whenModel('caricatore', () => { const u = charger.mesh.userData; hideKids(u.body, [u.core, u.armor]); for (const c of u.armor.children) c.visible = false;
-    const m = makeModel('caricatore', 1.15, { ow: 0.014 }); u.body.add(m); u.core.position.set(0, 1.0, -0.35); u.core.scale.setScalar(0.45); charger.model = m; remat(charger); M3.charger = m; });
+    const m = makeModel('caricatore', 1.15, { ow: 0.03 }); /* contorno più spesso: si stacca dal pavimento */ u.body.add(m); u.core.position.set(0, 1.0, -0.35); u.core.scale.setScalar(0.45); charger.model = m; remat(charger); M3.charger = m; });
   whenModel('custode', () => { const u = custode.mesh.userData; hideKids(u.body, [u.core, u.armor]); for (const c of u.armor.children) c.visible = false;
     const m = makeModel('custode', 3.3, { ow: 0.022 }); u.body.add(m); u.core.position.set(0, 2.0, 0.62); u.core.scale.setScalar(0.7); custode.model = m; remat(custode); M3.custode = m; });
   whenModel('rilegatore', () => { const u = LD.ent.mesh.userData; hideKids(u.body); const m = makeModel('rilegatore', 2.2, { ow: 0.016 }); u.body.add(m); LD.ent.model = m; remat(LD.ent); M3.ladro = m; });

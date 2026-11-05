@@ -266,3 +266,6 @@ body.regia #hud,body.regia #words{opacity:0!important;pointer-events:none!import
 
 /* v2.4 · la scrittura */
 #scrivi{position:fixed;inset:0;width:100vw;height:100vh;z-index:15;display:none;opacity:1;transition:opacity .35s}#scrivi.out{opacity:0;pointer-events:none}
+
+/* v2.4 · presentazione dei boss: la frase di storia tra le bande nere */
+#bossLore{position:fixed;left:8vw;right:8vw;bottom:3.2vh;z-index:14;text-align:center;color:#f3ead6;font:italic clamp(17px,2.4vw,26px) Georgia,serif;text-shadow:0 2px 8px #000;opacity:0;pointer-events:none}

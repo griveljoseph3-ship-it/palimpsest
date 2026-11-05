@@ -72,13 +72,15 @@ const WAIT = {}; // chi aspetta un modello: quando arriva, il personaggio si «r
 export function whenModel(n, f) { if (M[n]) f(); else (WAIT[n] = WAIT[n] || []).push(f); }
 
 // Mesh a inchiostro con il colore del modello: stessi effetti del gioco (lampo del colpo, dissolvenza, crepe, bagliore, luci) + movimento
-export const LIVE = []; // modelli vivi da animare ogni fotogramma
+export const LIVE = [];
+const SHADOW_GEO = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2), SHADOW_MAT = new THREE.MeshBasicMaterial({ color: 0x0b0806, transparent: true, opacity: 0.38, depthWrite: false }); // modelli vivi da animare ogni fotogramma
 export function makeModel(n, height, o = {}) {
   const d = M[n]; if (!d) return null; const rig = { ...RIG[n], ...o }; const U = animUniforms({ ...rig, hw: d.hw });
   const mat = inkMaster({ color: 0xffffff, map: d.map, y0: 0, y1: height, texBlend: o.texBlend ?? 0.12, anim: U });
   const m = new THREE.Mesh(d.geo, mat); m.scale.setScalar(height); m.userData.model3d = n;
   if (o.outline !== false) { const ol = new THREE.Mesh(d.geo, outlineMat((o.ow ?? 0.012) / height, U)); ol.renderOrder = -1; m.add(ol); m.userData.outline = ol; }
-  m.userData.anim = { U, rig, height, ground: o.ground !== false, last: null, vel: new THREE.Vector2(), drag: new THREE.Vector2(), hopT: Math.random() * 3, spd: 0, base: 0, hit: 0 };
+  let shadow = null; if (o.shadow !== false) { shadow = new THREE.Mesh(SHADOW_GEO, SHADOW_MAT); shadow.scale.setScalar(d.hw * 1.35); shadow.position.y = 0.004 / height; shadow.renderOrder = -2; m.add(shadow); } // ombra a terra: il personaggio «poggia»
+  m.userData.anim = { U, rig, height, shadow, ground: o.ground !== false, last: null, vel: new THREE.Vector2(), drag: new THREE.Vector2(), hopT: Math.random() * 3, spd: 0, base: 0, hit: 0 };
   LIVE.push(m); return m;
 }
 
@@ -108,6 +110,7 @@ export function animateModels(dt) {
     // mai fluttuare: la base del modello sta sul pavimento (anche se il gruppo del personaggio è sollevato), più l'eventuale salto
     if (a.ground) { const gy = _w.y - m.position.y * _s.y; const want = gy > 0 ? -gy / _s.y : 0; m.position.y = want + lift / _s.y; }
     else m.position.y = lift / _s.y;
+    if (a.shadow) { a.shadow.position.y = (0.004 - lift) / (a.height * _s.y); const k = 1 - Math.min(0.5, lift / Math.max(0.3, H)); a.shadow.scale.setScalar(m.geometry.boundingSphere ? a.U.uHW.value * 1.35 * k : 1); } // l'ombra resta a terra anche quando salta
   }
 }
 export function hitModel(m) { if (m && m.userData.anim) m.userData.anim.hit = 1; }

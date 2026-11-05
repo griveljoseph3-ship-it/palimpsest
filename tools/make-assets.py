@@ -80,7 +80,7 @@ def main():
     for k, (n, rot) in PAVIMENTI.items():
         im = load(n); im = im.rotate(rot, expand=True) if rot else im
         if k == 'maze': w, h = im.size; im = im.crop(((w - h) // 2, 0, (w - h) // 2 + h, h)).resize((512, 512), Image.LANCZOS)  # si ripete sul pavimento del labirinto
-        save_jpg(multiply_layer(im, {'maze': 0.6, 'charger': 0.7, 'arena': 0.7, 'archive': 0.72, 'crypt': 0.72}.get(k, 0.85))  # più leggere dove si combatte, per leggere i nemici
+        save_jpg(multiply_layer(im, {'maze': 0.6, 'charger': 0.45, 'arena': 0.7, 'archive': 0.72, 'crypt': 0.72}.get(k, 0.85))  # più leggere dove si combatte, per leggere i nemici
                  , f'{OUT}/pavimenti/{k}.jpg', 82)
     for k, n in SCENE.items(): save_jpg(load(n), f'{OUT}/scene/{k}.jpg', 82)
     for k, (n, box) in ICONE.items(): ic = crop(load(n), box); ic.thumbnail((160, 160), Image.LANCZOS); bg = Image.new('RGB', (160, 160), (236, 226, 204)); bg.paste(ic, ((160 - ic.width) // 2, (160 - ic.height) // 2)); save_jpg(bg, f'{OUT}/icone/{k}.jpg', 86)

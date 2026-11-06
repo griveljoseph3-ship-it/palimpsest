@@ -531,9 +531,24 @@ function hitFx(o, weight, kill) { // o: {x,z,mesh}; weight 1 = colpo rapido, 2 =
   if (o.mesh) { if (!o.fxMats) o.fxMats = matsOf(o.mesh); let f = flashes.find((q) => q.o === o); if (!f) { f = { o, s0: o.mesh.scale.clone() }; flashes.push(f); } f.t = 0.14; }
   const n = 8 + weight * 6; for (let i = 0; i < n; i++) { const s = rnd(2, 5) * (0.7 + weight * 0.25); particles.emit(o.x + ux * 0.2, y, o.z + uz * 0.2, ux * s + rnd(-1.5, 1.5), rnd(0.8, 3.2), uz * s + rnd(-1.5, 1.5), rnd(0.35, 0.7), rnd(0.08, 0.2) * (1 + weight * 0.15), 0.04, 0.03, 0.03, 12); }
   if (kill) { for (let i = 0; i < 10; i++) particles.emit(o.x, y, o.z, rnd(-3, 3), rnd(2, 5), rnd(-3, 3), rnd(0.8, 1.4), rnd(0.12, 0.22), 0.9, 0.84, 0.7, 6); inkWave(o.x, o.z, 1.8); }
-  KICK.x = ux; KICK.z = uz; KICK.a = Math.max(KICK.a, opts.reduce ? 0 : 0.07 + weight * 0.05 + (kill ? 0.05 : 0));
-  S.hitstop = Math.max(S.hitstop, [0, 0.045, 0.085, 0.11][weight] + (kill ? 0.03 : 0)); if (kill) sfx.play('splat');
+  KICK.x = ux; KICK.z = uz; KICK.a = Math.max(KICK.a, opts.reduce ? 0 : 0.09 + weight * 0.06 + (kill ? 0.06 : 0));
+  S.hitstop = Math.max(S.hitstop, [0, 0.065, 0.1, 0.15][weight] + (kill ? 0.05 : 0)); if (kill) sfx.play('splat');
+  // v2.5 · colpi che si sentono: macchia a stella nel punto d'impatto, schizzi che restano sulla carta, scossa, suono a strati, segno scritto sul nemico
+  const h = (o.mesh && o.mesh.userData.height) || 1; impactAt(o.x - ux * 0.25, Math.min(1.6, Math.max(0.5, h * 0.55)), o.z - uz * 0.25, weight, kill);
+  for (let i = 0; i < weight + (kill ? 2 : 0); i++) traces.add(o.x + ux * rnd(0.3, 1.4) + rnd(-0.4, 0.4), o.z + uz * rnd(0.3, 1.4) + rnd(-0.4, 0.4), rnd(0.25, 0.5) * (0.8 + weight * 0.2), 0, now);
+  if (!opts.reduce) S.shake = Math.max(S.shake, [0, 0.12, 0.22, 0.38][weight] + (kill ? 0.12 : 0));
+  if (weight >= 2) sfx.play('swing', 0.6); if (weight >= 3) sfx.play('heavy'); if (kill) sfx.play('drip');
+  if (!o.boss && !o.noMark) dmgAt(o.x, h + 0.4, o.z, kill ? '✕' : '−' + weight, 'ink' + (weight >= 2 || kill ? ' big' : ''));
 }
+// macchie d'impatto: sprite a stella d'inchiostro (rossa al centro nei colpi forti e nelle uccisioni), pochi e riusati
+const IMPACT_TEX = [0, 1].map((red) => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const R = mzRng(red ? 7 : 3);
+  g.translate(64, 64); g.fillStyle = '#120c0a'; g.beginPath(); for (let i = 0; i <= 28; i++) { const a = i / 28 * 6.283, r = (i % 2 ? 22 : 34 + R() * 26); g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill();
+  for (let i = 0; i < 9; i++) { const a = R() * 6.283, d = 40 + R() * 20, r = 2 + R() * 5; g.beginPath(); g.arc(Math.cos(a) * d, Math.sin(a) * d, r, 0, 6.283); g.fill(); }
+  if (red) { g.fillStyle = '#9a1c12'; g.beginPath(); g.arc(0, 0, 15, 0, 6.283); g.fill(); } else { g.fillStyle = '#efe5cf'; g.beginPath(); g.arc(0, 0, 7, 0, 6.283); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; });
+const IMPACTS = Array.from({ length: 10 }, () => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: IMPACT_TEX[0], transparent: true, depthWrite: false, depthTest: false })); sp.visible = false; sp.renderOrder = 5; scene.add(sp); return { sp, t: 1, d: 0.22, s: 1 }; }); let impI = 0;
+function impactAt(x, y, z, weight, kill) { const q = IMPACTS[impI++ % IMPACTS.length]; q.sp.material.map = IMPACT_TEX[weight >= 3 || kill ? 1 : 0]; q.sp.material.rotation = Math.random() * 6.283; q.sp.position.set(x, y, z); q.t = 0; q.d = (0.16 + weight * 0.04) * (window.__fxSlow || 1); /* __fxSlow: solo per le foto di prova */ q.s = 0.7 + weight * 0.35 + (kill ? 0.3 : 0); q.sp.visible = true; }
+function impactsUpdate(rdt) { for (const q of IMPACTS) { if (!q.sp.visible) continue; q.t += rdt; const k = q.t / q.d; if (k >= 1) { q.sp.visible = false; continue; } const sc = q.s * (0.45 + 0.75 * Math.sqrt(k)); q.sp.scale.set(sc, sc, 1); q.sp.material.opacity = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4; } }
 // morte in inchiostro: la macchia si scioglie e affonda nella carta invece di sparire
 const dying = [];
 function inkDeath(m) { const f = flashes.findIndex((q) => q.o === m); if (f >= 0) { m.mesh.scale.copy(flashes[f].s0); flashes.splice(f, 1); } dying.push({ mesh: m.mesh, mats: m.fxMats || matsOf(m.mesh), t: 0, s0: m.mesh.scale.clone(), y0: m.mesh.position.y }); }
@@ -944,7 +959,7 @@ function tutUpdate(dt) {
 // ---------- vita e danni leggibili ----------
 const _pv = new THREE.Vector3();
 function toScreen(x, y, z) { _pv.set(x, y, z).project(camera); return { x: (_pv.x * 0.5 + 0.5) * innerWidth, y: (-_pv.y * 0.5 + 0.5) * innerHeight, ok: _pv.z < 1 && Math.abs(_pv.x) < 1.1 && Math.abs(_pv.y) < 1.1 }; }
-function dmgAt(x, y, z, text, cls = '') { const p = toScreen(x, y, z); if (!p.ok) return; const d = document.createElement('div'); d.className = 'dn ' + cls; d.textContent = text; const sd = Math.random() < 0.5 ? -1 : 1; d.style.left = (p.x + sd * rnd(70, 95)) + 'px'; d.style.top = (p.y - 24) + 'px'; $('dmg').appendChild(d); setTimeout(() => d.remove(), 950); }
+function dmgAt(x, y, z, text, cls = '') { const p = toScreen(x, y, z); if (!p.ok) return; const d = document.createElement('div'); d.className = 'dn ' + cls; d.textContent = text; const sd = Math.random() < 0.5 ? -1 : 1; d.style.left = (p.x + sd * rnd(70, 95)) + 'px'; d.style.top = (p.y - 24) + 'px'; if (window.__fxSlow) d.style.animationDuration = 0.9 * window.__fxSlow + 's'; $('dmg').appendChild(d); setTimeout(() => d.remove(), 950 * (window.__fxSlow || 1)); }
 const CORE = { charger: 2, custode: 4 };
 function enemyHP(e) { const core = CORE[e.id]; const coreLeft = e.alive && e.st !== 'dead' && !(e.boss && arena.snapped) ? core : 0; return { v: Math.max(0, e.armorHP) * (e.armorBroken ? 0 : 1) + coreLeft, max: e.armorMax + core }; }
 const ebarEl = {};
@@ -1288,7 +1303,7 @@ function loop() {
       let scale = panel.open ? (opts.pauseFull ? 0 : INK.worldScale) : 1; if (S.hitstop > 0) { S.hitstop -= rdt; scale *= 0.08; } if (slowT > 0) { slowT -= rdt; scale *= 0.4; }
       playerActions();
       acc += rdt * scale; let n = 0; while (acc >= STEP && n < 6) { step(STEP); acc -= STEP; n++; } if (n === 6) acc = 0;
-      panelUpdate(rawDt); dlgUpdate(rdt); hudUpdate(rdt); visualUpdate(rdt * scale, rdt); animateModels(rdt * scale); /* una volta per fotogramma, dopo che tutti si sono mossi */
+      panelUpdate(rawDt); dlgUpdate(rdt); hudUpdate(rdt); visualUpdate(rdt * scale, rdt); animateModels(rdt * scale); impactsUpdate(rdt); /* una volta per fotogramma, dopo che tutti si sono mossi */
     } else if (S.phase === 'title') { INK_UNIFORMS.uTime.value += rdt; camera.position.set(Math.sin(t / 4000) * 2.5, 7.5, 6.5); camera.lookAt(0, 0.8, -3); particles.update(rdt); if (frame % 8 === 0) particles.emit(rnd(-5, 5), 3.5, rnd(-5, 2), 0, -0.4, 0, 3, 0.07, 0.95, 0.85, 0.6, 0); }
   } catch (err) { console.error(err); }
   renderer.info.reset(); post.render(scene, camera);
@@ -2036,7 +2051,7 @@ const DUMMY = (() => { const g = new THREE.Group(); g.position.set(2.8, 0, 3.8);
 circles.push({ x: 2.8, z: 3.8, r: 0.45 });
 function dummyActive() { return tut.on && S.room === 'intro' && tut.i < TUT.length; }
 function dummyHit(heavy, fin, range, arc) { const d = DUMMY; if (!dummyActive() || !inArc(d, range + 0.6, arc + 0.2)) return false;
-  d.hits++; d.wob = 1; sfx.play('hit'); S.flash = Math.max(S.flash, 0.06); particles.burst(d.x, 1.35, d.z, 12, 3, [0.05, 0.03, 0.03], 0.12); traces.add(d.x + rnd(-0.4, 0.4), d.z + rnd(-0.4, 0.4), 0.7, 0, now);
+  d.hits++; d.wob = 1; sfx.play('hit'); impactAt(d.x, 1.35, d.z, heavy ? 3 : fin ? 2 : 1, false); S.hitstop = Math.max(S.hitstop, 0.06); KICK.a = Math.max(KICK.a, 0.12); S.flash = Math.max(S.flash, 0.06); particles.burst(d.x, 1.35, d.z, 12, 3, [0.05, 0.03, 0.03], 0.12); traces.add(d.x + rnd(-0.4, 0.4), d.z + rnd(-0.4, 0.4), 0.7, 0, now);
   dmgAt(d.x, 2.3, d.z, ['UNO', 'DUE', 'TRE!'][Math.min(2, (P.combo ?? d.hits - 1) % 3)] || '✦', d.hits % 3 === 0 ? 'big' : 'hit'); return true; }
 function dummyUpdate(dt) { const d = DUMMY, on = dummyActive(); d.g.visible = on || (tut.on && S.room === 'intro'); if (!on) { if (d.blob) { scene.remove(d.blob.m); d.blob = null; } return; }
   d.wob = Math.max(0, d.wob - dt * 2.5); d.b.rotation.z = Math.sin(now * 15) * 0.35 * d.wob; d.b.rotation.x = -0.25 * d.wob;

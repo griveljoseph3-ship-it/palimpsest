@@ -278,3 +278,5 @@ body.regia #hud,body.regia #words{opacity:0!important;pointer-events:none!import
 /* v2.5 · tutorial: pulsante per saltarlo */
 #tutSkip{display:block;margin:8px auto 0;pointer-events:auto;background:none;border:0;color:#6b4a2a;font:italic calc(14px*var(--fs)) Georgia,serif;text-decoration:underline;cursor:pointer;padding:6px 10px}
 #tut{pointer-events:auto}
+/* v2.5 · consiglio per installarlo su iPad */
+#a2hs{margin-top:14px;font:italic 15px Georgia,serif;color:#3a2a1e;border-top:1px solid rgba(22,17,13,.25);padding-top:10px}#a2hs button{display:block;margin:8px auto 0;background:#16110d;color:#efe5cf;border:0;padding:6px 14px;font:14px Georgia,serif;border-radius:4px}

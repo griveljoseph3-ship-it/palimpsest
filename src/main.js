@@ -1,19 +1,19 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=2.3.0';
-import { EFFECTS } from './data.js?v=2.3.0';
-import { Grammar } from './resolver.js?v=2.3.0';
-import { Ink, INK } from './ink.js?v=2.3.0';
-import { Input } from './input.js?v=2.3.0';
-import { Sfx } from './audio.js?v=2.3.0';
-import { Tele } from './telemetry.js?v=2.3.0';
-import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG } from './art.js?v=2.3.0';
+import * as THREE from '../vendor/three.module.js?v=2.5.0';
+import { EFFECTS } from './data.js?v=2.5.0';
+import { Grammar } from './resolver.js?v=2.5.0';
+import { Ink, INK } from './ink.js?v=2.5.0';
+import { Input } from './input.js?v=2.5.0';
+import { Sfx } from './audio.js?v=2.5.0';
+import { Tele } from './telemetry.js?v=2.5.0';
+import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG } from './art.js?v=2.5.0';
 const FIG_READY = (k) => FIG[k] && FIG[k].ready, FIGT = (k) => FIG[k].tex;
 loadFigures(['acaro', 'acaro-bruto', 'acaro-sputo', 'copista', 'tipo', 'giurato', 'giurato-volto', 'lumi']); // v2.2: figure di carta dalle tavole
-import * as W from './world.js?v=2.3.0';
-import { loadModels, whenModel, makeModel, animateModels, STATO as M3D, LIVE as M3D_LIVE, has as hasModel } from './modelli.js?v=2.3.0';
+import * as W from './world.js?v=2.5.0';
+import { loadModels, whenModel, makeModel, animateModels, STATO as M3D, LIVE as M3D_LIVE, has as hasModel } from './modelli.js?v=2.5.0';
 const USE3D = !/[?&]3d=0/.test(location.search); if (USE3D) loadModels(); // v2.3: personaggi 3D (?3d=0 = quelli di prima, per confronto)
-import * as ST from './story.js?v=2.3.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=2.3.0';
+import * as ST from './story.js?v=2.5.0';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=2.5.0';
 
 const $ = (id) => document.getElementById(id);
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
@@ -2171,6 +2171,11 @@ function m3dUpdate(dt) {
   if (M3.lumi && lumi.on) lumi.mesh.rotation.y = lerpAng(lumi.mesh.rotation.y, Math.atan2(P.x - lumi.x, P.z - lumi.z), Math.min(1, dt * 4));
   if (M3.charger) M3.charger.rotation.x = lerp(M3.charger.rotation.x, charger.st === 'charge' ? 0.12 : 0, Math.min(1, dt * 6));
 }
+// v2.5 · gioco installabile: si salva sull'iPad (sw.js) e si gioca anche offline; su Safari un consiglio per aggiungerlo alla schermata Home
+if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !FAST) navigator.serviceWorker.register('sw.js').catch(() => {});
+(() => { const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); const standalone = navigator.standalone || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+  if (!ios || standalone || localStorage.getItem('pal_a2hs')) return; const tip = document.createElement('div'); tip.id = 'a2hs'; tip.innerHTML = 'Per giocare a tutto schermo, anche senza internet: tocca <b>Condividi</b> ⬆︎ e poi <b>Aggiungi alla schermata Home</b>. <button type="button">Ho capito</button>';
+  const p = document.querySelector('#title .tpage'); if (p) p.appendChild(tip); tip.querySelector('button').onclick = () => { tip.remove(); try { localStorage.setItem('pal_a2hs', '1'); } catch (e) {} }; })();
 window.PAL = { PEOPLE, meet, drawnFace, dodge: () => { if (P.st === 'dodge') return; P.dx = Math.sin(P.face); P.dz = Math.cos(P.face); P.st = 'dodge'; P.t = 0.22; P.inv = 0.32; P.cd = 0.5; P.dashT = 0.5; P.combo = 0; sfx.play('dodge'); }, DUMMY, tut, CP, TD, fallInto, compoPulse, compoDown, SCR, REGIA, regia, confirmWord, panel, M3D, M3, M3D_LIVE, drawnIcon, tipo, lumi, PLATE, cinePlate, backPlate, PLATES, say, world, dlgNext: () => { dlg.ch = 1e9; dlgNext(); }, isPaused: () => paused, spawnShield, elara, floodStart, elaraTwist, LD, PICKS, ladroAwake, ladroCast, dropPickup, juror, interactables, ITEMS, QUESTS, Qs, LETTERS, giveItem, questAdvance, toggleBag, tides, tideStart, spawnSpitter, shots, toggleMap, lanes, pools, sfx, musicMood, spawnMite, flashes, KICK, ghosts, MZS,  ZONE, scene, renderer, camera,  OP, C3, startOpening, takeCurse, curseStart, collapseSupport, endingPage,  MZ, PROG, buildMaze, enterMaze, exitMaze, buySkill, useEraser, zoneTransition,  CR, vials, door, XW, tut, TUT, mem, C2, AR, rileg, dweights, damHeart, swarm, shelf, startChapter2: () => startChapter2(), lightHit: () => doHit(false), trap, wellEnt, breakBoard: () => breakBoard(), applyW: (id, w) => applyWord(ENT[id], w, 'panel'), damage: (n, f) => damagePlayer(n, f, 'test' + Math.random()), heavyHit: () => doHit(true), S, P, ENT, grammar, ink, Tele, mem, door, arena, gates, input, panel, dlg, custode, charger,
   start: startGame, begin: beginWithIntro, tp: (x, z) => { P.x = x; P.z = z; P.vx = P.vz = 0; }, face: (x, z) => { P.face = Math.atan2(x - P.x, z - P.z); },
   open: (id) => openPanel(id), select: (eff) => { const i = panel.words.indexOf(eff); if (i >= 0) selectWord(i); return i; }, confirm: confirmWord, close: closePanel,

@@ -14,7 +14,7 @@ check('la vecchia penna gigante è nascosta', await E(() => !PAL.P.mesh.userData
 const g = await E(() => { const o = PAL.spawnMite(0, 0); const m = o.mesh.userData.model; PAL.scene.updateMatrixWorld(true); return { is3d: !!m, y: o.mesh.position.y }; });
 check('le macchie sono modelli 3D', g.is3d);
 await W(1500);
-check('la macchia non fluttua: la base è sul pavimento', await E(() => { const o = PAL.swarm[PAL.swarm.length - 1]; const m = o.mesh.userData.model; const v = m.getWorldPosition(m.position.clone()); return Math.abs(v.y) < 0.12; }));
+check('la macchia non fluttua: tra un salto e l\'altro la base tocca il pavimento', await E(() => new Promise((res) => { const o = PAL.swarm[PAL.swarm.length - 1]; const m = o.mesh.userData.model; let lo = 9, n = 0; const f = () => { const v = m.getWorldPosition(m.position.clone()); lo = Math.min(lo, Math.abs(v.y)); if (++n < 40) requestAnimationFrame(f); else res(lo < 0.05); }; requestAnimationFrame(f); })));
 await E(() => { for (const m of PAL.swarm) { m.alive = false; PAL.scene.remove(m.mesh); } });
 // cammina: la fase del passo avanza e la velocità sale; da fermo torna calmo
 await pg.click('#inkLabel', { force: true }); const U = () => PAL.M3.player.userData.anim.U;

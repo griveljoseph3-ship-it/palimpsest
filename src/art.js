@@ -44,7 +44,8 @@ export const ANIM_GLSL = `uniform float uPh,uSpd,uSq,uKind,uStride,uSwing,uFlut,
 vec3 animPos(vec3 p){ float h=clamp(p.y,0.,1.), s=uSpd, side=p.x<0.?-1.:1., ax=abs(p.x)/uHW, r=length(p.xz)/uHW;
   p.y*=1.+uSq; p.xz*=1.-uSq*.5;                                                   // schiaccia e allunga (atterraggi, colpi)
   p.xz*=1.+sin(uTime*2.1+uSeed)*.012*uBreath*smoothstep(.3,.7,h);                  // respiro
-  if(uKind<.5){ float leg=1.-smoothstep(.0,.36,h), foot=1.-smoothstep(.0,.12,h);   // bipede
+  if(uKind>2.5){ }
+  else if(uKind<.5){ float leg=1.-smoothstep(.0,.36,h), foot=1.-smoothstep(.0,.12,h);   // bipede
     p.z+=sin(uPh)*side*uStride*leg*s; p.y+=max(0.,cos(uPh)*side)*.05*foot*s;
     float arm=smoothstep(.36,.5,h)*(1.-smoothstep(.62,.74,h))*smoothstep(.5,.85,ax); p.z-=sin(uPh)*side*uSwing*arm*s;
     p.y+=abs(cos(uPh))*.022*s*smoothstep(.14,.42,h); p.x+=sin(uPh)*.016*s*smoothstep(.2,.6,h); }
@@ -80,6 +81,7 @@ export function inkMaster(opts = {}) {
 #ifdef USE_ANIM
  ${ANIM_GLSL}
 #endif
+ #include <skinning_pars_vertex>
       void main(){ vec3 pos=position;
 #ifdef USE_M3D
  vUv3=uv;
@@ -87,13 +89,18 @@ export function inkMaster(opts = {}) {
 #ifdef USE_ANIM
  pos=animPos(pos);
 #endif
+ vec3 transformed=pos; vec3 objectNormal=normal;
+ #include <skinbase_vertex>
+ #include <skinnormal_vertex>
+ #include <skinning_vertex>
+ pos=transformed;
 
 #ifdef USE_INSTANCING
  mat4 mm=modelMatrix*instanceMatrix;
 #else
  mat4 mm=modelMatrix;
 #endif
- vec4 w=mm*vec4(pos,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
+ vec4 w=mm*vec4(pos,1.); vW=w.xyz; vN=normalize(mat3(mm)*objectNormal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
     fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH; uniform sampler2D uSkin; uniform float uSkinK,uSkinS;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
 #ifdef USE_M3D
@@ -151,11 +158,15 @@ export function outlineMat(w = 0.035, anim = null) {
 #ifdef USE_ANIM
  ${ANIM_GLSL}
 #endif
+ #include <skinning_pars_vertex>
       void main(){ vec3 q=position;
 #ifdef USE_ANIM
  q=animPos(q);
 #endif
- vec3 p=q+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)); gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
+ vec3 transformed=q+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)); vec3 objectNormal=normal;
+ #include <skinbase_vertex>
+ #include <skinning_vertex>
+ vec3 p=transformed; gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
     fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor=vec4(uCol,1.); }`,
   });
 }

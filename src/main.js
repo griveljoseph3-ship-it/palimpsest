@@ -2136,7 +2136,7 @@ function compoUpdate(dt) {
   const dx = P.x - e.x, dz = P.z - e.z, d = Math.hypot(dx, dz) || 1; e.cd -= dt; e.fixCd -= dt;
   if (e.st === 'sleep') { if (d < 6 || grammar.has('plate', 'element.conductive')) { e.st = 'hunt'; e.cd = 1.5; } }
   else if (e.st === 'stun') { e.t -= dt; m.rotation.z = Math.sin(now * 30) * 0.08 * Math.max(0, e.t); if (e.t <= 0) { m.rotation.z = 0; e.st = 'hunt'; e.cd = 1; } }
-  else if (e.st === 'wind') { e.t -= dt; if (e.t <= 0) { const ux = e.ux, uz = e.uz, px = P.x - e.x, pz = P.z - e.z, along = px * ux + pz * uz, side = Math.abs(px * uz - pz * ux); if (along > -0.3 && along < 3.2 && side < 0.8) damagePlayer(1, e, 'cp' + (++attackCounter)); sfx.play('heavy'); S.shake = Math.max(S.shake, 0.4); e.st = 'hunt'; e.cd = 2.2; } }
+  else if (e.st === 'wind') { e.t -= dt; if (e.t <= 0) { const ux = e.ux, uz = e.uz, px = P.x - e.x, pz = P.z - e.z, along = px * ux + pz * uz, side = Math.abs(px * uz - pz * ux); if (along > -0.3 && along < 3.2 && side < 0.8) damagePlayer(1, e, 'cp' + (++attackCounter)); e.punchT = 0.35; sfx.play('heavy'); S.shake = Math.max(S.shake, 0.4); e.st = 'hunt'; e.cd = 2.2; } }
   else if (e.st === 'fix') { const tx = 0, tz = -56, fx = tx - e.x, fz = tz - e.z, fd = Math.hypot(fx, fz); if (!grammar.has('plate', 'element.conductive')) { e.st = 'hunt'; e.fixT = 0; }
     else if (fd > 0.35) { e.x += fx / fd * 1.7 * dt; e.z += fz / fd * 1.7 * dt; m.rotation.y = Math.atan2(fx, fz); }
     else { e.fixT += dt; if (frame % 5 === 0) particles.emit(e.x + rnd(-0.4, 0.4), 0.2, e.z + rnd(-0.4, 0.4), 0, 1, 0, 0.4, 0.08, 0.1, 0.08, 0.06, 2); if (frame % 12 === 0) sfx.play('scratch', Math.random());
@@ -2164,9 +2164,40 @@ if (USE3D) {
   whenModel('blob_tentacoli', () => { hideKids(lumi.mesh); const m = makeModel('blob_tentacoli', 0.55, { ow: 0.01 }); lumi.mesh.add(m); lumi.mesh.userData.model = m; M3.lumi = m; });
 }
 // gesti che il movimento non basta a spiegare: la carica del Custode, la sacca del Ladro, Lumi che ti guarda
+// v2.5 · azioni sullo scheletro (dopo la camminata): colpi, colpo forte, ferita, schivata; i boss con le loro mosse
+const ease3 = (k) => k * k * (3 - 2 * k);
+const POSES = {
+  player: (B) => { const st = P.st;
+    if (st === 'attack') { const T0 = [0.3, 0.28, 0.42][P.combo || 0], k = ease3(clamp(1 - (P.t - 0.05) / (T0 - 0.05), 0, 1));
+      if (P.combo === 2) { B.shR.rotation.x = lerp(-2.8, 0.35, k); B.shL.rotation.x = lerp(-2.3, 0.15, k); B.spine.rotation.x += lerp(-0.2, 0.4, k); B.knL.rotation.x += 0.3 * k; B.knR.rotation.x += 0.3 * k; } // chiusura: dall'alto in basso
+      else { const d = P.combo === 1 ? -1 : 1; B.shR.rotation.x = -1.45; B.elR.rotation.x = -0.35; B.spine.rotation.y = lerp(0.95 * d, -0.95 * d, k); B.chest.rotation.y = lerp(0.3 * d, -0.3 * d, k); B.shL.rotation.x = -0.4; } } // rapido: il busto porta il braccio
+    else if (st === 'heavy') { const k = clamp(1 - P.t / 0.8, 0, 1), w = Math.min(1, k / 0.45), sl = ease3(clamp((k - 0.45) / 0.14, 0, 1));
+      const up = lerp(0, -2.9, ease3(w)); B.shR.rotation.x = B.shL.rotation.x = lerp(up, 0.45, sl); B.spine.rotation.x += lerp(-0.2 * w, 0.5, sl); B.knL.rotation.x += 0.55 * sl; B.knR.rotation.x += 0.55 * sl; B.hips.position.y -= 0.05 * sl; }
+    else if (st === 'hurt') { B.spine.rotation.x -= 0.4; B.head.rotation.x -= 0.35; B.shL.rotation.z -= 0.5; B.shR.rotation.z += 0.5; }
+    else if (st === 'dodge') { B.spine.rotation.x += 0.55; B.knL.rotation.x += 0.7; B.knR.rotation.x += 0.4; B.shL.rotation.x = 0.6; B.shR.rotation.x = 0.6; }
+    else if (st === 'dead') { B.knL.rotation.x = B.knR.rotation.x = 1.3; B.hipL.rotation.x = B.hipR.rotation.x = -1.1; B.spine.rotation.x = 0.9; B.head.rotation.x = 0.4; B.hips.position.y -= 0.2; } },
+  custode: (B) => { const st = custode.st;
+    if (st === 'swipeWU') { B.shR.rotation.x = -2.7; B.elR.rotation.x = -0.6; B.chest.rotation.y = -0.45; B.spine.rotation.x -= 0.15; }
+    else if (st === 'swipe') { B.shR.rotation.x = 0.7; B.chest.rotation.y = 0.5; B.spine.rotation.x += 0.45; B.knL.rotation.x += 0.4; }
+    else if (st === 'stun' || st === 'recover') { B.spine.rotation.x += 0.35; B.head.rotation.x += 0.5; B.shL.rotation.z = -0.15; B.shR.rotation.z = 0.15; B.knL.rotation.x += 0.35; B.knR.rotation.x += 0.35; } },
+  compositore: (B) => { const st = CP.st;
+    if (st === 'wind') { B.shR.rotation.x = 0.9; B.elR.rotation.x = -1.2; B.chest.rotation.y = 0.5; }
+    else if ((CP.punchT || 0) > 0) { B.shR.rotation.x = -1.6; B.elR.rotation.x = 0; B.chest.rotation.y = -0.35; B.spine.rotation.x += 0.15; }
+    else if (st === 'fix' && CP.fixT > 0) { const b = Math.abs(Math.sin(now * 6)); B.spine.rotation.x += 0.55; B.knL.rotation.x += 0.6; B.knR.rotation.x += 0.6; B.shR.rotation.x = -1.2 + b * 0.6; B.shL.rotation.x = -1.0 + (1 - b) * 0.6; } // timbra la piastra
+    else if (st === 'stun') { B.head.rotation.z = Math.sin(now * 30) * 0.3; B.shL.rotation.z = -0.6; B.shR.rotation.z = 0.6; } },
+  copista: (B) => { const m = MZ.boss; if (!m) return; const st = m.st;
+    if (st === 'lineWU') { B.shR.rotation.x = B.shL.rotation.x = -2.5; B.spine.rotation.x -= 0.2; }
+    else if (st === 'blotWU') { B.shR.rotation.x = B.shL.rotation.x = -1.3; B.chest.rotation.y = Math.sin(now * 12) * 0.3; }
+    else if (st === 'tired') { B.spine.rotation.x += 0.45; B.head.rotation.x += 0.4; B.shL.rotation.x = B.shR.rotation.x = 0.2; } },
+};
 function m3dUpdate(dt) {
-  if (M3.player) { const u = P.mesh.userData, m = M3.player; const atk = P.st === 'attack' || P.st === 'heavy'; m.rotation.y = lerp(m.rotation.y, atk ? -u.quillPivot.rotation.y * 0.45 : 0, Math.min(1, dt * (atk ? 22 : 8))); m.rotation.x = lerp(m.rotation.x, P.st === 'heavy' ? -u.quillPivot.rotation.x * 0.12 : 0, Math.min(1, dt * 14)); } // il busto accompagna il colpo
-  if (M3.custode) { const m = M3.custode, st = custode.st; const tw = st === 'swipeWU' ? -0.45 : st === 'swipe' ? 0.55 : 0; m.rotation.y = lerp(m.rotation.y, tw, Math.min(1, dt * 10)); m.rotation.x = lerp(m.rotation.x, st === 'swipe' ? 0.18 : st === 'stun' ? -0.12 : 0, Math.min(1, dt * 8)); }
+  if (M3.player && M3.player.userData.rig && !M3.player.userData.anim.pose) M3.player.userData.anim.pose = POSES.player;
+  if (M3.custode && M3.custode.userData.rig && !M3.custode.userData.anim.pose) M3.custode.userData.anim.pose = POSES.custode;
+  if (M3.compositore && M3.compositore.userData.rig && !M3.compositore.userData.anim.pose) M3.compositore.userData.anim.pose = POSES.compositore;
+  if (MZ.boss && MZ.boss.mesh.userData.model && MZ.boss.mesh.userData.model.userData.rig && !MZ.boss.mesh.userData.model.userData.anim.pose) MZ.boss.mesh.userData.model.userData.anim.pose = POSES.copista;
+  if (CP.punchT > 0) CP.punchT -= dt;
+  if (M3.player && !M3.player.userData.rig) { const u = P.mesh.userData, m = M3.player; const atk = P.st === 'attack' || P.st === 'heavy'; m.rotation.y = lerp(m.rotation.y, atk ? -u.quillPivot.rotation.y * 0.45 : 0, Math.min(1, dt * (atk ? 22 : 8))); m.rotation.x = lerp(m.rotation.x, P.st === 'heavy' ? -u.quillPivot.rotation.x * 0.12 : 0, Math.min(1, dt * 14)); } // il busto accompagna il colpo
+  if (M3.custode && !M3.custode.userData.rig) { const m = M3.custode, st = custode.st; const tw = st === 'swipeWU' ? -0.45 : st === 'swipe' ? 0.55 : 0; m.rotation.y = lerp(m.rotation.y, tw, Math.min(1, dt * 10)); m.rotation.x = lerp(m.rotation.x, st === 'swipe' ? 0.18 : st === 'stun' ? -0.12 : 0, Math.min(1, dt * 8)); }
   if (M3.ladro) { const k = 1 + (LD.sack || 0) / 100 * 0.35; M3.ladro.scale.set(2.2 * k, 2.2 * (1 + ((LD.sack || 0) / 100) * 0.08), 2.2 * k); }
   if (M3.lumi && lumi.on) lumi.mesh.rotation.y = lerpAng(lumi.mesh.rotation.y, Math.atan2(P.x - lumi.x, P.z - lumi.z), Math.min(1, dt * 4));
   if (M3.charger) M3.charger.rotation.x = lerp(M3.charger.rotation.x, charger.st === 'charge' ? 0.12 : 0, Math.min(1, dt * 6));

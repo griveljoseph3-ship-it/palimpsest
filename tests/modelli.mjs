@@ -25,6 +25,10 @@ check('camminando i passi avanzano', w.ph > w.ph0 + 0.5 && w.max > 0.2);
 check('il mantello resta indietro (parti esterne trascinate)', await E(() => PAL.M3.player.userData.anim.U.uDrag.value.length() > 0.005));
 await pg.keyboard.up('w'); await W(2500);
 check('da fermo si calma', await E(() => PAL.M3.player.userData.anim.U.uSpd.value < 0.15));
+// v2.5 · scheletro: il protagonista ha le ossa, e quando colpisce il braccio si alza davvero
+check('il protagonista ha uno scheletro', await E(() => !!PAL.M3.player.userData.rig && PAL.M3.player.isSkinnedMesh));
+await E(() => { window.__arm = 0; PAL.P.st = 'idle'; PAL.attack(true); const B = PAL.M3.player.userData.rig.bones; const f = () => { window.__arm = Math.min(window.__arm, B.shR.rotation.x); if (PAL.P.st === 'heavy') requestAnimationFrame(f); }; requestAnimationFrame(f); });
+check('nel colpo forte le braccia salgono sopra la testa', await until(() => window.__arm < -1.5, 15000));
 // Lumi rimbalza vicino a te, non vola
 check('Lumi sta a terra (rimbalza, non vola)', await E(() => { const m = PAL.M3.lumi; if (!m.parent.visible) return true; const v = m.getWorldPosition(m.position.clone()); return v.y < 0.5; }));
 await W(500); console.log('ERRORS', errs); if (bad || errs.length) { console.log('FAIL'); process.exitCode = 1; } else console.log('PASS modelli'); await b.close();

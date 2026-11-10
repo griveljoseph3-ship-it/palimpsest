@@ -105,6 +105,13 @@ Richieste di Joseph: oggetti di scena ancora lisci, HUD e menu nello stile del n
 - Foto prima/dopo: `/workspace/grafica2/prima-*.png` e `dopo-*.png` (`node tools/grafica2-shots.mjs <url> <cartella> <prefisso>`)
 - [ ] Da provare sull'iPad vero: fluidità con pulviscolo/aloni (sono leggeri, ma vanno visti), leggibilità dei pulsanti HUD sopra la carta chiara, durata giusta dei titoli di coda
 
+## Giro 2.6.1-prova (ramo `grok/grafica-2`, non unito a main)
+Richiesta di Joseph: troppe scene quando si scrive; le presentazioni dei boss solo per quelli più importanti, e quelli devono essere molto più grossi.
+- [x] Scena di scrittura: piena solo la prima volta in tutta la partita, e la prima volta su PONTE (momento della storia). Le altre volte: lampo breve (0,4 s) senza ripresa della camera. Opzione «Sempre lunga» e salto con un tocco restano. Test `tests/scrittura.mjs`
+- [x] Presentazione lunga solo per **Il Copista** (boss del labirinto) e **Il Custode della Fenditura** (boss finale del capitolo 1), come in PIANO-10 («Boss: Copista, Custode»). Caricatore, Compositore (mini-boss) e Ladro d'inchiostro (archivio facoltativo): solo il nome. Test `tests/intro.mjs` (ora sul Custode)
+- [x] Scala: Custode ×2,3 (altezza 7,8; raggio 2,1; manata 4,0; ombra e salita dal pavimento adeguate; camera dell'arena più indietro). Copista ×2,2 (scala 6,82, fase 2: 7,48; raggio 1,7). Barre vita più grandi. La ripresa di presentazione non si allontana in proporzione, così si vedono davvero più grossi e restano nella stanza
+- [ ] Da provare sull'iPad: se il lampo breve della scrittura si capisce, se Custode e Copista stanno nella stanza e si combattono bene
+
 ## Dopo il giro 3 (da fare, in ordine di impatto)
 - [ ] Enigmi nuovi con vero «aha» (circuiti CONDUTTIVO a catena, specchi, ordine delle parole)
 - [ ] Tutorial più corto (8 → 4-5 passi, insegnare col mondo)

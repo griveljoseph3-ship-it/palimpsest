@@ -15,5 +15,7 @@ for (const k of which) {
   if (k === 'charger') { await E(() => { PAL.tp(0, -19.5); }); await shoot('charger'); }
   if (k === 'custode') { await E(() => { PAL.tp(0, -112); }); await shoot('custode'); }
   if (k === 'ladro') { await E(() => { PAL.tp(40, -19); }); await shoot('ladro'); }
+  if (k === 'copista') { await E(() => { PAL.enterMaze(); }); await until(() => PAL.S.room === 'maze' && PAL.MZ.boss, 30000, () => { if (PAL.MZ.film) PAL.MZ.film.t = 99; PAL.skipDialog(); });
+    await E(() => { const m = PAL.MZ.boss; PAL.P.inv = 1e9; PAL.tp(m.x, m.z + 5); }); await shoot('copista'); }
 }
 console.log(errs.slice(0, 3)); await b.close();

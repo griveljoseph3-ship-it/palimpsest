@@ -22,5 +22,5 @@ await go('06-arena-pilastro-lampade', -10.5, -118, -9.2, -122);
 await go('07-candele-caricatore', 6.5, -32, 9.2, -34);
 await E(() => document.getElementById('bPause').click()); await W(800); await shot(pg, '08-pausa');
 await E(() => { const o = document.getElementById('pOptions'); if (o) o.click(); else document.querySelector('#pause h3') && document.querySelector('#pause h3').scrollIntoView(); }); await W(800); await shot(pg, '09-opzioni');
-if (await E(() => !!PAL.credits)) { await E(() => { document.getElementById('bPause').click(); PAL.credits(null); }); await W(4500); await shot(pg, '10-titoli-di-coda'); await W(7000); await shot(pg, '10b-titoli-di-coda'); }
+if (await E(() => !!PAL.credits)) { await E(() => { document.getElementById('bPause').click(); PAL.credits(null, true); }); await W(4500); await shot(pg, '10-titoli-di-coda'); await W(7000); await shot(pg, '10b-titoli-di-coda'); }
 console.log(JSON.stringify(perf)); console.log('errori', errs.slice(0, 5)); await b.close();

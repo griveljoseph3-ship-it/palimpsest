@@ -1418,7 +1418,9 @@ function buildMaze() {
 /* v2.2: dorsi dei libri nei colori delle tavole (seppia, rosso scuro, indaco, carta vecchia) invece dell'arancio */
 const BOOK_PAL = [0x5a3e28, 0x6b4a2a, 0x7a2418, 0x8a5a3a, 0x2c3650, 0x3a2c22, 0xa08a66, 0x4a2a20];
 function bookCol(col, k) { col.setHex(BOOK_PAL[Math.floor(k * BOOK_PAL.length) % BOOK_PAL.length]); return col.offsetHSL(0, 0, (k * 7 % 1 - 0.5) * 0.08); }
-function inkMasterLike(color) { const m = world.wallMat.clone(); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) }, uSkinK: { value: 0 } }; /* i mattoni restano solo sui muri */ return m; }
+/* v2.6: legno vero (tavola 062 di Joseph) su casse, panche e banconi, al posto del marrone liscio */
+const WOOD = new THREE.TextureLoader().load('assets/texture/legno.jpg', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; for (const u of WOOD_U) u.value = 0.75; }); const WOOD_U = [];
+function inkMasterLike(color, wood) { const m = world.wallMat.clone(); const k = { value: 0 }; if (wood) WOOD_U.push(k); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) }, uSkinK: k, ...(wood ? { uSkin: { value: WOOD }, uSkinS: { value: 0.55 } } : {}) }; /* i mattoni restano solo sui muri */ return m; }
 function mazeActivate(on) { if (MZ.active === on) return; MZ.active = on; MZ.group.visible = on;
   if (on) { world.walls.push(...MZ.walls); if (!MZ.bridged) world.walls.push(MZ.chasm); } else { world.walls = world.walls.filter((w) => !MZ.walls.includes(w) && w !== MZ.chasm); } }
 function mazeAggro(m) { const d = Math.hypot(P.x - m.x, P.z - m.z); let R = m.aggroR;
@@ -1676,7 +1678,7 @@ trimRoom({ cx: 0, cz: 0, w: 24, d: 20 }, W.ROOMS[0]); trimRoom({ cx: 0, cz: -28,
   for (const [x, z] of [[-9.2, -24], [9.2, -34]]) { const c = W.makeCandle(0.7); c.position.set(x, 0, z); scene.add(c); storyLights.push({ m: c, x, y: c.userData.ly, z, r: 3.6, col: [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: 'candle' }); } })();
 // ================= v2.0 · stanze più piene: la pressa diventa una tipografia, la porta un tribunale di carta =================
 (() => { const layerOf = (id) => W.ROOMS.findIndex((r) => r.id === id) + 1;
-  const inst = (geo, color, list, layer, opt = {}) => { const g = geo.clone(); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(opt.mask ?? 0.35), 3)); const im = new THREE.InstancedMesh(g, inkMasterLike(color), list.length); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
+  const inst = (geo, color, list, layer, opt = {}) => { const g = geo.clone(); g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(opt.mask ?? 0.35), 3)); const im = new THREE.InstancedMesh(g, inkMasterLike(color, [0x5a3a22, 0xa07a50, 0x7a5a3a].includes(color)), list.length); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3();
     list.forEach(([x, y, z, sx, sy, sz, ry = 0, rx = 0], i) => { e.set(rx, ry, 0); q.setFromEuler(e); m4.compose(v.set(x, y, z), q, sc.set(sx, sy, sz)); im.setMatrixAt(i, m4); }); im.layers.set(layer); scene.add(im); return im; };
   const box = new THREE.BoxGeometry(1, 1, 1), cyl = new THREE.CylinderGeometry(0.5, 0.5, 1, 10), plane = new THREE.PlaneGeometry(1, 1);
   // III · la tipografia della pressa
@@ -1699,6 +1701,7 @@ trimRoom({ cx: 0, cz: 0, w: 24, d: 20 }, W.ROOMS[0]); trimRoom({ cx: 0, cz: -28,
     g.fillStyle = '#16110d'; g.beginPath(); g.arc(52, 48, 5, 0, 6.3); g.arc(76, 48, 5, 0, 6.3); g.fill(); g.lineWidth = 3; g.beginPath(); g.moveTo(50, 68); g.lineTo(78, 66); g.stroke(); g.fillStyle = '#8a2416'; g.font = 'bold 20px Georgia'; g.textAlign = 'center'; g.fillText('?', 64, 150); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
   const jury = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.75, 1.1), new THREE.MeshBasicMaterial({ map: juryTex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }), 16); const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(); let n = 0;
   for (const [x, , z] of pews) for (let i = 0; i < 4; i++) { const jx = x - 2.6 + i * 1.75, jz = z + 0.15; e.set(0, -Math.sign(jx) * 0.35 + (R() - 0.5) * 0.3, 0); /* la giuria guarda verso il corridoio, cioè te */ q.setFromEuler(e); m4.compose(new THREE.Vector3(jx, 1.15, jz), q, new THREE.Vector3(1, 1, 1)); jury.setMatrixAt(n++, m4); }
+  { const tj = setInterval(() => { if (!FIG_READY('giurato')) return; clearInterval(tj); jury.material.map = FIGT('giurato'); jury.material.alphaTest = 0.5; jury.material.color.set(0xcfc4b0); jury.material.needsUpdate = true; jury.geometry.dispose(); jury.geometry = new THREE.PlaneGeometry(1.15, 2.4).translate(0, 0.05, 0); }, 400); } /* v2.6: la giuria è fatta di giurati senza volto (tavola 026), non di faccine */
   jury.layers.set(L4); scene.add(jury); DOOR_JURY.m = jury;
 })();
 // ================= v1.7 · una zona alla volta: ogni oggetto statico appartiene a una stanza (layer); si disegnano solo la stanza attuale e le vicine =================

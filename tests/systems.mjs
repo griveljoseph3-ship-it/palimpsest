@@ -7,16 +7,16 @@ const pg = await ctx.newPage(); const errs = [];
 pg.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); if (m.text().startsWith('INKDBG')) console.log(m.text()); }); pg.on('pageerror', (e) => errs.push('PE ' + e.message));
 const E = (f, a) => pg.evaluate(f, a); const W = (ms) => pg.waitForTimeout(ms); const ok = []; const bad = [];
 const check = (name, v) => { (v ? ok : bad).push(name); console.log(v ? 'OK ' : 'XX ', name); };
-const hold = async (k) => { await pg.keyboard.down(k); await pg.waitForTimeout(350); await pg.keyboard.up(k); };
+const hold = async (k) => { await pg.keyboard.down(k); await pg.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))); await pg.waitForTimeout(350); await pg.keyboard.up(k); }; // giù per almeno 3 fotogrammi: il browser dei test può essere più lento di 0,35 s a fotogramma
 // attende una condizione invece di un tempo fisso (il rendering software dei test è lento e irregolare)
 async function until(fn, ms = 6000, tick) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (tick) await E(tick); if (await E(fn)) return true; await W(150); } return false; }
 const settle = () => until(() => !PAL.S.lock && !PAL.dlg.active && !PAL.S.transit, 15000, () => { if (PAL.dlg.active && !PAL.dlg.opt.choices) PAL.skipDialog(); });
 await pg.goto(BASE + '?fast'); await W(700);
 // tastiera: avvio con click, movimento WASD, interazione E, riscrittura Q + frecce + Invio, colpo forte K
-await pg.click('#bStart'); await W(800); for (let i = 0; i < 150 && await E(() => PAL.OP.stage !== 'gap'); i++) await W(200); await E(() => PAL.rewrite('opbridge', 'shape.bridge')); for (let i = 0; i < 100 && await E(() => !!PAL.OP.chasm); i++) await W(200); await E(() => PAL.tp(PAL.OP.R.cx, PAL.OP.R.cz - 9)); for (let i = 0; i < 150 && await E(() => PAL.S.room !== 'intro' || PAL.S.transit); i++) await W(200); await W(2500); await settle(); await W(400); await settle();
+await pg.click('#bStart'); await W(800); for (let i = 0; i < 900 && await E(() => PAL.OP.stage !== 'gap'); i++) await W(200); /* fino a 3 minuti: nel browser lento dei test l'apertura dura molto */ await E(() => PAL.rewrite('opbridge', 'shape.bridge')); for (let i = 0; i < 600 && await E(() => !!PAL.OP.chasm); i++) await W(200); await E(() => PAL.tp(PAL.OP.R.cx, PAL.OP.R.cz - 9)); for (let i = 0; i < 600 && await E(() => PAL.S.room !== 'intro' || PAL.S.transit || PAL.OP.stage); i++) await W(200); await W(2500); await settle(); await W(400); await settle();
 await E(() => { window.__z0 = PAL.P.z; }); await pg.keyboard.down('KeyW'); const moved = await until(() => PAL.P.z < window.__z0 - 1, 8000, null); await pg.keyboard.up('KeyW');
 check('tastiera: W muove in avanti', moved);
-await settle(); await E(() => PAL.tp(0, -8.4)); await hold('KeyE');
+await until(() => PAL.dlg.active, 8000); /* il Libro parla 1,6 s dopo l'arrivo: si aspetta che cominci, poi che finisca */ await settle(); await E(() => PAL.tp(0, -8.4)); await hold('KeyE');
 check('interazione E rivela FRAGILE', await until(() => PAL.S.discovered.has('state.fragile'))); await settle();
 await E(() => PAL.face(0, -10)); await hold('KeyQ'); await until(() => PAL.panel.open);
 check('Q apre le Parole Fluttuanti', await E(() => PAL.panel.open && document.querySelectorAll('.bubble').length >= 1));
@@ -68,7 +68,7 @@ await pg.reload(); await W(700); check('il titolo ricorda la versione precedente
 await E(() => PAL.start()); await W(300); const l = await E(() => document.getElementById('dText').textContent + '|' + PAL.dlg.lines.map((x) => x[1]).join(' '));
 check('il Libro cita le cancellature precedenti', l.includes('cancellature'));
 await E(() => { PAL.skipDialog(); PAL.S.discovered.add('state.fragile'); PAL.tp(0, -79); PAL.ENT.board.broken = true; for (const g of ['board', 'r1', 'r2']) PAL.gates[g].open = true; }); await W(1500);
-check('Elara ricorda di essere stata strappata', await E(() => PAL.dlg.lines.some((x) => x[1].includes('strappata'))));
+check('Elara ricorda di essere stata strappata', await until(() => PAL.dlg.lines.some((x) => x[1].includes('strappata')), 20000));
 check('telemetria solo locale salvata', await E(() => PAL.Tele.all().length > 10));
 console.log('ERRORS', errs); console.log(`RISULTATO ${ok.length} ok, ${bad.length} falliti`, bad);
 if (bad.length || errs.length) process.exitCode = 1; await b.close();

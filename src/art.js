@@ -136,7 +136,7 @@ export function inkMaster(opts = {}) {
         if(DissolveAmount>0.){ float dn=fbm(vW.xy*3.+vW.zz*2.); if(dn<DissolveAmount) discard; col=mix(col,uInk,1.-smoothstep(0.,.08,dn-DissolveAmount)); }
         // lampada da lettura che segue il giocatore: il resto della pagina sprofonda nel buio caldo
         float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.38,1.18,ld+vnoise(vW.xz*.6+uTime*.05)*.18); // pozza di luce più ampia: si legge meglio la stanza
-        col*=mix(vec3(.3,.26,.27),vec3(1.14,1.09,1.),lamp);
+        col*=mix(vec3(.47,.41,.4),vec3(1.14,1.09,1.),lamp); // v2.6: il buio fuori dalla lampada è meno fangoso, si legge la stanza
         // candele, lampade e inchiostro luminoso
         vec3 vd=normalize(cameraPosition-vW); for(int i=0;i<${NL};i++){ vec3 dv=uPL[i].xyz-vW; float dl=length(dv); float a=max(0.,1.-dl/uPL[i].w); if(a<=0.) continue; a*=a; vec3 ld=dv/max(dl,.001); float nl=max(dot(n,ld),0.);
           float wrap=.35+.65*smoothstep(-.1,.6,dot(n,ld)); float spec=pow(max(dot(n,normalize(ld+vd)),0.),24.)*.35*vMask;
@@ -249,7 +249,7 @@ export class Post {
           col+=texture2D(b,uv).rgb*.55;
           float lum=dot(col,vec3(.299,.587,.114)); col=mix(col,vec3(lum)*vec3(1.05,.98,.88),.1+focus*.45);
           vec3 cs=clamp(col,0.,1.); col=mix(col,cs*cs*(3.-2.*cs),.38); col*=vec3(1.04,1.01,.97); // curva a S: carta chiara, inchiostro nero
-          float vig=smoothstep(.85,.25,r+vnoise(uv*3.+time*.02)*.12); col*=mix(.55,1.,vig);
+          float vig=smoothstep(.85,.25,r+vnoise(uv*3.+time*.02)*.12); col*=mix(.6,1.,vig);
           // bordi della pagina che si inchiostrano durante la lettura
           if(focus>.01){ float edge=smoothstep(.36,.75,r+fbm(uv*6.+time*.1)*.2)*focus; col=mix(col,vec3(.05,.035,.03),edge*.8); }
           col=mix(col,vec3(lum*.9+.1),sbiadito*.5);
@@ -291,7 +291,7 @@ export function paperSprite(tex, w, h, opts = {}) {
       void main(){ vec4 t=texture2D(map,vUv); if(t.a<.45) discard; vec3 base=t.rgb;
         if(DissolveAmount>0.){ float dn=fbm(vUv*6.+vW.xz); if(dn<DissolveAmount) discard; base=mix(base,vec3(.06,.04,.03),1.-smoothstep(0.,.08,dn-DissolveAmount)); }
         float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.38,1.18,ld+vnoise(vW.xz*.6+uTime*.05)*.18);
-        vec3 col=base*mix(vec3(.36,.31,.32),vec3(1.1,1.05,.97),lamp);
+        vec3 col=base*mix(vec3(.5,.44,.43),vec3(1.1,1.05,.97),lamp);
         for(int i=0;i<${NL};i++){ float a=max(0.,1.-length(uPL[i].xyz-vW)/uPL[i].w); col+=base*uPC[i]*a*a*1.3; }
         col=mix(col,uShiftColor*(.5+.5*base),ColorShift*.6); col+=uGlow*(.35+.25*sin(uTime*6.)); col=mix(col,vec3(1.,.96,.88),uHit);
         gl_FragColor=vec4(col,1.);

@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=2.5.0';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
@@ -29,8 +29,35 @@ float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(
 float vnoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);}
 float fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*vnoise(p);p*=2.03;a*=.5;}return s;}`;
 
+// luci puntiformi per pixel: le 7 più vicine + la penna del giocatore (prima 12: troppo lavoro per pixel su iPad)
+export const NL = 8;
 export const INK_UNIFORMS = { uPR: { value: 1 }, uTime: { value: 0 }, uLight: { value: new THREE.Vector3(-0.45, 0.8, 0.35).normalize() }, uPaper: { value: null }, uContrast: { value: 0 }, uLamp: { value: new THREE.Vector3(0, 0, 0) }, uLampR: { value: 11 },
-  uPL: { value: Array.from({ length: 12 }, () => new THREE.Vector4(0, -99, 0, 1)) }, uPC: { value: Array.from({ length: 12 }, () => new THREE.Vector3()) } };
+  uPL: { value: Array.from({ length: NL }, () => new THREE.Vector4(0, -99, 0, 1)) }, uPC: { value: Array.from({ length: NL }, () => new THREE.Vector3()) } };
+
+// v2.3 · Movimento dei modelli 3D (senza scheletro): il modello, alto 1 e con i piedi a y=0, viene piegato nel vertex shader.
+// Gambe a forbice e braccia opposte (bipede), zampe a onda (strisciante), schiacciamento e allungamento (rimbalzo),
+// e il «secondario»: le parti esterne (mantello, piume, spine, colature) restano indietro e tremano a ogni passo.
+// Le stesse uniform guidano corpo e contorno, così la linea d'inchiostro segue la forma.
+export function animUniforms(o = {}) { return { uPh: { value: 0 }, uSpd: { value: 0 }, uSq: { value: 0 }, uKind: { value: o.kind ?? 0 }, uStride: { value: o.stride ?? 0.09 }, uSwing: { value: o.swing ?? 0.06 },
+  uFlut: { value: o.flutter ?? 1 }, uHW: { value: o.hw ?? 0.3 }, uSeed: { value: Math.random() * 10 }, uDrag: { value: new THREE.Vector2() }, uLean: { value: new THREE.Vector2() }, uBreath: { value: o.breath ?? 1 } }; }
+export const ANIM_GLSL = `uniform float uPh,uSpd,uSq,uKind,uStride,uSwing,uFlut,uHW,uSeed,uBreath; uniform vec2 uDrag,uLean;
+vec3 animPos(vec3 p){ float h=clamp(p.y,0.,1.), s=uSpd, side=p.x<0.?-1.:1., ax=abs(p.x)/uHW, r=length(p.xz)/uHW;
+  p.y*=1.+uSq; p.xz*=1.-uSq*.5;                                                   // schiaccia e allunga (atterraggi, colpi)
+  p.xz*=1.+sin(uTime*2.1+uSeed)*.012*uBreath*smoothstep(.3,.7,h);                  // respiro
+  if(uKind>2.5){ }
+  else if(uKind<.5){ float leg=1.-smoothstep(.0,.36,h), foot=1.-smoothstep(.0,.12,h);   // bipede
+    p.z+=sin(uPh)*side*uStride*leg*s; p.y+=max(0.,cos(uPh)*side)*.05*foot*s;
+    float arm=smoothstep(.36,.5,h)*(1.-smoothstep(.62,.74,h))*smoothstep(.5,.85,ax); p.z-=sin(uPh)*side*uSwing*arm*s;
+    p.y+=abs(cos(uPh))*.022*s*smoothstep(.14,.42,h); p.x+=sin(uPh)*.016*s*smoothstep(.2,.6,h); }
+  else if(uKind<1.5){ float drip=1.-smoothstep(.0,.3,h);                            // rimbalzo: le colature restano indietro
+    p.xz+=uDrag*drip*.9; }
+  else { float leg=(1.-smoothstep(.0,.42,h))*smoothstep(.35,.7,ax), ph=uPh*2.+p.z*12./max(uHW,.1)+side*1.57; // strisciante: zampe a onda
+    p.z+=sin(ph)*uStride*leg*s; p.y+=max(0.,cos(ph))*.09*leg*s; p.y+=abs(sin(uPh*2.))*.012*s*smoothstep(.3,.6,h); }
+  p.xz+=uLean*h*h;                                                                   // si sporge nel movimento
+  float w=smoothstep(.55,1.05,r)*uFlut;                                              // parti esterne: mantello, piume, spine
+  p.xz+=uDrag*w*(.35+h);
+  p.xz+=vec2(sin(uTime*7.3+p.y*21.+uSeed+uPh*2.),cos(uTime*6.1+p.x*17.+uSeed+uPh*2.))*.007*w*(1.+s*4.);
+  return p; }`;
 
 export function inkMaster(opts = {}) {
   const m = new THREE.ShaderMaterial({
@@ -42,23 +69,52 @@ export function inkMaster(opts = {}) {
       DissolveAmount: { value: 0 }, ColorShift: { value: 0 }, TextureBlend: { value: opts.texBlend ?? 0.85 },
       uRedraw: { value: -1 }, uMarks: { value: 0 }, uGlow: { value: new THREE.Color(0, 0, 0) }, uCrack: { value: 0 }, uHit: { value: 0 },
       uH: { value: new THREE.Vector2(opts.y0 ?? 0, opts.y1 ?? 2) }, uScale: { value: opts.texScale ?? 0.25 },
+      uSkin: { value: opts.skin || null }, uSkinK: { value: 0 }, uSkinS: { value: opts.skinScale ?? 0.4 }, // v2.2: texture dalle tavole (muri)
+      uMap: { value: opts.map || null }, ...(opts.anim || {}), // v2.3: texture e movimento dei modelli 3D
     },
+    defines: { ...(opts.map ? { USE_M3D: '' } : {}), ...(opts.anim ? { USE_ANIM: '' } : {}) },
     vertexColors: true,
-    vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS;
-      void main(){ 
+    vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; uniform float uTime;
+#ifdef USE_M3D
+ varying vec2 vUv3;
+#endif
+#ifdef USE_ANIM
+ ${ANIM_GLSL}
+#endif
+ #include <skinning_pars_vertex>
+      void main(){ vec3 pos=position;
+#ifdef USE_M3D
+ vUv3=uv;
+#endif
+#ifdef USE_ANIM
+ pos=animPos(pos);
+#endif
+ vec3 transformed=pos; vec3 objectNormal=normal;
+ #include <skinbase_vertex>
+ #include <skinnormal_vertex>
+ #include <skinning_vertex>
+ pos=transformed;
+
 #ifdef USE_INSTANCING
  mat4 mm=modelMatrix*instanceMatrix;
 #else
  mat4 mm=modelMatrix;
 #endif
- vec4 w=mm*vec4(position,1.); vW=w.xyz; vN=normalize(mat3(mm)*normal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
-    fragmentShader: `uniform vec4 uPL[12]; uniform vec3 uPC[12]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH;
+ vec4 w=mm*vec4(pos,1.); vW=w.xyz; vN=normalize(mat3(mm)*objectNormal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
+    fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH; uniform sampler2D uSkin; uniform float uSkinK,uSkinS;
       varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
+#ifdef USE_M3D
+ uniform sampler2D uMap; varying vec2 vUv3;
+#endif
       void main(){
         vec3 n=normalize(vN); float ndl=dot(n,uLight);
         vec3 an=abs(n); vec2 uv= an.y>.6? vW.xz : (an.x>an.z? vW.zy: vW.xy);
         vec3 paper=texture2D(uPaper,uv*uScale).rgb;
         vec3 base=mix(uColor, uColor*paper*1.25, TextureBlend);
+#ifdef USE_M3D
+        base=texture2D(uMap,vUv3).rgb*mix(vec3(1.),paper*1.18,TextureBlend); // il colore del modello (dalle tavole), con la grana della carta
+#endif
+        if(uSkinK>0.&&an.y<.6){ vec3 sk=texture2D(uSkin,uv*uSkinS).rgb; base=mix(base,sk*1.12,uSkinK); }
         float wob=vnoise(vW.xz*2.+uTime*.15)*.12;
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
         vec2 sp=gl_FragCoord.xy/uPR; float hv=(sp.x+sp.y)*.16+vnoise(sp*.02)*1.5; float hw=fwidth(hv)*.75+.02; float hatch=smoothstep(.5-hw,.5+hw,fract(hv))*smoothstep(1.,1.-hw,fract(hv));
@@ -79,10 +135,10 @@ export function inkMaster(opts = {}) {
         // dissoluzione in inchiostro
         if(DissolveAmount>0.){ float dn=fbm(vW.xy*3.+vW.zz*2.); if(dn<DissolveAmount) discard; col=mix(col,uInk,1.-smoothstep(0.,.08,dn-DissolveAmount)); }
         // lampada da lettura che segue il giocatore: il resto della pagina sprofonda nel buio caldo
-        float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.25,1.,ld+vnoise(vW.xz*.6+uTime*.05)*.18);
-        col*=mix(vec3(.17,.14,.17),vec3(1.06,1.,.9),lamp);
+        float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.38,1.18,ld+vnoise(vW.xz*.6+uTime*.05)*.18); // pozza di luce più ampia: si legge meglio la stanza
+        col*=mix(vec3(.47,.41,.4),vec3(1.14,1.09,1.),lamp); // v2.6: il buio fuori dalla lampada è meno fangoso, si legge la stanza
         // candele, lampade e inchiostro luminoso
-        vec3 vd=normalize(cameraPosition-vW); for(int i=0;i<12;i++){ vec3 dv=uPL[i].xyz-vW; float dl=length(dv); float a=max(0.,1.-dl/uPL[i].w); if(a<=0.) continue; a*=a; vec3 ld=dv/max(dl,.001); float nl=max(dot(n,ld),0.);
+        vec3 vd=normalize(cameraPosition-vW); for(int i=0;i<${NL};i++){ vec3 dv=uPL[i].xyz-vW; float dl=length(dv); float a=max(0.,1.-dl/uPL[i].w); if(a<=0.) continue; a*=a; vec3 ld=dv/max(dl,.001); float nl=max(dot(n,ld),0.);
           float wrap=.35+.65*smoothstep(-.1,.6,dot(n,ld)); float spec=pow(max(dot(n,normalize(ld+vd)),0.),24.)*.35*vMask;
           col+=(base*1.55*wrap+vec3(spec))*uPC[i]*a; }
         col=mix(col, vec3(dot(col,vec3(.33)))*1.1, uContrast*.6);
@@ -95,10 +151,22 @@ export function inkMaster(opts = {}) {
 }
 
 // Contorno a scafo invertito con linea "viva" che tremola appena.
-export function outlineMat(w = 0.035) {
+export function outlineMat(w = 0.035, anim = null) {
   return new THREE.ShaderMaterial({
-    uniforms: { uTime: INK_UNIFORMS.uTime, uW: { value: w }, uCol: { value: new THREE.Color(0x15100c) } }, side: THREE.BackSide,
-    vertexShader: `uniform float uTime,uW; void main(){ vec3 p=position+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)); gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
+    uniforms: { uTime: INK_UNIFORMS.uTime, uW: { value: w }, uCol: { value: new THREE.Color(0x15100c) }, ...(anim || {}) }, side: THREE.BackSide, defines: anim ? { USE_ANIM: '' } : {},
+    vertexShader: `uniform float uTime,uW;
+#ifdef USE_ANIM
+ ${ANIM_GLSL}
+#endif
+ #include <skinning_pars_vertex>
+      void main(){ vec3 q=position;
+#ifdef USE_ANIM
+ q=animPos(q);
+#endif
+ vec3 transformed=q+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)); vec3 objectNormal=normal;
+ #include <skinbase_vertex>
+ #include <skinning_vertex>
+ vec3 p=transformed; gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
     fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor=vec4(uCol,1.); }`,
   });
 }
@@ -179,9 +247,9 @@ export class Post {
         void main(){ vec2 uv=vUv; vec2 c=uv-.5; float r=length(c);
           float bleed=(.0015+focus*.002)*(1.-reduce); vec3 col; col.r=texture2D(t,uv+c*bleed).r; col.g=texture2D(t,uv).g; col.b=texture2D(t,uv-c*bleed).b;
           col+=texture2D(b,uv).rgb*.55;
-          float lum=dot(col,vec3(.299,.587,.114)); col=mix(col,vec3(lum)*vec3(1.05,.97,.86),.18+focus*.45);
-          col=pow(col,vec3(1.03)); col*=vec3(1.03,1.,.95);
-          float vig=smoothstep(.85,.25,r+vnoise(uv*3.+time*.02)*.12); col*=mix(.42,1.,vig);
+          float lum=dot(col,vec3(.299,.587,.114)); col=mix(col,vec3(lum)*vec3(1.05,.98,.88),.1+focus*.45);
+          vec3 cs=clamp(col,0.,1.); col=mix(col,cs*cs*(3.-2.*cs),.38); col*=vec3(1.04,1.01,.97); // curva a S: carta chiara, inchiostro nero
+          float vig=smoothstep(.85,.25,r+vnoise(uv*3.+time*.02)*.12); col*=mix(.6,1.,vig);
           // bordi della pagina che si inchiostrano durante la lettura
           if(focus>.01){ float edge=smoothstep(.36,.75,r+fbm(uv*6.+time*.1)*.2)*focus; col=mix(col,vec3(.05,.035,.03),edge*.8); }
           col=mix(col,vec3(lum*.9+.1),sbiadito*.5);
@@ -203,3 +271,39 @@ export class Post {
     this.quad.material = this.comp; this.comp.uniforms.t.value = this.rt.texture; this.comp.uniforms.b.value = this.rtC.texture; r.setRenderTarget(null); r.render(this.scene, this.cam);
   }
 }
+
+// v2.2 · Figura di carta ritagliata dalle tavole di Joseph: sempre girata verso la camera (inclinata a metà, come una sagoma
+// di cartone sul tavolo), illuminata da lampada e candele, con lampo del colpo e dissoluzione in inchiostro come i corpi 3D
+// (stesse uniform: uHit, DissolveAmount, ColorShift, uGlow). ground: la base resta sul pavimento anche se il corpo salta o è scalato.
+export function paperSprite(tex, w, h, opts = {}) {
+  const geo = new THREE.PlaneGeometry(w, h).translate(0, h / 2, 0); geo.computeBoundingSphere(); geo.boundingSphere.radius = Math.max(w, h) * 1.2;
+  const m = new THREE.ShaderMaterial({
+    uniforms: { ...INK_UNIFORMS, map: { value: tex }, uHit: { value: 0 }, DissolveAmount: { value: 0 }, ColorShift: { value: 0 }, uGlow: { value: new THREE.Color(0, 0, 0) },
+      uShiftColor: { value: new THREE.Color(opts.shift ?? 0x7a1f14) }, uGround: { value: opts.ground === false ? 0 : 1 }, uFlip: { value: opts.flip ? 1 : 0 }, uTilt: { value: opts.tilt ?? 0.55 } },
+    vertexShader: `uniform float uGround,uFlip,uTilt; varying vec2 vUv; varying vec3 vW;
+      void main(){ vUv=uv; vec3 base=(modelMatrix*vec4(0.,0.,0.,1.)).xyz; if(uGround>.5) base.y=0.;
+        float sx=length(modelMatrix[0].xyz), sy=length(modelMatrix[1].xyz);
+        vec3 R=normalize(vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0])); vec3 U=normalize(mix(vec3(0.,1.,0.),vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]),uTilt));
+        vec3 fw=mat3(modelMatrix)*vec3(0.,0.,1.); float fl=uFlip>.5 && dot(fw,R)<0. ? -1. : 1.;
+        vec3 w=base+R*(position.x*sx*fl)+U*(position.y*sy); vW=w; gl_Position=projectionMatrix*viewMatrix*vec4(w,1.); }`,
+    fragmentShader: `uniform sampler2D map; uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit,DissolveAmount,ColorShift,uLampR,uTime; uniform vec3 uLamp,uGlow,uShiftColor;
+      varying vec2 vUv; varying vec3 vW; ${NOISE}
+      void main(){ vec4 t=texture2D(map,vUv); if(t.a<.45) discard; vec3 base=t.rgb;
+        if(DissolveAmount>0.){ float dn=fbm(vUv*6.+vW.xz); if(dn<DissolveAmount) discard; base=mix(base,vec3(.06,.04,.03),1.-smoothstep(0.,.08,dn-DissolveAmount)); }
+        float ld=length(vW.xz-uLamp.xz)/uLampR; float lamp=1.-smoothstep(.38,1.18,ld+vnoise(vW.xz*.6+uTime*.05)*.18);
+        vec3 col=base*mix(vec3(.5,.44,.43),vec3(1.1,1.05,.97),lamp);
+        for(int i=0;i<${NL};i++){ float a=max(0.,1.-length(uPL[i].xyz-vW)/uPL[i].w); col+=base*uPC[i]*a*a*1.3; }
+        col=mix(col,uShiftColor*(.5+.5*base),ColorShift*.6); col+=uGlow*(.35+.25*sin(uTime*6.)); col=mix(col,vec3(1.,.96,.88),uHit);
+        gl_FragColor=vec4(col,1.);
+        #include <colorspace_fragment>
+      }`,
+  });
+  m.side = THREE.DoubleSide; /* specchiata (uFlip) la sagoma mostra il retro: va disegnata da entrambi i lati */
+  m.userData.ink = true; const card = new THREE.Mesh(geo, m); card.userData.paper = true; return card;
+}
+// figure scontornate (assets/figure/*.webp): caricate una volta, condivise; FIG[k].ready quando l'immagine è arrivata
+export const FIG = {};
+export function loadFigures(names) { const L = new THREE.TextureLoader(); for (const k of names) { if (FIG[k]) continue; const f = FIG[k] = { ready: false, tex: null, aspect: 1 };
+  f.tex = L.load('assets/figure/' + k + '.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; f.aspect = t.image.width / t.image.height; f.ready = true; t.needsUpdate = true; }); } }
+// figura di altezza h (metri) con le proporzioni dell'immagine, o null se l'immagine non è ancora arrivata (si resta sul corpo 3D)
+export function figure(k, h, opts) { const f = FIG[k]; if (!f || !f.ready) return null; return paperSprite(f.tex, h * f.aspect, h, opts); }

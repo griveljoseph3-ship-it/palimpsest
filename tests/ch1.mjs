@@ -3,7 +3,7 @@ import { chromium } from 'playwright-core';
 const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, hasTouch: true })).newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); pg.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
-await pg.goto('http://localhost:8941/?fast'); await W(800);
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800);
 check('nessun Continua senza salvataggio', await E(() => document.getElementById('bContinue').classList.contains('hidden')));
 await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog()); await W(300);
 await E(() => { PAL.S.discovered.add('state.fragile'); PAL.applyW('board', 'state.fragile'); PAL.breakBoard(); }); await W(300);

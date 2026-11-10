@@ -1,6 +1,6 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=1.9.0';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=1.9.0';
+import * as THREE from '../vendor/three.module.js?v=2.5.0';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=2.5.0';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -17,7 +17,7 @@ export const ROOMS = [
   { id: 'c2d', cx: 100, cz: -49, w: 18, d: 16, safe: false, chain: 'c2', title: 'II·4 · La Diga Rilegata' },
   { id: 'c2e', cx: 100, cz: -67, w: 12, d: 10, safe: true, chain: 'c2', title: 'II·5 · Acqua ferma' },
   { id: 'open', cx: -220, cz: 90, w: 16, d: 44, safe: true, chain: 'open', title: 'Prologo · E qui il viaggiatore cadde' },
-  { id: 'maze', cx: -220, cz: -56, w: 88, d: 88, safe: false, chain: 'maze', title: 'III · Il labirinto del filo' },
+  { id: 'maze', cx: -220, cz: -56, w: 97, d: 97, safe: false, chain: 'maze', title: 'III · Il labirinto del filo' },
 ];
 export const GAP = 2.8;
 // Scala condivisa delle stanze (v1.4): ogni coordinata di design del Capitolo 1 passa da qui.
@@ -40,6 +40,9 @@ export function buildWorld(scene, paper) {
   const walls = []; const g = new THREE.Group(); scene.add(g);
   const floorMat = inkMaster({ color: 0xe9dfc8, texBlend: 1, texScale: 0.12, outline: false });
   const wallMat = inkMaster({ color: 0xd8cbb0, texBlend: 0.9, texScale: 0.3, y0: 0, y1: 1.4 });
+  /* v2.2: muri di carta-mattoni dalla tavola 023 di Joseph (arriva dopo il primo fotogramma; prima restano di carta liscia) */
+  new THREE.TextureLoader().load('assets/texture/mattoni.jpg', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; wallMat.uniforms.uSkin.value = t; wallMat.uniforms.uSkinK.value = 0.8; });
+  wallMat.uniforms.uSkinS.value = 0.42;
   const ol = outlineMat(0.03);
   const addWall = (x0, z0, x1, z1, h = 1.3) => {
     const w = Math.abs(x1 - x0) || 0.3, d = Math.abs(z1 - z0) || 0.3; const geo = withMask(new THREE.BoxGeometry(w, h, d), 0.4);
@@ -145,13 +148,17 @@ export function makeCustode() {
 export function makePlayer() {
   // Il Correttore: mantello d'inchiostro che si sfrangia, cappuccio, volto in ombra con due punti di luce, sciarpa rossa.
   const grp = new THREE.Group(); const body = new THREE.Group(); grp.add(body);
-  const cloak = inked(lathe([[0.46, 0], [0.5, 0.06], [0.4, 0.45], [0.3, 0.9], [0.22, 1.25], [0.14, 1.38]], 16), { color: 0x241d19, shift: 0x7a1f14, y0: 0, y1: 1.4 }); cloak.material.side = THREE.DoubleSide; body.add(cloak);
-  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const fr = inked(new THREE.ConeGeometry(0.07, 0.22, 4), { color: 0x16110d, outline: false }); fr.position.set(Math.sin(a) * 0.46, -0.05, Math.cos(a) * 0.46); fr.rotation.x = Math.PI; body.add(fr); }
+  const cloak = inked(lathe([[0.46, 0], [0.5, 0.06], [0.4, 0.45], [0.3, 0.9], [0.22, 1.25], [0.14, 1.38]], 16), { color: 0x1a1512, shift: 0x7a1f14, y0: 0, y1: 1.4 }); cloak.material.side = THREE.DoubleSide; body.add(cloak); /* v2.2: più nero, come nelle tavole 036/038/058 */
+  for (let i = 0; i < 13; i++) { const a = i / 13 * Math.PI * 2, L = 0.16 + ((i * 7) % 5) * 0.05; const fr = inked(new THREE.ConeGeometry(0.06, L, 4), { color: 0x100c0a, outline: false }); fr.position.set(Math.sin(a) * 0.47, 0.02 - L / 2 + 0.06, Math.cos(a) * 0.47); fr.rotation.set(Math.PI + Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25); body.add(fr); } // orlo sfrangiato irregolare
   const head = inked(new THREE.SphereGeometry(0.2, 16, 12), { color: 0x14100d, y0: 1.3, y1: 1.75 }); head.position.y = 1.5; body.add(head);
   const hood = inked(lathe([[0.27, 0], [0.28, 0.15], [0.2, 0.36], [0.03, 0.52]], 14), { color: 0x2c2420 }); hood.position.set(0, 1.33, -0.03); hood.rotation.x = -0.18; body.add(hood);
-  for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 4), new THREE.MeshBasicMaterial({ color: 0xf6e3b0 })); e.position.set(sd * 0.07, 1.52, 0.18); body.add(e); }
-  const scarf = inked(new THREE.TorusGeometry(0.19, 0.06, 6, 14), { color: 0x8a2416, outline: false }); scarf.rotation.x = Math.PI / 2; scarf.position.y = 1.3; body.add(scarf);
-  const tail = inked(new THREE.PlaneGeometry(0.14, 0.6, 1, 4), { color: 0x8a2416, outline: false }); tail.material.side = THREE.DoubleSide; tail.position.set(0.1, 1.05, -0.22); tail.rotation.x = 0.35; body.add(tail);
+  for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.032, 6, 4), new THREE.MeshBasicMaterial({ color: 0xffc23a })); e.position.set(sd * 0.07, 1.52, 0.18); body.add(e); // occhi dorati che brillano nel cappuccio
+    const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xffa020, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false })); gl.scale.setScalar(0.17); gl.position.set(sd * 0.07, 1.52, 0.2); body.add(gl); }
+  const collar = inked(new THREE.TorusGeometry(0.19, 0.06, 6, 14), { color: 0x9a2a18, outline: false }); collar.rotation.x = Math.PI / 2; collar.position.y = 1.3; body.add(collar);
+  // sciarpa rossa lunga in tre tratti snodati: si gonfia all'indietro quando corri (animata in main.js)
+  const scarfMat = inked(new THREE.PlaneGeometry(0.15, 0.42).translate(0, -0.21, 0), { color: 0x9a2a18, outline: false }).material; scarfMat.side = THREE.DoubleSide; const scarf = [];
+  for (const [sx, n] of [[0.1, 3], [-0.05, 2]]) { let par = body, y0 = 1.28; for (let k = 0; k < n; k++) { const pv = new THREE.Group(); pv.position.set(k ? 0 : sx, k ? -0.44 : y0, k ? 0 : -0.2); par.add(pv); const seg = new THREE.Mesh(new THREE.PlaneGeometry(0.21 - k * 0.03, 0.46).translate(0, -0.23, 0), scarfMat); pv.add(seg); pv.userData.k = k; pv.userData.side = sx; scarf.push(pv); par = pv; } }
+  const tail = scarf[0];
   const sash = inked(new THREE.TorusGeometry(0.33, 0.03, 5, 14), { color: 0x5a1810, outline: false }); sash.rotation.x = Math.PI / 2; sash.position.y = 0.72; body.add(sash);
   // dettagli: mantellina a strati, cintura con borse e boccetta, libro sulla schiena, stivali
   const capelet = inked(lathe([[0.42, 0], [0.38, 0.16], [0.24, 0.3]], 16), { color: 0x3a2c24, shift: 0x7a1f14 }); capelet.material.side = THREE.DoubleSide; capelet.position.y = 1.02; body.add(capelet);
@@ -177,7 +184,7 @@ export function makePlayer() {
   const clip = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.012, 0.3), new THREE.MeshBasicMaterial({ color: 0xe8be55 })); clip.position.set(0, 0.068, 0.02); quill.add(clip);
   const clipEnd = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 4), new THREE.MeshBasicMaterial({ color: 0xe8be55 })); clipEnd.position.set(0, 0.07, 0.17); quill.add(clipEnd);
   const nib = new THREE.Object3D(); nib.position.z = 1.12; quill.add(nib);
-  grp.userData = { body, cloak, head, quillPivot, quill, tail, nib, nibGlow, nibWorld: new THREE.Vector3(), r: 0.38 }; return grp;
+  grp.userData = { body, cloak, head, quillPivot, quill, tail, scarf, nib, nibGlow, nibWorld: new THREE.Vector3(), r: 0.38 }; return grp;
 }
 export function makeLumi() {
   const grp = new THREE.Group();
@@ -204,7 +211,7 @@ export function makeElaraPage(guilty = true) {
     g.lineWidth = 3; g.beginPath(); g.moveTo(256, 235); g.lineTo(250, 268); g.lineTo(260, 270); g.stroke();
     g.lineWidth = 4; g.beginPath(); g.moveTo(236, 295); g.quadraticCurveTo(256, 295 + state.mouth, 276, 295); g.stroke();
     g.fillStyle = '#8a2416'; g.beginPath(); g.moveTo(190, 405); g.lineTo(322, 405); g.lineTo(300, 430); g.lineTo(212, 430); g.fill();
-    if (state.verdict) { g.save(); g.translate(256, 625); g.rotate(-0.08); g.fillStyle = '#8a1a10'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.fillText(state.verdict, 0, 0); g.restore(); }
+    if (state.verdict) { g.save(); g.translate(256, 625); g.rotate(-0.08); g.fillStyle = state.vcol || '#8a1a10'; g.font = 'bold 74px Georgia'; g.textAlign = 'center'; g.fillText(state.verdict, 0, 0); g.restore(); }
     if (state.torn) { g.fillStyle = '#120c0a'; g.beginPath(); g.moveTo(330, 0); for (let y = 0; y <= 768; y += 30) g.lineTo(320 + Math.random() * 40, y); g.lineTo(512, 768); g.lineTo(512, 0); g.fill(); }
     if (state.seam) { g.strokeStyle = '#5a1810'; g.lineWidth = 3; for (let y = 40; y < 740; y += 26) { g.beginPath(); g.moveTo(330, y); g.lineTo(350, y + 12); g.stroke(); } }
     return c; };
@@ -235,6 +242,13 @@ export function makeSeal() {
   const stand = inked(new THREE.BoxGeometry(0.3, 1.0, 0.3), { color: 0x2b221b }); stand.position.y = 0.5; grp.add(stand); grp.userData.disc = disc; return grp;
 }
 export function makeMonolith() { const m = inked(new THREE.CylinderGeometry(0.45, 0.6, 1.2, 6), { color: 0x2b221b, shift: 0x9e2b1c, y0: 0, y1: 1.2 }); m.position.y = 0.6; return m; }
+// unisce i pezzi a tinta unita (MeshBasicMaterial) di un oggetto in una sola mesh a colori per vertice: molte meno draw call
+export function mergeBasic(root) { const parts = []; root.updateMatrix(); const inv = new THREE.Matrix4().copy(root.matrix).invert(); root.updateMatrixWorld(true);
+  root.traverse((o) => { if (o.isMesh && o.material && o.material.isMeshBasicMaterial && !o.material.transparent && !o.material.map) parts.push(o); });
+  if (parts.length < 2) return; const pos = [], col = [], m = new THREE.Matrix4(), c = new THREE.Color();
+  for (const o of parts) { let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone(); m.multiplyMatrices(inv, o.matrixWorld); g.applyMatrix4(m); c.copy(o.material.color); const a = g.attributes.position.array; for (let i = 0; i < a.length; i += 3) { pos.push(a[i], a[i + 1], a[i + 2]); col.push(c.r, c.g, c.b); } o.parent.remove(o); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const merged = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })); root.add(merged); return merged; }
 export function makeMite() { const m = inked(new THREE.IcosahedronGeometry(0.3, 1), { color: 0x120c0a, shift: 0x7a1f14, ow: 0.02 }); m.position.y = 0.3;
   const sg = new THREE.ConeGeometry(0.06, 0.32, 4); const sm = new THREE.MeshBasicMaterial({ color: 0x1b120e }); for (let i = 0; i < 9; i++) { const a = i * 2.4, b = Math.acos(1 - 2 * (i + 0.5) / 9); const d = new THREE.Vector3(Math.sin(b) * Math.cos(a), Math.cos(b), Math.sin(b) * Math.sin(a)); const sp = new THREE.Mesh(sg, sm); sp.position.copy(d).multiplyScalar(0.32); sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); m.add(sp); }
   for (const sd of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 4), new THREE.MeshBasicMaterial({ color: 0xff3a20 })); e.position.set(sd * 0.1, 0.06, 0.26); m.add(e); }
@@ -243,7 +257,7 @@ export function makeMite() { const m = inked(new THREE.IcosahedronGeometry(0.3, 
   const jg = new THREE.ConeGeometry(0.035, 0.22, 4); const jm = new THREE.MeshBasicMaterial({ color: 0xe8dcc0 });
   for (const sd of [-1, 1]) { const j = new THREE.Mesh(jg, jm); j.position.set(sd * 0.08, -0.06, 0.36); j.rotation.set(Math.PI / 2, 0, sd * 0.55); m.add(j);
     const eg = new THREE.Sprite(new THREE.SpriteMaterial({ map: radTex(), color: 0xff3a20, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false })); eg.scale.setScalar(0.16); eg.position.set(sd * 0.1, 0.07, 0.3); m.add(eg); }
-  m.scale.setScalar(1.15); return m; }
+  m.scale.setScalar(1.15); { const sc = m.scale.clone(), py = m.position.y; m.scale.set(1, 1, 1); m.position.set(0, 0, 0); mergeBasic(m); m.scale.copy(sc); m.position.y = py; } return m; }
 export function makeDoc() { const g = new THREE.Group(); const p = inked(new THREE.BoxGeometry(0.5, 0.04, 0.65), { color: 0xf5ecd8, ow: 0.02 }); p.position.y = 0.95; p.rotation.y = 0.3; g.add(p);
   const st = inked(new THREE.CylinderGeometry(0.1, 0.2, 0.9, 6), { color: 0x2b221b }); st.position.y = 0.45; g.add(st); g.userData.paper = p; return g; }
 export function makeReader() { // leggio d'inchiostro con libro aperto (prima era una scatola scura)

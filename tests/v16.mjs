@@ -5,7 +5,7 @@ const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, 
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
 const S = (n) => pg.screenshot({ path: `/workspace/palimpsest-shots/v16-${n}.png` });
 async function until(fn, ms) { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await E(fn)) return true; await W(200); } return false; }
-await pg.goto('http://localhost:8941/?fast'); await W(800); await E(() => PAL.begin(true)); await W(1500); await S('1-fall');
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.begin(true)); await W(1500); await S('1-fall');
 check('il viaggiatore scivola fino al vuoto', await until(() => PAL.OP.stage === 'gap', 30000)); await W(500); await S('2-gap');
 check('non si può cadere nel vuoto', await E(() => { PAL.tp(PAL.OP.R.cx, PAL.OP.R.cz + 2.5); return true; }) && (await E(() => PAL.P.z > PAL.OP.R.cz)));
 check('PONTE si scrive', await E(() => { PAL.face(PAL.OP.R.cx, PAL.OP.R.cz - 5); return PAL.rewrite('opbridge', 'shape.bridge'); }));

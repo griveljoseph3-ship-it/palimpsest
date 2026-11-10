@@ -3,7 +3,7 @@ import { chromium } from 'playwright-core';
 const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, hasTouch: true })).newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); pg.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
-await pg.goto('http://localhost:8941/?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog()); await W(500);
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog()); await W(500);
 check('barra vita giocatore visibile e piena', await E(() => { const r = document.getElementById('phpBar').getBoundingClientRect(); return r.width > 100 && document.querySelector('#phpBar .fill').style.width === '100%'; }));
 await E(() => { PAL.S.lock = false; PAL.P.inv = 0; PAL.damage(1, { x: PAL.P.x, z: PAL.P.z - 1 }); }); await W(650);
 check('colpo al giocatore: barra 80%, flash rosso, numero', await E(() => document.querySelector('#phpBar .fill').style.width === '80%' && document.getElementById('hurt').classList.contains('on') && !!document.querySelector('.dn.player')));

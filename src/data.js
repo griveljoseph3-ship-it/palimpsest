@@ -53,6 +53,7 @@ export const ENTITY_DEFS = {
   stone:      { name: 'Sasso sulla pagina', supports: ['weight.light'], durations: { 'weight.light': null }, safe: true },
   dweight:    { name: 'Peso della diga', supports: ['weight.heavy'], durations: { 'weight.heavy': null } },
   dam:        { name: 'Cuore della Diga', supports: ['state.fragile', 'element.conductive'], durations: { 'state.fragile': 8, 'element.conductive': 8 } },
+  ladro:      { name: 'Il Ladro d\'inchiostro', supports: ['state.fragile', 'temperament.cautious', 'element.conductive'], durations: { 'state.fragile': 8, 'temperament.cautious': 8, 'element.conductive': 8 } },
   bridge:     { name: 'Ponte conduttivo', supports: ['element.conductive'], durations: { 'element.conductive': 12 } },
 };
 // v1.5 · Capitolo 1 ridisegnato: parole sull'ambiente
@@ -65,5 +66,6 @@ ENTITY_DEFS.mzplate = { name: 'Piastra del filo', supports: ['element.conductive
 ENTITY_DEFS.mzlamp = { name: 'Lampada sentinella', supports: ['light.dark'], durations: { 'light.dark': 20 }, safe: true };
 ENTITY_DEFS.opbridge = { name: 'Le due sponde', supports: ['shape.bridge'], durations: { 'shape.bridge': null }, safe: true };
 ENTITY_DEFS.mzstack = { name: 'Pila di registri', supports: ['state.fragile', 'weight.heavy'], durations: { 'state.fragile': null, 'weight.heavy': null }, safe: true };
+ENTITY_DEFS.compositore = { name: 'Il Compositore', supports: ['element.conductive', 'temperament.cautious'], durations: { 'element.conductive': 12, 'temperament.cautious': 8 } }; // v2.4: l'automa della pressa
 ENTITY_DEFS.mzreliq = { name: 'Reliquiario di carta', supports: ['state.fragile'], durations: { 'state.fragile': null }, safe: true };
 ENTITY_DEFS.mzcrystal = { name: 'Cristallo d\'inchiostro', supports: ['state.fragile', 'element.conductive'], durations: { 'state.fragile': null, 'element.conductive': null }, safe: true };

@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Studio modelli</title><script type="importmap">{"imports":{"three":"../vendor/three.module.js?v=2.3.0"}}</script><style>body{margin:0;background:#e9dfc8}canvas{display:block}</style></head><body>
+<script type="module">
+// Strumento di controllo (non fa parte del gioco): mostra un modello di assets/modelli da più lati. ?m=nome&v=0..3
+import * as THREE from 'three';
+import { GLTFLoader } from '../vendor/GLTFLoader.js';
+import { MeshoptDecoder } from '../vendor/meshopt_decoder.module.js';
+const q = new URLSearchParams(location.search); const W = 1200, H = 420;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.setClearColor(0xe9dfc8); r.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(r.domElement);
+const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x887766, 2.2)); const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(2, 4, 3); sc.add(dl);
+const L = new GLTFLoader(); L.setMeshoptDecoder(MeshoptDecoder); await MeshoptDecoder.ready;
+L.load('../assets/modelli/' + q.get('m') + '.glb', (gl) => { const root = gl.scene; const box = new THREE.Box3().setFromObject(root); const s = new THREE.Vector3(); box.getSize(s); const c = new THREE.Vector3(); box.getCenter(c);
+  const k = 1 / s.y; root.position.set(-c.x * k, -box.min.y * k, -c.z * k); root.scale.setScalar(k);
+  for (let i = 0; i < 4; i++) { const g = new THREE.Group(); const cl = root.clone(); g.add(cl); g.position.x = (i - 1.5) * 1.05; g.rotation.y = i * Math.PI / 2; sc.add(g); }
+  const grid = new THREE.Mesh(new THREE.PlaneGeometry(6, 0.004), new THREE.MeshBasicMaterial({ color: 0x8a2416 })); grid.position.y = 0.0; sc.add(grid);
+  const cam = new THREE.OrthographicCamera(-2.2, 2.2, 0.77 + 0.1, -0.77 + 0.1 - 0.0, 0.1, 50); cam.position.set(0, 0.5, 10); cam.lookAt(0, 0.5, 0); cam.top = 0.62; cam.bottom = -0.58; cam.updateProjectionMatrix();
+  r.render(sc, cam); window.__info = { size: [s.x, s.y, s.z].map((v) => +(v * k).toFixed(3)) }; window.__done = true; });
+</script></body></html>

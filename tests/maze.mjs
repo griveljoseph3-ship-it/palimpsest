@@ -5,11 +5,12 @@ const pg = await (await b.newContext({ viewport: { width: 1366, height: 1024 }, 
 const E = (f, a) => pg.evaluate(f, a), W = (ms) => pg.waitForTimeout(ms); let bad = 0; const check = (n, v) => { console.log(v ? 'OK ' : 'XX ', n); if (!v) bad++; };
 const S = (n) => pg.screenshot({ path: `/workspace/palimpsest-shots/m-${n}.png` });
 async function until(fn, ms) { ms *= 3; const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await E(fn)) return true; await W(200); } return false; }
-await pg.goto('http://localhost:8941/?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
+await pg.goto((process.env.BASE || 'http://localhost:8941/') + '?fast'); await W(800); await E(() => PAL.start()); await W(400); await E(() => PAL.skipDialog());
 await E(() => PAL.tp(0, -49)); await until(() => PAL.S.room === 'conduct', 4000); await E(() => PAL.skipDialog()); await E(() => PAL.tp(0, -54.3));
+await E(() => { if (PAL.CP && PAL.CP.alive) PAL.compoDown(); }); await W(800); await E(() => PAL.skipDialog()); /* v2.4: prima va fermato il Compositore (vedi conduttivo.mjs) */
 await E(() => PAL.rewrite('plate', 'element.conductive')); await W(1500); await E(() => PAL.skipDialog());
 check('cancello chiuso finché il labirinto non è fatto', await E(() => !PAL.gates.r2.open));
-check('la pagina si spiega', await until(() => PAL.MZ.entryOpen >= 1, 12000));
+check('la botola si apre', await until(() => PAL.MZ.entryOpen >= 1, 12000));
 await E(() => { PAL.tp(-8.8, -50.2); }); await W(400); await S('1-page'); await E(() => PAL.enterMaze()); await W(400); await S('2-transition');
 check('entrato nel labirinto', await until(() => PAL.S.room === 'maze' && PAL.MZ.active, 8000)); await W(1500); await E(() => PAL.skipDialog()); await W(600); await S('3-maze');
 check('muri del labirinto nelle collisioni', await E(() => PAL.MZ.walls.length > 80));
@@ -20,7 +21,9 @@ await E(() => { const m = PAL.swarm.find((q) => q.room === 'maze' && q.alive); P
 await E(() => { document.getElementById('bSkills').click(); }); await W(500); await S('4-skills'); await E(() => document.getElementById('skClose').click());
 // pagine del labirinto
 await E(() => { PAL.S.discovered.add('state.fragile'); PAL.S.discovered.add('element.conductive'); PAL.S.discovered.add('light.dark'); const r = PAL.MZS.reliq; PAL.P.hp = 6; PAL.tp(r.x, r.z + 1.8); PAL.face(r.x, r.z); PAL.rewrite('mzreliq', 'state.fragile'); PAL.attack(true); });
-check('reliquiario: FRAGILE + colpo forte', await until(() => { PAL.P.hp = 6; return PAL.MZS.found.has('reliq'); }, 8000)); await E(() => PAL.skipDialog());
+{ let ok = false; const t0 = Date.now(); while (!ok && Date.now() - t0 < 60000) { ok = await E(() => PAL.MZS.found.has('reliq')); if (ok) break; /* se una macchia interrompe il colpo, si riprova */
+  await E(() => { const r = PAL.MZS.reliq; PAL.P.hp = 6; if (PAL.P.st === 'idle') { if (!PAL.grammar.has('mzreliq', 'state.fragile')) PAL.rewrite('mzreliq', 'state.fragile'); PAL.tp(r.x, r.z + 1.8); PAL.face(r.x, r.z); PAL.attack(true); } PAL.skipDialog(); }); await W(400); }
+  check('reliquiario: FRAGILE + colpo forte', ok); } await E(() => PAL.skipDialog());
 await E(() => { const c = PAL.MZS.crystal; PAL.tp(c.x, c.z + 2); PAL.face(c.x, c.z); PAL.rewrite('mzcrystal', 'state.fragile'); PAL.rewrite('mzcrystal', 'element.conductive'); });
 check('cristallo: FRAGILE+CONDUTTIVO (Pennino d\'acciaio)', await until(() => { PAL.P.hp = 6; return PAL.MZS.found.has('crystal'); }, 5000)); await E(() => PAL.skipDialog()); await S('7-crystal');
 await E(() => { const [a, b] = [PAL.MZ.lamps[2], PAL.MZ.lamps[6]]; PAL.tp(a.x, a.z + 1.5); PAL.face(a.x, a.z); PAL.rewrite(a.id, 'light.dark'); PAL.tp(b.x, b.z + 1.5); PAL.face(b.x, b.z); PAL.rewrite(b.id, 'light.dark'); PAL.tp(PAL.MZS.darkAt.x, PAL.MZS.darkAt.z + 1); });

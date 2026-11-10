@@ -3,12 +3,14 @@ const MK = 'pal.memory';
 export function loadMem() { try { return JSON.parse(localStorage.getItem(MK)) || { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } catch (e) { return { runs: 0, deaths: 0, routes: [], plans: [], traces: [] }; } }
 export function saveMem(m) { try { localStorage.setItem(MK, JSON.stringify(m)); } catch (e) {} }
 
-export const WHO = { ilde: 'Ilde', narr: 'Il Libro', elara: 'Elara', lumi: 'Lumi', custode: 'Il Custode', you: 'Tu' };
+export const WHO = { ilde: 'Ilde', narr: 'Il Libro', elara: 'Elara', lumi: 'Lumi', custode: 'Il Custode', you: 'Tu', tipo: 'Il Tipografo', giurato: 'Il Giurato senza volto', ladro: 'Il Ladro d\'inchiostro', compositore: 'Il Compositore' };
 
 export function introLines(mem) {
   if (mem.runs === 0) return [
-    ['narr', "C'era una volta una storia finita. Qualcuno l'ha riaperta."],
-    ['narr', 'Le pagine non vogliono essere corrette. Ma una goccia è già caduta.'],
+    ['narr', 'Questo è il libro di Ilde. Lei l\'ha chiuso, tanti anni fa, perché nessuno lo cambiasse più.'],
+    ['narr', 'Tu ci sei caduto dentro. E chi cade in un libro può fare una cosa sola: riscriverne le parole.'],
+    ['narr', 'In fondo al libro c\'è una ragazza, Elara. Sopra di lei qualcuno ha scritto COLPEVOLE.'],
+    ['narr', 'Scopri chi l\'ha scritto, e perché. Comincia da questa stanza.'],
   ];
   return [
     ['narr', 'Di nuovo tu. Le cancellature della volta scorsa sono ancora qui.'],
@@ -29,7 +31,7 @@ export const HINTS = {
 };
 export function elaraDoor(mem) {
   const prev = mem.routes[mem.routes.length - 1];
-  const base = [['elara', 'Mi stai leggendo. Lo sento dal margine.'], ['elara', 'La parola sopra di me non è mia. È il relè a dire COLPEVOLE. Io guardo solo come scrivi.']];
+  const base = [['elara', 'Mi stai leggendo. Lo sento dal margine.'], ['elara', 'Sopra di me c\'è scritto COLPEVOLE. Non è una parola mia: la ripete il relè di questa porta, ogni tre secondi.'], ['elara', 'Non ricordo di aver fatto niente. Se sai cambiare le parole… guarda bene come funziona questa porta.']];
   if (prev === 'forced') base.unshift(['elara', "Tu. L'altra volta mi hai strappata. La cucitura si vede ancora, guarda."]);
   if (prev === 'evidence') base.unshift(['elara', "Hai ancora la prova dell'altra volta? No... quella versione è stata chiusa."]);
   if (prev === 'trust') base.unshift(['elara', "Ricordo una versione in cui ti sei fermato a difendermi. Era questa?"]);
@@ -74,10 +76,10 @@ export const ARCHIVE_TEXT = [['narr', 'Sul leggio, la prima versione della stori
 export const C2_INTRO = [['narr', 'Capitolo II · Il fiume di carta.'], ['narr', 'Dopo la Fenditura, il libro si bagna. Le pagine si gonfiano, le parole affondano.'], ['elara', 'Qui è dove succede. La notte del fiume. Se vuoi davvero riscrivermi, devi vedere questa pagina.'], ['lumi', 'Le cose qui hanno un peso. Anche le parole.']];
 export const C2_END = [['narr', 'Acqua ferma. Al centro, la pagina di Elara si specchia nel fiume.'], ['elara', 'La notte del fiume io non c\'ero. C\'era mia madre. Ilde.'], ['elara', 'Ha scritto COLPEVOLE su di me perché nessuno cercasse lei.'], ['lumi', '…e il Rilegatore profumava di lavanda. Come il suo scialle.'], ['narr', 'Il libro chiude il capitolo. Da qualche parte, qualcuno ricuce.']];
 export const SECRET_TEXT = {
-  c1_shelf: [['narr', 'Tra i libri marci, una lettera mai spedita.'], ['ilde', '«Cara Elara, se un giorno leggerai il libro, sappi che ogni parola sbagliata l\'ho scelta io.»']],
+  c1_shelf: [['narr', 'Tra i libri marci, una lettera mai spedita.'], ['ilde', '«Cara Elara, se un giorno leggerai il libro, sappi che ogni parola sbagliata l\'ho scelta io.»', 'lettera']],
   c2_stone: [['narr', 'Sotto il sasso, un biglietto del traghetto. Una sola corsa, notte del 12 marzo. Il nome è cancellato.']],
   c2_pile: [['narr', 'Tra i libri crollati, una pagina di cronaca: «Una donna salva una bambina dal fiume. La donna non è mai stata identificata».']],
   c2_dam: [['narr', 'Sotto il sasso dell\'acqua ferma, una ciocca di capelli grigi legata con filo da rilegatore.']],
-  c1_trap: [['narr', 'Sotto la botola, una pagina di diario. La calligrafia è quella di Ilde, ma più giovane.'], ['ilde', '«Scrivo di notte perché di giorno lei mi guarda. Se legge come finisce, non mi perdonerà.»'], ['narr', 'Come finisce? La riga dopo è stata strappata.']],
+  c1_trap: [['narr', 'Sotto la botola, una pagina di diario. La calligrafia è quella di Ilde, ma più giovane.'], ['ilde', '«Scrivo di notte perché di giorno lei mi guarda. Se legge come finisce, non mi perdonerà.»', 'verdetto'], ['narr', 'Come finisce? La riga dopo è stata strappata.']],
   c1_well: [['narr', 'Dal calamaio rotto scivola un foglio arrotolato, asciutto per miracolo.'], ['narr', 'È un disegno a matita: una bambina sul fiume, e sotto, una parola cancellata tre volte. Non è COLPEVOLE.'], ['narr', 'È LIBERA.']],
 };

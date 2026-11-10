@@ -1,8 +1,8 @@
 // v2.6 · Atmosfera (giro grafico parte 2): pulviscolo che galleggia nella luce e aloni caldi intorno a candele e lampade.
 // Pensato per l'iPad: 1 draw call per il pulviscolo (punti mossi solo nello shader, la CPU non li tocca) e 1 draw call per
 // tutti gli aloni insieme (InstancedMesh: un alone nell'aria + una pozza calda sul pavimento per le 7 luci più vicine).
-import * as THREE from '../vendor/three.module.js?v=2.6.0-prova';
-import { INK_UNIFORMS, NL } from './art.js?v=2.6.0-prova';
+import * as THREE from '../vendor/three.module.js?v=2.6.1-prova';
+import { INK_UNIFORMS, NL } from './art.js?v=2.6.1-prova';
 
 const NOISE = `float h11(float n){return fract(sin(n)*43758.5453);}`;
 

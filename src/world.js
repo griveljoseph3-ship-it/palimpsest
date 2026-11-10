@@ -1,7 +1,7 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=2.6.0-prova';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS, penned, roughen } from './art.js?v=2.6.0-prova';
-import { mergeGeometries } from '../vendor/BufferGeometryUtils.js?v=2.6.0-prova';
+import * as THREE from '../vendor/three.module.js?v=2.6.1-prova';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS, penned, roughen } from './art.js?v=2.6.1-prova';
+import { mergeGeometries } from '../vendor/BufferGeometryUtils.js?v=2.6.1-prova';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },

@@ -2,11 +2,11 @@
 // I modelli non hanno scheletro: li pulisco al caricamento (pezzetti staccati, base piatta, piedi a terra) e li muovo io
 // con il vertex shader (ANIM_GLSL in art.js) guidato da quanto e come si spostano davvero nel gioco.
 // Se un modello non arriva, resta il personaggio di prima (nessun errore).
-import * as THREE from '../vendor/three.module.js?v=2.6.0-prova';
-import { GLTFLoader } from '../vendor/GLTFLoader.js?v=2.6.0-prova';
-import { MeshoptDecoder } from '../vendor/meshopt_decoder.module.js?v=2.6.0-prova';
-import { MeshoptSimplifier } from '../vendor/meshopt_simplifier.module.js?v=2.6.0-prova';
-import { inkMaster, outlineMat, withMask, animUniforms } from './art.js?v=2.6.0-prova';
+import * as THREE from '../vendor/three.module.js?v=2.6.1-prova';
+import { GLTFLoader } from '../vendor/GLTFLoader.js?v=2.6.1-prova';
+import { MeshoptDecoder } from '../vendor/meshopt_decoder.module.js?v=2.6.1-prova';
+import { MeshoptSimplifier } from '../vendor/meshopt_simplifier.module.js?v=2.6.1-prova';
+import { inkMaster, outlineMat, withMask, animUniforms } from './art.js?v=2.6.1-prova';
 
 // come si muove ciascuno: kind 0 bipede · 1 rimbalza · 2 zampe a onda; stride/swing in frazioni dell'altezza; step = metri per passo (a 1 m di altezza)
 export const RIG = {

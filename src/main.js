@@ -1,20 +1,20 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=2.6.0-prova';
-import { EFFECTS } from './data.js?v=2.6.0-prova';
-import { Grammar } from './resolver.js?v=2.6.0-prova';
-import { Ink, INK } from './ink.js?v=2.6.0-prova';
-import { Input } from './input.js?v=2.6.0-prova';
-import { Sfx } from './audio.js?v=2.6.0-prova';
-import { Tele } from './telemetry.js?v=2.6.0-prova';
-import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG, penned, penMat, outlineMat } from './art.js?v=2.6.0-prova';
+import * as THREE from '../vendor/three.module.js?v=2.6.1-prova';
+import { EFFECTS } from './data.js?v=2.6.1-prova';
+import { Grammar } from './resolver.js?v=2.6.1-prova';
+import { Ink, INK } from './ink.js?v=2.6.1-prova';
+import { Input } from './input.js?v=2.6.1-prova';
+import { Sfx } from './audio.js?v=2.6.1-prova';
+import { Tele } from './telemetry.js?v=2.6.1-prova';
+import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG, penned, penMat, outlineMat } from './art.js?v=2.6.1-prova';
 const FIG_READY = (k) => FIG[k] && FIG[k].ready, FIGT = (k) => FIG[k].tex;
 loadFigures(['acaro', 'acaro-bruto', 'acaro-sputo', 'copista', 'tipo', 'giurato', 'giurato-volto', 'lumi']); // v2.2: figure di carta dalle tavole
-import * as W from './world.js?v=2.6.0-prova';
-import { loadModels, whenModel, makeModel, animateModels, STATO as M3D, LIVE as M3D_LIVE, has as hasModel } from './modelli.js?v=2.6.0-prova';
+import * as W from './world.js?v=2.6.1-prova';
+import { loadModels, whenModel, makeModel, animateModels, STATO as M3D, LIVE as M3D_LIVE, has as hasModel } from './modelli.js?v=2.6.1-prova';
 const USE3D = !/[?&]3d=0/.test(location.search); if (USE3D) loadModels(); // v2.3: personaggi 3D (?3d=0 = quelli di prima, per confronto)
-import * as ST from './story.js?v=2.6.0-prova';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=2.6.0-prova';
-import { Dust, Halos } from './atmosfera.js?v=2.6.0-prova';
+import * as ST from './story.js?v=2.6.1-prova';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=2.6.1-prova';
+import { Dust, Halos } from './atmosfera.js?v=2.6.1-prova';
 
 const $ = (id) => document.getElementById(id);
 // v2.6 · schermata di caricamento (index.html): qui le si passa l'avanzamento vero delle tavole, delle texture e dei modelli

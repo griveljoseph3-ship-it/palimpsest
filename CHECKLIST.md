@@ -13,7 +13,7 @@ Questo file dice **cosa è già fatto** e **cosa resta da fare**, in ordine. Chi
 
 ## Come si lancia tutto
 - Server: `npx http-server -p 8941 -c-1` dalla cartella del gioco (in questo ambiente servono il link `node_modules/playwright-core` → `/opt/node-tools/node_modules/playwright-core` e `/usr/bin/google-chrome` → `/opt/pw-browsers/chromium`).
-- Suite: `sh tests/all.sh` (+ `EXTRA="plates.mjs music.mjs boss.mjs map.mjs enemies.mjs quest.mjs ladro.mjs scenes.mjs shield.mjs archive.mjs crypt.mjs maze.mjs"`).
+- Suite: `sh tests/all.sh` (+ `EXTRA="plates.mjs music.mjs boss.mjs map.mjs enemies.mjs quest.mjs ladro.mjs scenes.mjs shield.mjs archive.mjs crypt.mjs maze.mjs grafica2.mjs"`).
 - **Non lanciare altri browser mentre gira la suite**: il rendering software è lento (≈0,5 s a fotogramma) e i test con tempi falliscono. Trucco usato: copiare il gioco in una cartella ferma (`/tmp/claude-0/snap`) e servire quella sulla 8941 mentre si lavora sui file veri su un'altra porta (8942, con `BASE=http://localhost:8942/`).
 - I comandi in background dell'ambiente si spengono dopo 2 ore: riavviare il server prima di una suite lunga.
 - Versione: `sh bump.sh X.Y.Z` (aggiorna i `?v=` e il titolo).
@@ -84,9 +84,23 @@ Regole: dopo OGNI parte mandargli schermate prima/dopo e ASPETTARE il suo ok pri
 - [x] Installabile: `sw.js` generato da `tools/make-sw.py` (anche da bump.sh), registrato fuori da ?fast, cache per versione; meta iOS; consiglio «Aggiungi alla schermata Home» sul titolo (`#a2hs`). Serve un indirizzo https (o localhost). Test `tests/offline.mjs`
 - [x] Animazioni con scheletro (senza Mixamo): `autoRig` + `makeSkeleton` + `walkPose` in modelli.js (12 ossa messe dalle proporzioni, pesi morbidi), shader con `skinning_*` in art.js, `uKind 3` = niente gambe finte; pose d'azione `POSES` in main.js (protagonista: rapido, chiusura, forte, ferita, schivata, morte; Custode: carica/manata/stordito; Compositore: carica/pugno/timbra; Copista). Rigging su: correttore, elara, custode, robot, creatura_spine. Sfera di culling ×1,6 (senza, i triangoli raddoppiavano). Strumento `tools/pose-shots.mjs`. Upgrade possibile: Mixamo (Joseph) per animazioni da attore vero
 - [x] Giro grafico v2.6 (parte 1): titolo «ufficiale» (copertina intera, logo in alto, pulsanti in basso: CSS in fondo a style.css); buio fuori dalla lampada meno fangoso (art.js: .47/.41/.4); legno della tavola 062 su casse, panche e banconi (`inkMasterLike(color, wood)`, `WOOD`); giuria del tribunale = figure del giurato (tavola 026). Strumento `tools/giro-shots.mjs`. systems.mjs: attese dell'apertura più lunghe e a condizione (la macchina di prova può essere più lenta)
-- [ ] Giro grafico v2.6 (da fare): pilastri/barili/pressa ancora forme lisce; HUD e menu di pausa/opzioni nello stile del titolo; schermata di caricamento; titoli di coda; particelle d'atmosfera (pulviscolo nella luce); icona dell'app dalla copertina
+- [x] Giro grafico v2.6 (parte 2): fatto sul ramo `grok/grafica-2` (v2.6.0-prova), vedi sezione «Giro grafico parte 2» qui sotto. Resta: icona dell'app dalla copertina
 - Idee già decise per dopo: Ilde = ricordo d'inchiostro nelle scene della lettera e nell'archivio; Elara bambina = flashback giocabile della notte del fiume prima del finale
 - Restano dalla lista di Joseph (non scelti ora): colpi che si sentono, nemici più vari, storia più chiara, più enigmi
+
+## Giro grafico parte 2 (v2.6.0-prova, ramo `grok/grafica-2`, non unito a main)
+Richieste di Joseph: oggetti di scena ancora lisci, HUD e menu nello stile del nuovo titolo, atmosfera, caricamento e titoli di coda.
+- [x] Oggetti di scena «a penna» (art.js `penMat`/`penned`/`roughen`/`plateTex`, uniform `uPen` in inkMaster): tratteggio che segue la forma (intorno ai cilindri, sulle facce delle scatole), più fitto nell'ombra; bordi e cerchi d'inchiostro irregolari; contorno più grosso e più fine come un tratto vero (`uWV` in outlineMat, che ora funziona anche con InstancedMesh); vertici spostati da un rumore fisso (bordi storti, costo zero a fotogramma)
+  - pilastri (Caricatore, arena) e sostegno: carta-mattoni (tavola 023), base e capitello (`makePillarGeo`)
+  - pressa (`makePress`, stanza III e arena): telaio di legno (tavola 062) con montanti, traversa, manovella; piano + vite in un pezzo. 4 draw call invece di 8
+  - barili della tipografia (`barrelGeo`): doghe, 3 cerchi di ferro, inchiostro dentro; tutti e 3 in 2 draw call con contorno
+  - casse del Caricatore e legno di casse/panche/banconi (`inkMasterLike` con `uPen 2`)
+- [x] HUD, pausa e opzioni come il titolo (fondo di style.css, blocco «v2.6 · giro grafico parte 2»): inchiostro `rgba(22,17,13,.82)`, bordo crema sottile, rosso `#8a1a10` per ciò che conta, Georgia spaziata, riga rossa sotto i titoli. Pausa a tutto schermo con la copertina scurita e colonna di pulsanti; Opzioni = pagina a parte (`#pOpts`, `pauseOpts()`) con 3 schede (Suono, Gioco, Vista e accessibilità), cursori e caselle disegnati. Stessi id di prima (nessun test toccato). Pannelli (borsa, diario, mappa, abilità): carta invecchiata con cornice d'inchiostro
+- [x] Atmosfera (`src/atmosfera.js`): `Dust` = 170 granelli di pulviscolo mossi solo nello shader, fermi nel mondo, accesi dalla lampada e dalle candele vicine (1 draw call); `Halos` = alone con raggi a penna nell'aria + pozza calda a terra per le 7 luci più vicine (1 draw call per tutti), tremolano con la fiamma, spenti se la luce è spenta/nascosta, fermi con «Riduci movimento»
+- [x] Schermata di caricamento (index.html `#loading` + script in linea): carta, goccia d'inchiostro che cade e si apre, il pennino scrive PALIMPSEST, barra d'inchiostro con percentuale e frasi; avanzamento vero da `THREE.DefaultLoadingManager` (tavole, texture, modelli) in main.js (`LOADUI`); se ne va dopo il 4º fotogramma (shader pronti), almeno 3 s, al massimo 25 s; non blocca i tocchi; con ?fast non c'è
+- [x] Titoli di coda (`credits(done, force)`, `CREDITS` in main.js, `#credits`): dopo la pagina finale (poi «Fine del frammento»), dal titolo («Titoli di coda») e dalla pausa. Testi da CREDITS.md: Joseph Grivel autore del gioco, delle 72 tavole e dei modelli; personaggi; codice/musica generati; licenze MIT. 6 tavole di Joseph incorniciate che scorrono; tieni premuto = più veloce; «Salta ▸▸»; con ?fast saltati (se non forzati)
+- [x] Test `tests/grafica2.mjs` (22 controlli); strumento `tools/grafica2-shots.mjs` (foto prima/dopo)
+- [ ] Da provare sull'iPad vero: fluidità con pulviscolo/aloni (sono leggeri, ma vanno visti), leggibilità dei pulsanti HUD sopra la carta chiara, durata giusta dei titoli di coda
 
 ## Dopo il giro 3 (da fare, in ordine di impatto)
 - [ ] Enigmi nuovi con vero «aha» (circuiti CONDUTTIVO a catena, specchi, ordine delle parole)

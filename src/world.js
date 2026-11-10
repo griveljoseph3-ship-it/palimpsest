@@ -1,6 +1,7 @@
 // S4 · Mondo: stanze-pagina, entità e personaggi disegnati a inchiostro.
-import * as THREE from '../vendor/three.module.js?v=2.5.0';
-import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS } from './art.js?v=2.5.0';
+import * as THREE from '../vendor/three.module.js?v=2.6.0-prova';
+import { inked, inkMaster, withMask, outlineMat, INK_UNIFORMS, penned, roughen } from './art.js?v=2.6.0-prova';
+import { mergeGeometries } from '../vendor/BufferGeometryUtils.js?v=2.6.0-prova';
 
 export const ROOMS = [
   { id: 'intro', cx: 0, cz: 0, w: 14, d: 20, safe: true, title: 'I · La tavola' },
@@ -221,12 +222,22 @@ export function makeElaraPage(guilty = true) {
   const frame = inked(new THREE.BoxGeometry(3.0, 0.25, 0.4), { color: 0x2b221b }); frame.position.y = 4.05; grp.add(frame);
   grp.userData = { page, st, redraw: () => { tex.image = draw(st); tex.needsUpdate = true; } }; return grp;
 }
+// v2.6 · la pressa disegnata a penna (come la tavola 064): telaio di legno con montanti, traversa, vite e manovella; il piano che batte
+// è un solo pezzo (piastra + vite). Telaio e piano sono 2 mesh (prima 4): meno draw call e più dettagli.
+const PG = (geo, x, y, z, rx = 0, rz = 0) => { geo.rotateX(rx); geo.rotateZ(rz); geo.translate(x, y, z); return geo.index ? geo.toNonIndexed() : geo; };
 export function makePress() {
   const grp = new THREE.Group();
-  const base = inked(new THREE.BoxGeometry(1.4, 0.4, 1.4), { color: 0x3a2f27 }); base.position.y = 0.2; grp.add(base);
-  const col = inked(new THREE.CylinderGeometry(0.15, 0.15, 2.2, 6), { color: 0x2b221b }); col.position.set(-0.5, 1.2, 0); grp.add(col); const c2 = col.clone(); c2.position.x = 0.5; grp.add(c2);
-  const ram = inked(new THREE.BoxGeometry(1.2, 0.5, 1.2), { color: 0x8c7a5c, y0: 0.4, y1: 2.4 }); ram.position.y = 1.9; grp.add(ram);
-  grp.userData = { ram }; return grp;
+  const frame = mergeGeometries([PG(new THREE.BoxGeometry(1.7, 0.34, 1.5, 3, 1, 3), 0, 0.17, 0), PG(new THREE.BoxGeometry(1.25, 0.1, 1.15), 0, 0.39, 0),
+    PG(new THREE.BoxGeometry(0.22, 2.55, 0.3, 1, 5, 1), -0.72, 1.6, 0), PG(new THREE.BoxGeometry(0.22, 2.55, 0.3, 1, 5, 1), 0.72, 1.6, 0),
+    PG(new THREE.BoxGeometry(1.85, 0.32, 0.46, 4, 1, 1), 0, 2.86, 0), PG(new THREE.BoxGeometry(0.3, 0.16, 0.5), -0.72, 0.9, 0), PG(new THREE.BoxGeometry(0.3, 0.16, 0.5), 0.72, 0.9, 0),
+    PG(new THREE.CylinderGeometry(0.06, 0.06, 1.9, 6), 0, 3.08, 0, 0, Math.PI / 2), PG(new THREE.SphereGeometry(0.11, 8, 6), 0.95, 3.08, 0), PG(new THREE.SphereGeometry(0.11, 8, 6), -0.95, 3.08, 0)]);
+  roughen(frame, 0.018, 4.5);
+  const fr = penned(frame, { mode: 2, color: 0x6b4a2a, skin: 'legno', skinK: 0.75, skinScale: 0.9, y0: 0, y1: 3.1, ow: 0.03 }); grp.add(fr);
+  // piano che batte: piastra con le righe di piombo + vite che sale nella traversa
+  const ramG = mergeGeometries([PG(new THREE.BoxGeometry(1.2, 0.42, 1.1, 3, 1, 3), 0, 0, 0), PG(new THREE.BoxGeometry(1.32, 0.08, 1.22), 0, 0.24, 0), PG(new THREE.CylinderGeometry(0.1, 0.1, 1.9, 8, 6), 0, 1.15, 0)]);
+  roughen(ramG, 0.012, 6);
+  const ram = penned(ramG, { mode: 2, color: 0x3a3028, ink: 0x0e0a08, y0: 0.4, y1: 2.4, ow: 0.025 }); ram.position.y = 1.9; grp.add(ram);
+  grp.userData = { ram, frame: fr }; return grp;
 }
 export function makeWire(points, w = 0.12) {
   const grp = new THREE.Group(); const segs = [];
@@ -236,7 +247,14 @@ export function makeWire(points, w = 0.12) {
 }
 export function makePlate(w = 1.4, d = 1.4, color = 0x9a6a3a) { const m = inked(new THREE.BoxGeometry(w, 0.12, d), { color, shift: 0x3fc1ff, y0: 0, y1: 0.15, ow: 0.02 }); m.position.y = 0.06; return m; }
 export function makeGate() { const m = inked(new THREE.BoxGeometry(GAP + 0.2, 1.8, 0.25), { color: 0x6b5a46, y0: 0, y1: 1.8 }); m.position.y = 0.9; return m; }
-export function makePillar() { const m = inked(new THREE.CylinderGeometry(0.62, 0.75, 2.6, 10, 4), { color: 0xcbbd9e, y0: 0, y1: 2.6 }); m.position.y = 1.3; return m; }
+// v2.6 · pilastro di carta-mattoni (tavole 023/003) con base e capitello, bordi storti e tratteggio a penna
+export function makePillarGeo(r0 = 0.62, r1 = 0.75, h = 2.6) { const g = mergeGeometries([PG(new THREE.CylinderGeometry(r0, r1, h - 0.36, 14, 6), 0, 0, 0), PG(new THREE.CylinderGeometry(r1 + 0.1, r1 + 0.16, 0.2, 14, 1), 0, -h / 2 + 0.1, 0),
+  PG(new THREE.CylinderGeometry(r0 + 0.14, r0 + 0.02, 0.18, 14, 1), 0, h / 2 - 0.09, 0)]); return roughen(g, 0.045, 3.1); }
+export function makePillar() { const m = penned(makePillarGeo(), { mode: 1, color: 0xcbbd9e, skin: 'mattoni', skinK: 0.75, skinScale: 0.62, penR: 0.7, y0: 0, y1: 2.6 }); m.position.y = 1.3; return m; }
+export function roughenBox(w, h, d) { return roughen(new THREE.BoxGeometry(w, h, d, 3, 2, 3), 0.025, 4); }
+// v2.6 · barile d'inchiostro: doghe di legno (tavola 062), cerchi di ferro e inchiostro nero dentro
+export function barrelGeo() { const pts = []; for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push(new THREE.Vector2(0.5 * (0.84 + 0.16 * Math.sin(Math.PI * t)), -0.5 + t)); } pts.push(new THREE.Vector2(0.44, 0.5), new THREE.Vector2(0.001, 0.5));
+  const g = new THREE.LatheGeometry(pts, 16); return roughen(g, 0.02, 5); }
 export function makeSeal() {
   const grp = new THREE.Group(); const disc = inked(new THREE.CylinderGeometry(0.6, 0.6, 0.12, 20), { color: 0x8a1a10, shift: 0xffd27a }); disc.rotation.x = Math.PI / 2; disc.position.y = 1.2; grp.add(disc);
   const stand = inked(new THREE.BoxGeometry(0.3, 1.0, 0.3), { color: 0x2b221b }); stand.position.y = 0.5; grp.add(stand); grp.userData.disc = disc; return grp;

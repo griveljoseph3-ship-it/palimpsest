@@ -292,3 +292,94 @@ body.regia #hud,body.regia #words{opacity:0!important;pointer-events:none!import
 #title .pbtn.big{background:#8a1a10;border-color:#f3ead6;font-size:22px;box-shadow:0 6px 24px rgba(0,0,0,.6)}
 #title .small,#title #ver,#title p.small{color:rgba(243,234,214,.75);text-shadow:0 1px 4px #000}
 #title #a2hs{color:#f3ead6;border-top-color:rgba(243,234,214,.3);max-width:560px;text-shadow:0 1px 4px #000}
+
+/* ================= v2.6 · giro grafico parte 2: HUD, pausa, opzioni, caricamento e titoli di coda nello stile del titolo ================= */
+:root{--cream:#f3ead6;--inkbg:rgba(22,17,13,.82);--line:rgba(243,234,214,.55);--oldpaper:radial-gradient(ellipse at 22% 18%,rgba(160,120,70,.22),transparent 38%),radial-gradient(ellipse at 80% 75%,rgba(140,96,50,.24),transparent 42%),radial-gradient(circle at 62% 30%,rgba(120,80,40,.12),transparent 18%),radial-gradient(ellipse at center,#f1e7d1 30%,#e2d3b2 100%)}
+/* HUD: inchiostro su carta, bordi sottili color crema, rosso per ciò che conta */
+#inkLabel{color:var(--cream);opacity:.9;letter-spacing:.32em;text-shadow:0 1px 0 #16110d,0 0 8px #000}
+#inkBar{background:var(--inkbg);border:1.5px solid var(--line);border-radius:12px 4px 10px 5px/5px 10px 4px 12px;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+#inkFill{background:linear-gradient(90deg,#0b0807,#2a1712 62%,#8a1a10)}
+#inkNum{color:var(--cream);text-shadow:0 1px 0 #16110d,0 0 8px #000;font-variant-numeric:oldstyle-nums}
+#phpBar{border:1.5px solid var(--line)!important;border-radius:5px 12px 4px 10px/10px 4px 12px 5px;background:var(--inkbg);box-shadow:0 4px 14px rgba(0,0,0,.5)}
+#phpBar .fill{background:linear-gradient(#b8301e,#8a1a10 55%,#5a1008)}
+#phpBar span{font-family:Georgia,serif;letter-spacing:.08em;color:var(--cream)}
+#room{color:var(--cream);font-style:normal;text-transform:uppercase;letter-spacing:.32em;font-size:calc(12px*var(--fs));opacity:.92;text-shadow:0 2px 0 #16110d,0 0 14px #000;white-space:nowrap}
+#room::after{content:'';display:block;height:2px;margin:5px auto 0;width:70%;background:linear-gradient(to right,transparent,#8a1a10 20%,#8a1a10 80%,transparent)}
+#goal{background:var(--inkbg);border:1.5px solid var(--line);border-radius:3px;color:var(--cream);box-shadow:0 6px 20px rgba(0,0,0,.5);letter-spacing:.03em}
+#goal.flash{animation:gflash26 1.2s ease}@keyframes gflash26{0%{background:#8a1a10;border-color:var(--cream)}100%{background:var(--inkbg)}}
+#toast{color:var(--cream);letter-spacing:.3em;text-shadow:0 3px 0 #16110d,0 0 24px #000,0 0 60px rgba(138,26,16,.55)}
+#hint{color:var(--cream);text-shadow:0 2px 0 #16110d,0 0 12px #000}
+#topBtns button{background:var(--inkbg);border:1.5px solid var(--line);color:var(--cream);box-shadow:0 4px 14px rgba(0,0,0,.55);font-family:Georgia,serif}
+#topBtns button:active{background:#8a1a10;border-color:var(--cream)}
+.tb{background:var(--inkbg);border:1.5px solid var(--line);color:var(--cream);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.tb small{font-family:Georgia,serif;letter-spacing:.1em}
+.tb.on{background:#8a1a10;border-color:var(--cream)}
+#tRewrite{background:#8a1a10;border-color:var(--cream)}
+#bossBar .bname,#miniBar .bname,#compoBar .bname{color:var(--cream);letter-spacing:.32em;text-shadow:0 2px 0 #16110d,0 0 14px #000}
+.hbar{border-color:var(--line)}
+/* pannelli (borsa, diario, mappa, abilità): pagina di carta con intestazione come il titolo e pulsanti d'inchiostro */
+.panel{background:var(--oldpaper);border:1.5px solid rgba(22,17,13,.55);box-shadow:0 0 0 6px rgba(22,17,13,.82),0 0 0 7.5px var(--line),0 30px 80px rgba(0,0,0,.75);border-radius:3px}
+.panel h2{text-transform:uppercase;letter-spacing:.3em;text-align:center;font-weight:700}
+.panel h2::after{content:'';display:block;height:2px;margin:8px auto 0;width:60%;background:linear-gradient(to right,transparent,#8a1a10 20%,#8a1a10 80%,transparent)}
+.panel .pbtn{background:rgba(22,17,13,.88);border:1.5px solid rgba(22,17,13,.9);color:var(--cream);box-shadow:0 4px 12px rgba(0,0,0,.35)}
+/* pausa: come la schermata del titolo (tavola sullo sfondo, colonna di pulsanti) */
+#pause{position:fixed;inset:0;left:0;top:0;transform:none;width:auto;max-width:none;max-height:none;border:0;border-radius:0;padding:calc(6vh + env(safe-area-inset-top)) 6vw calc(4vh + env(safe-area-inset-bottom));box-shadow:none;overflow:auto;
+  background:radial-gradient(ellipse at center,rgba(11,8,7,.45) 0,rgba(11,8,7,.9) 75%),linear-gradient(to bottom,rgba(11,8,7,.75),rgba(11,8,7,.2) 35%,rgba(11,8,7,.85)),url(assets/scene/copertina2.jpg) center/cover no-repeat,#0b0807;background-blend-mode:normal;color:var(--cream);animation:tFade .35s ease-out both}
+#pause h2{font-size:clamp(30px,5.5vw,64px);letter-spacing:.3em;padding-left:.3em;color:var(--cream);text-shadow:0 4px 0 #16110d,0 0 36px #000,0 0 80px rgba(138,26,16,.5);margin:0 0 4px}
+#pause h2::after{width:50%;height:3px}
+#pause .psub{text-align:center;font-style:italic;color:var(--cream);text-shadow:0 2px 8px #000;margin:4px 0 22px;font-size:clamp(14px,1.8vw,19px)}
+#pMain,#pOpts{max-width:780px;margin:0 auto;display:flex;flex-direction:column;align-items:center}
+#pause .pbtn{width:min(380px,74vw);background:var(--inkbg);border:1.5px solid var(--line);color:var(--cream);margin:6px 0;border-radius:3px;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+#pause .pbtn.big{background:#8a1a10;border-color:var(--cream);font-size:20px}
+#pause .pbtn.small2,#title .pbtn.small2{width:auto;padding:7px 18px;font-size:13px;opacity:.85}
+#pause .pkeys{color:rgba(243,234,214,.7);text-align:center;max-width:620px;margin-top:18px;text-shadow:0 1px 4px #000;opacity:1}
+/* opzioni: tre schede d'inchiostro con titoli come il logo */
+#pOpts .ogrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;width:100%;margin:8px 0 12px}
+#pOpts section{background:var(--inkbg);border:1.5px solid var(--line);border-radius:3px;padding:12px 16px 10px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#pOpts h3{margin:0 0 8px;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--cream);text-align:center}
+#pOpts h3::after{content:'';display:block;height:2px;margin:6px auto 0;width:50%;background:linear-gradient(to right,transparent,#8a1a10 20%,#8a1a10 80%,transparent)}
+#pOpts label{display:block;margin:9px 0;color:var(--cream);font-size:calc(15px*var(--fs));line-height:1.35}
+#pOpts input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:transparent;display:block;margin-top:4px}
+#pOpts input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,rgba(243,234,214,.75),rgba(243,234,214,.35))}
+#pOpts input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-7px;border-radius:50% 45% 55% 50%;background:#8a1a10;border:1.5px solid var(--cream);box-shadow:0 2px 6px #000}
+#pOpts input[type=range]::-moz-range-track{height:4px;background:rgba(243,234,214,.6)}#pOpts input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#8a1a10;border:1.5px solid var(--cream)}
+#pOpts input[type=checkbox]{-webkit-appearance:none;appearance:none;width:19px;height:19px;vertical-align:-4px;margin:0 6px 0 0;border:1.5px solid var(--cream);border-radius:3px 5px 3px 4px;background:rgba(11,8,7,.5);position:relative}
+#pOpts input[type=checkbox]:checked{background:#8a1a10}
+#pOpts input[type=checkbox]:checked::after{content:'✓';position:absolute;left:3px;top:-3px;color:var(--cream);font-size:16px;font-weight:700}
+#pOpts select{display:block;width:100%;margin-top:4px;padding:7px 8px;font:calc(14px*var(--fs)) Georgia,serif;color:var(--cream);background:rgba(11,8,7,.7);border:1.5px solid var(--line);border-radius:3px}
+#pOpts select option{background:#16110d;color:var(--cream)}
+/* schermata di caricamento: una goccia d'inchiostro cade, il pennino scrive PALIMPSEST, la barra si riempie */
+#loading{position:fixed;inset:0;z-index:40;pointer-events:none;display:flex;align-items:center;justify-content:center;
+  background:var(--oldpaper);box-shadow:inset 0 0 160px rgba(60,38,20,.6);transition:opacity .8s ease}
+#loading.out{opacity:0}
+#loading .lpage{width:min(720px,90vw);text-align:center;color:#16110d}
+#lArt{width:100%;height:auto;overflow:visible}
+#lWord{font:700 64px Georgia,'Times New Roman',serif;letter-spacing:.28em;fill:#16110d;stroke:#16110d;stroke-width:.6}
+.lrule{stroke:#8a1a10;stroke-width:3;stroke-linecap:round;stroke-dasharray:340;stroke-dashoffset:340;animation:lDraw 1.4s 2.4s ease-out forwards}
+.ldrop{fill:#16110d;transform-origin:320px 40px;animation:lDrop 1s cubic-bezier(.5,0,.9,.6) both}
+.lsplat{fill:#8a1a10;opacity:0;transform-origin:320px 232px;animation:lSplat .5s .95s ease-out forwards}
+@keyframes lDrop{0%{transform:translateY(-40px) scaleY(.8)}88%{transform:translateY(180px) scaleY(1.25);opacity:1}100%{transform:translateY(196px) scale(2.2,.15);opacity:0}}
+@keyframes lSplat{0%{opacity:0;transform:scale(.2,1)}60%{opacity:.85;transform:scale(1.08,1)}100%{opacity:.7;transform:scale(1)}}
+@keyframes lDraw{to{stroke-dashoffset:0}}
+#lBar{position:relative;width:min(420px,70vw);height:9px;margin:4px auto 0;border:1.5px solid #16110d;border-radius:8px 3px 7px 4px/4px 7px 3px 8px;background:rgba(22,17,13,.08);overflow:hidden}
+#lFill{position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,#16110d,#2a1712 75%,#8a1a10)}
+#lText{font:italic 18px Georgia,serif;margin:12px 0 2px;color:#3a2a1e}#lPct{font:13px Georgia,serif;letter-spacing:.2em;margin:0;color:#5a4636}
+/* titoli di coda: carta invecchiata, nomi in inchiostro, tavole di Joseph che scorrono */
+#credits{position:fixed;inset:0;z-index:16;overflow:hidden;background:var(--oldpaper);box-shadow:inset 0 0 180px rgba(60,38,20,.6);color:#16110d;animation:tFade 1s ease-out both;pointer-events:auto}
+#credits::before,#credits::after{content:'';position:absolute;left:0;right:0;height:18vh;z-index:2;pointer-events:none}
+#credits::before{top:0;background:linear-gradient(#e2d6bc,rgba(226,214,188,0))}#credits::after{bottom:0;background:linear-gradient(rgba(226,214,188,0),#e2d6bc)}
+#crRoll{position:absolute;left:50%;top:0;width:min(720px,88vw);transform:translate(-50%,100vh);text-align:center;will-change:transform}
+#crRoll h1{font-size:clamp(40px,7vw,84px);letter-spacing:.3em;padding-left:.3em;margin:0;color:#16110d;text-shadow:0 3px 0 rgba(138,26,16,.25)}
+#crRoll h1::after,#crRoll h2::after{content:'';display:block;height:3px;margin:10px auto 0;width:55%;background:linear-gradient(to right,transparent,#8a1a10 20%,#8a1a10 80%,transparent)}
+#crRoll h2{font-size:15px;letter-spacing:.34em;text-transform:uppercase;color:#8a1a10;margin:64px 0 10px}
+#crRoll h2::after{height:2px;width:30%;margin-top:6px}
+#crRoll .who{font-size:clamp(22px,3vw,32px);margin:6px 0;font-weight:700}
+#crRoll .what{font-style:italic;font-size:17px;color:#3a2a1e;margin:2px 0}
+#crRoll .sub{font-style:italic;font-size:19px;margin:14px 0 0}
+#crRoll .plates{display:flex;gap:12px;justify-content:center;margin:26px 0 6px;flex-wrap:wrap}
+#crRoll .plates img{width:min(200px,26vw);height:auto;border:2px solid #16110d;box-shadow:0 0 0 5px #efe5cf,0 0 0 6.5px rgba(22,17,13,.5),0 10px 24px rgba(40,24,12,.45);transform:rotate(var(--r,0deg))}
+#crRoll .cap{font-size:13px;font-style:italic;color:#5a4636;margin:10px 0 0}
+#crRoll .fine{font-size:clamp(60px,10vw,120px);color:#8a1a10;font-style:italic;margin:70px 0 8px;letter-spacing:.05em}
+#crRoll .lic{font-size:13px;color:#5a4636;margin:4px 0}
+#crSkip{position:absolute;z-index:3;top:calc(18px + env(safe-area-inset-top));right:calc(20px + env(safe-area-inset-right));font:17px Georgia,serif;padding:9px 18px;background:rgba(22,17,13,.85);color:var(--cream);border:1.5px solid var(--line);border-radius:3px}
+#crHelp{position:absolute;z-index:3;bottom:calc(14px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-style:italic;font-size:13px;color:#5a4636}

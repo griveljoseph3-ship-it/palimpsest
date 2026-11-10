@@ -1,21 +1,26 @@
 // PALIMPSEST · vertical slice. Loop, giocatore, IA, dispositivi, Parole Fluttuanti, storia.
-import * as THREE from '../vendor/three.module.js?v=2.5.0';
-import { EFFECTS } from './data.js?v=2.5.0';
-import { Grammar } from './resolver.js?v=2.5.0';
-import { Ink, INK } from './ink.js?v=2.5.0';
-import { Input } from './input.js?v=2.5.0';
-import { Sfx } from './audio.js?v=2.5.0';
-import { Tele } from './telemetry.js?v=2.5.0';
-import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG } from './art.js?v=2.5.0';
+import * as THREE from '../vendor/three.module.js?v=2.6.0-prova';
+import { EFFECTS } from './data.js?v=2.6.0-prova';
+import { Grammar } from './resolver.js?v=2.6.0-prova';
+import { Ink, INK } from './ink.js?v=2.6.0-prova';
+import { Input } from './input.js?v=2.6.0-prova';
+import { Sfx } from './audio.js?v=2.6.0-prova';
+import { Tele } from './telemetry.js?v=2.6.0-prova';
+import { paperTexture, INK_UNIFORMS, NL, Traces, Particles, Post, inked, loadFigures, figure, FIG, penned, penMat, outlineMat } from './art.js?v=2.6.0-prova';
 const FIG_READY = (k) => FIG[k] && FIG[k].ready, FIGT = (k) => FIG[k].tex;
 loadFigures(['acaro', 'acaro-bruto', 'acaro-sputo', 'copista', 'tipo', 'giurato', 'giurato-volto', 'lumi']); // v2.2: figure di carta dalle tavole
-import * as W from './world.js?v=2.5.0';
-import { loadModels, whenModel, makeModel, animateModels, STATO as M3D, LIVE as M3D_LIVE, has as hasModel } from './modelli.js?v=2.5.0';
+import * as W from './world.js?v=2.6.0-prova';
+import { loadModels, whenModel, makeModel, animateModels, STATO as M3D, LIVE as M3D_LIVE, has as hasModel } from './modelli.js?v=2.6.0-prova';
 const USE3D = !/[?&]3d=0/.test(location.search); if (USE3D) loadModels(); // v2.3: personaggi 3D (?3d=0 = quelli di prima, per confronto)
-import * as ST from './story.js?v=2.5.0';
-import { Film, FILM_LEN, SHOTS } from './film.js?v=2.5.0';
+import * as ST from './story.js?v=2.6.0-prova';
+import { Film, FILM_LEN, SHOTS } from './film.js?v=2.6.0-prova';
+import { Dust, Halos } from './atmosfera.js?v=2.6.0-prova';
 
 const $ = (id) => document.getElementById(id);
+// v2.6 · schermata di caricamento (index.html): qui le si passa l'avanzamento vero delle tavole, delle texture e dei modelli
+const LOADUI = { idle: false, shown: false, t0: performance.now() };
+THREE.DefaultLoadingManager.onProgress = (u, l, n) => { LOADUI.idle = l >= n; if (window.LOADING) window.LOADING.set(0.3 + 0.7 * l / Math.max(1, n)); };
+THREE.DefaultLoadingManager.onLoad = () => { LOADUI.idle = true; };
 const Q = new URLSearchParams(location.search); const FAST = Q.has('fast');
 const OPT_KEY = 'pal.options';
 const opts = Object.assign({ vol: 0.8, mus: 0.5, pauseFull: false, reduce: false, contrast: false, big: false, panel: false, easy: false, q: 'auto', diff: 'normale', shakeK: 1, textK: 1, aim: true, hints: 'gradi', scrivi: 'auto', tut: true }, JSON.parse(localStorage.getItem(OPT_KEY) || '{}'));
@@ -42,6 +47,7 @@ const post = new Post(renderer, QL.samples);
 const paper = paperTexture(); INK_UNIFORMS.uPaper.value = paper;
 const world = W.buildWorld(scene, paper);
 const decor = W.buildDecor(scene); const storyLights = W.buildStory(scene); const traces = new Traces(scene); const particles = new Particles(scene);
+const dust = new Dust(scene), halos = new Halos(scene); // v2.6: pulviscolo nella luce e aloni caldi (2 draw call in tutto)
 function resize() { const w = innerWidth, h = innerHeight; renderer.setPixelRatio(pr); INK_UNIFORMS.uPR.value = pr; renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w < h ? 46 : 34; camera.updateProjectionMatrix(); post.setSize(Math.floor(w * pr), Math.floor(h * pr)); particles.points.material.uniforms.uPR.value = pr; }
 addEventListener('resize', resize);
 
@@ -1010,7 +1016,9 @@ function lightsUpdate() {
   const PL = INK_UNIFORMS.uPL.value, PC = INK_UNIFORMS.uPC.value;
   for (let i = 0; i < NL; i++) { PL[i].set(0, -99, 0, 1); PC[i].set(0, 0, 0); }
   near.forEach((l, i) => { const f = l.kind === 'lamp' ? 1 + Math.sin(t * 2 + l.ph) * 0.03 : 0.85 + Math.sin(t * 13 + l.ph) * 0.08 + Math.sin(t * 7.1 + l.ph * 2) * 0.07; PL[i].set(l.x, l.y, l.z, l.r * 1.35 * f); PC[i].set(l.col[0] * f, l.col[1] * f, l.col[2] * f);
-    const u = l.m.userData; u.glow.scale.setScalar((l.kind === 'lamp' ? 1.6 : 0.9) * f); if (l.kind === 'candle') u.flame.scale.set(1, 2.2 * f, 1); });
+    const u = l.m.userData; u.glow.scale.setScalar((l.kind === 'lamp' ? 1.6 : 0.9) * f); if (l.kind === 'candle') u.flame.scale.set(1, 2.2 * f, 1); l._f = f; });
+  { const vis = (o) => { for (let k = 0; o && k < 6; k++, o = o.parent) if (!o.visible) return false; return true; }; // v2.6: aloni solo per le luci accese e visibili
+    halos.update(near.map((l) => ({ x: l.x, y: l.y, z: l.z, kind: l.kind, col: l.col, f: opts.reduce ? 1 : l._f, on: vis(l.m) && (!l.m.userData.glow || l.m.userData.glow.visible) && l.col[0] + l.col[1] + l.col[2] > 0.05 }))); dust.update(P.x, P.z); }
   // la penna del giocatore è sempre una piccola luce d'inchiostro
   const q = P.mesh.userData.nibWorld; if (q) { P.mesh.userData.nib.getWorldPosition(q); PL[NL - 1].set(q.x, q.y, q.z, panel.open ? 3.2 : 1.8); const k = panel.open ? 1.4 : 0.6; PC[NL - 1].set(1.0 * k, 0.25 * k, 0.15 * k); P.mesh.userData.nibGlow.scale.setScalar(panel.open ? 0.6 : 0.3 + Math.sin(t * 4) * 0.05); if (frame % 75 === 0 && S.phase === 'play') particles.emit(q.x, q.y, q.z, 0, -0.5, 0, 1.4, 0.08, 0.45, 0.06, 0.04, 9); }
 }
@@ -1114,7 +1122,8 @@ function finish() {
 
 // ---------- menu ----------
 let paused = false;
-function togglePause() { if (S.phase !== 'play') return; paused = !paused; $('pause').classList.toggle('hidden', !paused); if (paused) closePanel(); Tele.log(paused ? 'pause' : 'resume'); }
+function togglePause() { if (S.phase !== 'play') return; paused = !paused; $('pause').classList.toggle('hidden', !paused); pauseOpts(false); if (paused) closePanel(); Tele.log(paused ? 'pause' : 'resume'); }
+function pauseOpts(on) { $('pMain').classList.toggle('hidden', on); $('pOpts').classList.toggle('hidden', !on); $('pause').scrollTop = 0; } // v2.6: le opzioni sono una pagina a parte della pausa
 function applyDiff() { const k = (DIFF[opts.diff] || DIFF.normale); INK.gainHit = Math.round(12 * k.ink); INK.gainDodge = Math.round(18 * k.ink); INK.gainInteract = Math.round(25 * k.ink); for (const e of [charger, custode]) if (!e.armorBroken && !e.diffK) { e.diffK = k.armor; e.armorHP = Math.round(e.armorHP * k.armor); e.armorMax = Math.round(e.armorMax * k.armor); } }
 function applyOpts() { document.body.classList.toggle('contrast', !!opts.contrast); document.body.classList.toggle('big', !!opts.big); post.comp.uniforms.reduce.value = opts.reduce ? 1 : 0; INK_UNIFORMS.uContrast.value = opts.contrast ? 1 : 0; }
 function bindUI() {
@@ -1125,6 +1134,8 @@ function bindUI() {
   document.querySelectorAll('[data-close]').forEach((b) => b.onclick = () => { b.closest('.panel').classList.add('hidden'); if (S.done) location.reload(); });
   $('bPause').onclick = togglePause; $('pResume').onclick = togglePause; $('pRecompose').onclick = () => { togglePause(); recompose(); };
   $('pRestart').onclick = () => location.reload();
+  $('pOptions').onclick = () => pauseOpts(true); $('pOptBack').onclick = () => pauseOpts(false); $('pCredits').onclick = () => { togglePause(); paused = true; credits(() => { paused = false; }, true); };
+  $('bCredits').onclick = () => credits(null, true);
   $('pTele').onclick = () => { const blob = new Blob([JSON.stringify(Tele.all(), null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'palimpsest-telemetria.json'; a.click(); };
   const bind = (id, k, f) => { const el = $(id); if (el.type === 'checkbox') { el.checked = !!opts[k]; el.onchange = () => { opts[k] = el.checked; saveOpts(); if (f) f(); }; } else { el.value = opts[k]; el.oninput = el.onchange = () => { opts[k] = el.type === 'range' ? +el.value : el.value; saveOpts(); if (f) f(); }; } };
   bind('oVol', 'vol', () => sfx.setVol(opts.vol)); bind('oMus', 'mus', () => sfx.setMusic(opts.mus)); bind('oPauseFull', 'pauseFull'); bind('oReduce', 'reduce', applyOpts); bind('oContrast', 'contrast', applyOpts); bind('oBig', 'big', applyOpts); bind('oPanel', 'panel'); bind('oDiff', 'diff', applyDiff); bind('oShake', 'shakeK'); bind('oText', 'textK'); bind('oAim', 'aim'); bind('oScrivi', 'scrivi'); bind('oTut', 'tut'); bind('oHints', 'hints'); bind('oQ', 'q', () => location.reload());
@@ -1307,6 +1318,7 @@ function loop() {
     } else if (S.phase === 'title') { INK_UNIFORMS.uTime.value += rdt; camera.position.set(Math.sin(t / 4000) * 2.5, 7.5, 6.5); camera.lookAt(0, 0.8, -3); particles.update(rdt); if (frame % 8 === 0) particles.emit(rnd(-5, 5), 3.5, rnd(-5, 2), 0, -0.4, 0, 3, 0.07, 0.95, 0.85, 0.6, 0); }
   } catch (err) { console.error(err); }
   renderer.info.reset(); post.render(scene, camera);
+  if (!LOADUI.shown && frame > 3 && (LOADUI.idle || t - LOADUI.t0 > 15000)) { LOADUI.shown = true; (window.LOADING || { done() {} }).done(); } // v2.6: via la schermata di caricamento quando è tutto pronto
   fpsAcc += realDt; fpsN++; /* tempo vero del fotogramma, non quello tagliato a 0,1 s */ if (fpsAcc > 2) { const fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; window.__fps = fps;
     if (S.phase === 'play') { if (fps < 48) { lowStreak++; if (lowStreak >= 2) { lowStreak = 0; // prima gli effetti, poi (poco) la risoluzione
         if (post.bloom) { post.bloom = false; Tele.log('quality_drop', { bloom: false }); } else if (pr > QL.floor + 0.01) { pr = Math.max(QL.floor, pr - 0.25); resize(); Tele.log('quality_drop', { pr }); } else if (post.rt.samples > 0 && fps < 38) { post.setSamples(0); Tele.log('quality_drop', { msaa: 0 }); } } } else { lowStreak = 0; if (fps > 57) { if (++highStreak >= 3 && pr < QL.pr - 0.01) { highStreak = 0; pr = Math.min(QL.pr, pr + 0.25); resize(); Tele.log('quality_up', { pr }); } } else highStreak = 0; } } }
@@ -1419,8 +1431,9 @@ function buildMaze() {
 const BOOK_PAL = [0x5a3e28, 0x6b4a2a, 0x7a2418, 0x8a5a3a, 0x2c3650, 0x3a2c22, 0xa08a66, 0x4a2a20];
 function bookCol(col, k) { col.setHex(BOOK_PAL[Math.floor(k * BOOK_PAL.length) % BOOK_PAL.length]); return col.offsetHSL(0, 0, (k * 7 % 1 - 0.5) * 0.08); }
 /* v2.6: legno vero (tavola 062 di Joseph) su casse, panche e banconi, al posto del marrone liscio */
+const PROPS26 = {}; /* v2.6: oggetti a penna (per i test) */
 const WOOD = new THREE.TextureLoader().load('assets/texture/legno.jpg', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; for (const u of WOOD_U) u.value = 0.75; }); const WOOD_U = [];
-function inkMasterLike(color, wood) { const m = world.wallMat.clone(); const k = { value: 0 }; if (wood) WOOD_U.push(k); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) }, uSkinK: k, ...(wood ? { uSkin: { value: WOOD }, uSkinS: { value: 0.55 } } : {}) }; /* i mattoni restano solo sui muri */ return m; }
+function inkMasterLike(color, wood) { const m = world.wallMat.clone(); const k = { value: 0 }; if (wood) WOOD_U.push(k); m.uniforms = { ...world.wallMat.uniforms, uColor: { value: new THREE.Color(color) }, uSkinK: k, ...(wood ? { uSkin: { value: WOOD }, uSkinS: { value: 0.55 } } : {}), uPen: { value: wood ? 2 : 0 }, uPenH: { value: new THREE.Vector2(-0.5, 0.5) }, uPenR: { value: 0.5 }, uPenB: { value: new THREE.Vector4() } }; /* i mattoni restano solo sui muri; v2.6: il legno è tratteggiato a penna */ return m; }
 function mazeActivate(on) { if (MZ.active === on) return; MZ.active = on; MZ.group.visible = on;
   if (on) { world.walls.push(...MZ.walls); if (!MZ.bridged) world.walls.push(MZ.chasm); } else { world.walls = world.walls.filter((w) => !MZ.walls.includes(w) && w !== MZ.chasm); } }
 function mazeAggro(m) { const d = Math.hypot(P.x - m.x, P.z - m.z); let R = m.aggroR;
@@ -1569,7 +1582,7 @@ function takeCurse(id) { const c = CURSED[id]; if (!c || c.taken) return; c.take
   toast('✠ PAGINA MALEDETTA · ' + S.cursed + ' · più forte, ma il capitolo si indurisce'); journal('Hai preso una pagina maledetta: il tuo pennino morde di più, ma i nemici ti cercano con più rabbia.'); Tele.log('cursed_page', { id, n: S.cursed }); }
 // ---- Caricatore: il sostegno che crolla (seconda soluzione) ----
 const SUP = { x: 8.2, z: -22.5, fallen: false, t: -1 };
-SUP.mesh = (() => { const g = new THREE.Group(); const col = inked(new THREE.CylinderGeometry(0.45, 0.55, 3.2, 8, 3), { color: 0xb8a684, shift: 0x9e2b1c, y0: 0, y1: 3.2 }); col.position.y = 1.6; g.add(col);
+SUP.mesh = (() => { const g = new THREE.Group(); const col = penned(W.makePillarGeo(0.45, 0.55, 3.2), { mode: 1, color: 0xb8a684, shift: 0x9e2b1c, skin: 'mattoni', skinK: 0.7, skinScale: 0.62, penR: 0.5, y0: 0, y1: 3.2 }); col.position.y = 1.6; g.add(col); /* v2.6: sostegno di mattoni a penna */
   const cr = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.05), new THREE.MeshBasicMaterial({ color: 0x1a120c })); cr.position.set(0.3, 1.4, 0.35); cr.rotation.z = 0.3; g.add(cr);
   const balc = inked(new THREE.BoxGeometry(3.4, 0.25, 7), { color: 0x8a6a4a, ow: 0.025 }); balc.position.set(0.9, 3.25, 0); balc.scale.x = 0.55; g.add(balc); g.userData = { col, balc }; g.position.set(SUP.x, 0, SUP.z); scene.add(g); return g; })();
 SUP.circle = { x: SUP.x, z: SUP.z, r: 0.6, pillar: true, support: true, mesh: SUP.mesh }; circles.push(SUP.circle);
@@ -1621,7 +1634,27 @@ function endingPage() { const el = $('endPage'); el.classList.remove('hidden'); 
   let drip = 0; const dripT = setInterval(() => { drip++; g.fillStyle = '#16100c'; g.beginPath(); g.ellipse(712, 412 + drip * 4, 4, 6, 0, 0, 6.3); g.fill(); if (drip > 30) clearInterval(dripT); }, 90);
   const q = 'A questo punto, il viaggiatore avrebbe dovuto posare la penna.'; let i = 0; $('endQ').innerHTML = ''; sfx.play('page');
   const tick = setInterval(() => { i++; $('endQ').innerHTML = q.slice(0, i - 6) + '<span class="wet">' + q.slice(Math.max(0, i - 6), i) + '</span>'; if (i >= q.length + 6) clearInterval(tick); }, 70);
-  const done = () => { el.removeEventListener('pointerdown', done); clearInterval(tick); el.classList.add('hidden'); finish(); }; setTimeout(() => el.addEventListener('pointerdown', done), FAST ? 50 : 2500); if (FAST) setTimeout(done, 1500); window.__endDone = done; }
+  const done = () => { el.removeEventListener('pointerdown', done); clearInterval(tick); el.classList.add('hidden'); credits(finish); }; /* v2.6: dopo la pagina finale, i titoli di coda */ setTimeout(() => el.addEventListener('pointerdown', done), FAST ? 50 : 2500); if (FAST) setTimeout(done, 1500); window.__endDone = done; }
+// ================= v2.6 · titoli di coda (da CREDITS.md): carta, inchiostro, le tavole di Joseph che scorrono =================
+const CREDITS = [['h1', 'PALIMPSEST'], ['sub', 'Capitolo I · La tavola'], ['sub', '«Cambia una parola. Scopri chi o cosa cambia con lei.»'],
+  ['h2', 'Un gioco di'], ['who', 'Joseph Grivel'], ['what', 'idea, storia, mondo e personaggi'],
+  ['h2', 'Tavole di concept art'], ['who', 'Joseph Grivel'], ['what', '72 tavole a inchiostro: personaggi, nemici, stanze, carta e mattoni'], ['plates', ['copertina', 'ponte', 'labirinto'], [-2, 1.5, -1]],
+  ['h2', 'Modelli 3D dei personaggi'], ['who', 'Joseph Grivel'], ['what', 'dai fogli personaggio delle sue tavole'],
+  ['h2', 'Personaggi'], ['what', 'Il viaggiatore, il Correttore'], ['what', 'Elara · Ilde · Lumi'], ['what', 'Il Custode della Fenditura · Il Caricatore · Il Copista'], ['what', 'Il Ladro d\'inchiostro · Il Compositore · Il Tipografo'], ['what', 'La giuria senza volto'],
+  ['plates', ['tribunale', 'libera', 'finale'], [1.5, -2, 1]],
+  ['h2', 'Programmazione, musica e suoni'], ['what', 'scritti nel codice del gioco: grafica a inchiostro, musica generata in re minore, effetti con la Web Audio API'], ['what', 'con l\'aiuto di assistenti di programmazione'],
+  ['h2', 'Voce del prologo'], ['what', 'la sintesi vocale del tuo dispositivo'],
+  ['h2', 'Strumenti di altri, con licenza MIT'], ['lic', 'three.js r160 — Three.js Authors'], ['lic', 'GLTFLoader, BufferGeometryUtils — Three.js Authors'], ['lic', 'meshoptimizer 0.22 — Arseny Kapoulkine'], ['lic', 'Font: Georgia, del sistema'],
+  ['h2', 'Grazie per aver giocato'], ['what', 'Rigioca: le pagine ricorderanno questa versione.'], ['fine', 'Fine']];
+const CRED = { on: false, y: 0, fast: false };
+function credits(done, force) { if (CRED.on) return; if (FAST && !force) { if (done) done(); return; } const el = $('credits'), roll = $('crRoll');
+  roll.innerHTML = CREDITS.map(([k, v, r]) => k === 'plates' ? `<div class="plates">${v.map((n, i) => `<img src="assets/scene/${n}.jpg" alt="" style="--r:${r[i]}deg">`).join('')}</div><p class="cap">tavole di Joseph Grivel</p>` : k === 'h1' ? `<h1>${v}</h1>` : k === 'h2' ? `<h2>${v}</h2>` : `<p class="${k}">${v}</p>`).join('');
+  el.classList.remove('hidden'); CRED.on = true; CRED.y = innerHeight * 0.55; CRED.fast = false; CRED.done = done; if (S.phase === 'play') sfx.sting && sfx.sting('word');
+  const end = () => { if (!CRED.on) return; CRED.on = false; el.classList.add('hidden'); roll.innerHTML = ''; el.onpointerdown = el.onpointerup = null; $('crSkip').onclick = null; if (CRED.done) CRED.done(); };
+  el.onpointerdown = () => { CRED.fast = true; }; el.onpointerup = el.onpointercancel = () => { CRED.fast = false; }; $('crSkip').onclick = (e) => { e.stopPropagation(); end(); }; CRED.end = end;
+  let last = performance.now(); const step = (t) => { if (!CRED.on) return; const dt = Math.min(0.1, (t - last) / 1000); last = t; CRED.y -= dt * (CRED.fast ? 260 : 48) * (innerHeight / 900);
+    roll.style.transform = `translate(-50%, ${CRED.y.toFixed(1)}px)`; if (CRED.y < -roll.offsetHeight + innerHeight * 0.42) { CRED.y = -roll.offsetHeight + innerHeight * 0.42; if (!CRED.hold) { CRED.hold = true; setTimeout(() => { CRED.hold = false; end(); }, 3500); } } requestAnimationFrame(step); };
+  requestAnimationFrame(step); }
 // ---- dettagli del labirinto, pila di registri (parole composte), pagina maledetta ----
 function buildMazeExtras(r) {
   const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0, 0.5, 0); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(0.3), 3));
@@ -1673,7 +1706,7 @@ function trimRoom(oldR, newR) { const inOld = (x, z) => Math.abs(x - oldR.cx) <=
 trimRoom({ cx: 0, cz: 0, w: 24, d: 20 }, W.ROOMS[0]); trimRoom({ cx: 0, cz: -28, w: 28, d: 24 }, W.ROOMS[1]);
 // stanza II più densa: casse, scaffali rovesciati, colonne spezzate (ostacoli bassi che il Caricatore sfonda solo se FRAGILE… restano)
 (() => { for (const [x, z, w, d, h, ry] of [[-6.5, -21, 1.6, 1.2, 1.0, 0.3], [-8.4, -29, 1.2, 2.6, 0.7, 0], [5.8, -35.2, 2.2, 1.0, 0.9, -0.4], [-3.5, -36, 1.2, 1.2, 1.2, 0.8], [3.4, -19.8, 1.0, 1.0, 0.8, 0.2], [8.6, -30.5, 1.0, 2.2, 1.1, 0]]) {
-    const m = inked(new THREE.BoxGeometry(w, h, d), { color: 0x7a5a3a, shift: 0x8a2416, y0: 0, y1: h, ow: 0.025 }); m.position.set(x, h / 2, z); m.rotation.y = ry; scene.add(m); circles.push({ x, z, r: Math.max(w, d) * 0.45 }); }
+    const m = penned(W.roughenBox(w, h, d), { mode: 2, color: 0x7a5a3a, shift: 0x8a2416, skin: 'legno', skinK: 0.8, skinScale: 0.9, y0: 0, y1: h, ow: 0.025 }); /* v2.6: casse di legno a penna */ m.position.set(x, h / 2, z); m.rotation.y = ry; scene.add(m); circles.push({ x, z, r: Math.max(w, d) * 0.45 }); }
   for (let i = 0; i < 26; i++) { const p = inked(new THREE.PlaneGeometry(0.55, 0.75), { color: 0xf1e8d4, outline: false }); p.rotation.set(-Math.PI / 2, 0, Math.random() * 3); p.position.set((Math.random() - 0.5) * 18, 0.02, -28 + (Math.random() - 0.5) * 16); scene.add(p); }
   for (const [x, z] of [[-9.2, -24], [9.2, -34]]) { const c = W.makeCandle(0.7); c.position.set(x, 0, z); scene.add(c); storyLights.push({ m: c, x, y: c.userData.ly, z, r: 3.6, col: [1.2, 0.7, 0.3], ph: Math.random() * 10, kind: 'candle' }); } })();
 // ================= v2.0 · stanze più piene: la pressa diventa una tipografia, la porta un tribunale di carta =================
@@ -1692,7 +1725,14 @@ trimRoom({ cx: 0, cz: 0, w: 24, d: 20 }, W.ROOMS[0]); trimRoom({ cx: 0, cz: -28,
   inst(box, 0x8a6a4a, blocks, L3, { mask: 0.2 }); for (const [x, z] of cases) circles.push({ x, z: z - 0.7, r: 0.8 }, { x, z: z + 0.7, r: 0.8 });
   const stacks = []; for (const [x, z] of [[-11, -47.2], [11, -64.8], [-11, -64.8], [4.6, -64.9], [-4.4, -47.2]]) { for (let k = 0; k < 5 + Math.floor(R() * 4); k++) stacks.push([x + (R() - 0.5) * 0.2, 0.08 + k * 0.16, z + (R() - 0.5) * 0.2, 1.1, 0.15, 0.8, R() * 0.5]); circles.push({ x, z, r: 0.7 }); }
   inst(box, 0xe9dfc8, stacks, L3, { mask: 0.6 });
-  const barrels = [[10.9, -47.3], [-4.6, -64.8], [-2.8, -47.2]]; inst(cyl, 0x1a1210, barrels.map(([x, z]) => [x, 0.55, z, 0.9, 1.1, 0.9]), L3, { mask: 1 }); for (const [x, z] of barrels) circles.push({ x, z, r: 0.5 });
+  const barrels = [[10.9, -47.3], [-4.6, -64.8], [-2.8, -47.2]]; for (const [x, z] of barrels) circles.push({ x, z, r: 0.5 });
+  { /* v2.6: barili d'inchiostro disegnati a penna (doghe di legno della tavola 062, 3 cerchi di ferro, inchiostro dentro) con contorno: 2 draw call per tutti */
+    const bg = W.barrelGeo(); bg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(bg.attributes.position.count * 3).fill(1), 3));
+    const bm = penMat({ mode: 1, color: 0x6b4a2a, skin: 'legno', skinK: 0.8, skinScale: 0.9, penH: [-0.5, 0.5], penR: 0.5, penB: [3, 12, 1, 0], y0: 0, y1: 1.1 });
+    const om = outlineMat(0.03); om.uniforms.uWV.value = 0.6; const b1 = new THREE.InstancedMesh(bg, bm, barrels.length), b2 = new THREE.InstancedMesh(bg, om, barrels.length); b2.renderOrder = -1;
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+    barrels.forEach(([x, z], i) => { e.set((R() - 0.5) * 0.06, R() * 6.28, (R() - 0.5) * 0.06); q.setFromEuler(e); m4.compose(new THREE.Vector3(x, 0.55, z), q, new THREE.Vector3(0.9, 1.1, 0.9)); b1.setMatrixAt(i, m4); b2.setMatrixAt(i, m4); });
+    for (const b of [b1, b2]) { b.layers.set(L3); scene.add(b); } PROPS26.barrels = b1; }
   W.sketchWall(scene, 'COMPORRE · INCHIOSTRARE · PREMERE', 0, -45.9, 0, 1.0, 1.0);
   // IV · il tribunale di carta: banchi della giuria con figure ritagliate che ti guardano
   const L4 = layerOf('door'); const pews = []; for (const sd of [-1, 1]) for (const z of [-81.5, -85.5]) { pews.push([sd * 8, 0.3, z, 7, 0.6, 1.1]); solid(sd * 8 - 3.5, z - 0.55, sd * 8 + 3.5, z + 0.55); }
@@ -2216,5 +2256,6 @@ window.PAL = { PEOPLE, meet, drawnFace, dodge: () => { if (P.st === 'dodge') ret
   rewrite(id, eff) { if (panel.open) closePanel(); openPanel(id); if (!panel.open) return false; const i = panel.words.indexOf(eff); if (i < 0) { closePanel(); return false; } selectWord(i); const ok = ink.canSelect(); confirmWord(); closePanel(); return ok && grammar.has(id, eff); },
   interact, skipDialog: () => { let k = 0; while (dlg.active && !dlg.opt.choices && k++ < 50) { dlg.ch = 1e9; dlgNext(); } if (dlg.active && dlg.opt.choices) { dlg.i = dlg.lines.length - 1; dlg.ch = 1e9; } },
   choose: (i) => { if (dlg.active && dlg.opt.choices) pickChoice(i); }, attack: (heavy) => startAttack(heavy), quick: quickReapply, reset: resetPhrase, recompose,
+  credits, CRED, togglePause, pauseOpts, dust, halos, PROPS26, props26: () => ({ pillars: circles.filter((c) => c.pillar).map((c) => (c.mesh.userData.col || c.mesh).material.uniforms.uPen.value), press: [press1, press2].map((p) => p.userData.frame.material.uniforms.uPen.value), barrels: PROPS26.barrels ? PROPS26.barrels.count : 0, barrelPen: PROPS26.barrels ? PROPS26.barrels.material.uniforms.uPen.value : 0 }),
   info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, pr, fps: window.__fps }), kill: () => { P.inv = 0; P.hp = 1; damagePlayer(5, null, null); }, room: () => S.room };
 if (Q.has('autostart')) startGame();

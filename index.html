@@ -3,10 +3,35 @@
 <meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Palimpsest"><meta name="theme-color" content="#16110d">
 <title>PALIMPSEST — Cambia una parola</title>
-<link rel="stylesheet" href="style.css?v=2.5.0"><link rel="icon" href="icon.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png">
-<script type="importmap">{"imports":{"three":"./vendor/three.module.js?v=2.5.0"}}</script>
+<link rel="stylesheet" href="style.css?v=2.6.0-prova"><link rel="icon" href="icon.svg"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js?v=2.6.0-prova"}}</script>
 </head><body>
 <svg width="0" height="0" style="position:absolute"><filter id="inkEdge"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3"><animate attributeName="seed" values="1;4;7;2" dur="1.2s" repeatCount="indefinite"/></feTurbulence><feDisplacementMap in="SourceGraphic" scale="6"/></filter></svg>
+<div id="loading" aria-live="polite"><div class="lpage">
+  <svg id="lArt" viewBox="0 0 640 300" aria-hidden="true">
+    <defs><clipPath id="lClip"><rect id="lRev" x="40" y="60" width="0" height="160"/></clipPath>
+      <filter id="lRough"><feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="5"/><feDisplacementMap in="SourceGraphic" scale="3"/></filter></defs>
+    <g filter="url(#lRough)">
+      <path class="ldrop" d="M320 4 C 326 22 334 30 334 40 A 14 14 0 1 1 306 40 C 306 30 314 22 320 4 Z"/>
+      <g class="lsplat"><ellipse cx="320" cy="232" rx="120" ry="9"/><circle cx="196" cy="236" r="5"/><circle cx="452" cy="230" r="4"/><circle cx="236" cy="246" r="3"/><circle cx="410" cy="246" r="6"/><circle cx="470" cy="244" r="2.5"/></g>
+      <text id="lWord" x="320" y="178" text-anchor="middle" clip-path="url(#lClip)">PALIMPSEST</text>
+      <line class="lrule" x1="150" y1="204" x2="490" y2="204"/>
+    </g>
+    <g id="lNib"><path d="M0 0 L-9 -46 Q0 -60 9 -46 Z" fill="#16110d"/><path d="M0 0 L0 -30" stroke="#efe5cf" stroke-width="1.4"/><circle cx="0" cy="-32" r="2.6" fill="#efe5cf"/><path d="M-9 -46 L-12 -120 L12 -120 L9 -46 Z" fill="#8a1a10"/></g>
+  </svg>
+  <div id="lBar"><i id="lFill"></i></div>
+  <p id="lText">Si bagna il pennino…</p><p id="lPct">0%</p>
+</div></div>
+<script>/* v2.6 · schermata di caricamento: si vede subito, prima che arrivi il gioco; main.js le passa l'avanzamento vero */
+(function(){ var el=document.getElementById('loading'); if(/[?&]fast/.test(location.search)){ el.remove(); window.LOADING={set:function(){},done:function(){}}; return; }
+ var p=0, shown=0, t0=Date.now(), gone=false, fill=document.getElementById('lFill'), pct=document.getElementById('lPct'), txt=document.getElementById('lText'), rev=document.getElementById('lRev'), nib=document.getElementById('lNib');
+ var L=['Si bagna il pennino…','Si stendono le tavole di Joseph…','Si cuciono le pagine…','Si accendono le candele…','Il libro si apre…'];
+ function draw(){ if(gone) return; var creep=Math.min(.32,(Date.now()-t0)/9000); shown+=(Math.max(p,creep)-shown)*.12; var k=Math.min(1,shown);
+  fill.style.width=(k*100).toFixed(1)+'%'; pct.textContent=Math.round(k*100)+'%'; txt.textContent=L[Math.min(L.length-1,Math.floor(k*L.length))];
+  var w=Math.min(560,(Date.now()-t0)/2600*560); rev.setAttribute('width',w); nib.setAttribute('transform','translate('+(40+w)+' '+(170+Math.sin(w*.09)*10)+') rotate(28)'); nib.style.opacity=w>=560?0:1; requestAnimationFrame(draw); }
+ requestAnimationFrame(draw);
+ window.LOADING={ set:function(v){ p=Math.max(p,Math.min(1,v)); }, done:function(){ if(gone||el.classList.contains('out')) return; p=1; var wait=Math.max(0,3000-(Date.now()-t0)); setTimeout(function(){ el.classList.add('out'); setTimeout(function(){ gone=true; el.remove(); },800); },wait); } };
+ setTimeout(function(){ window.LOADING.done(); },25000); })();</script>
 <canvas id="c"></canvas>
 <div id="hurt"></div><div id="ebars"></div><div id="dmg"></div><div id="bossBar" class="hidden"><div class="bname">IL CUSTODE DELLA FENDITURA</div><div class="hbar big"><div class="trail"></div><div class="fill"></div></div></div>
 <div id="hud" class="hidden">
@@ -40,32 +65,39 @@
 <div id="mapPanel" class="panel hidden"><h2>Il labirinto del filo</h2><canvas id="mapCv" width="720" height="720"></canvas><p class="small">Si disegna da sola mentre cammini. ✦ pagine · ☼ lampade · ✕ il Copista · ◎ la piastra del filo</p><button class="pbtn" id="mapClose">Chiudi</button></div>
 <div id="bag" class="panel hidden"><h2>La borsa</h2><div id="bagList"></div><button class="pbtn" id="bagClose">Chiudi</button></div>
 <div id="journal" class="panel hidden"><h2>Diario</h2><div id="jList"></div><button class="pbtn" data-close>Chiudi</button></div>
-<div id="pause" class="panel hidden"><h2>Pausa</h2>
-  <button class="pbtn" id="pResume">Riprendi</button>
+<div id="pause" class="panel hidden"><div id="pMain"><h2>Pausa</h2><p class="psub">«Il libro aspetta. La penna è ferma.»</p>
+  <button class="pbtn big" id="pResume">Riprendi</button>
+  <button class="pbtn" id="pOptions">Opzioni</button>
   <button class="pbtn" id="pRecompose">Ricomponi prova</button>
-  <h3>Opzioni</h3>
+  <button class="pbtn" id="pCredits">Titoli di coda</button>
+  <button class="pbtn" id="pRestart">Ricomincia il frammento</button>
+  <p class="small pkeys">Controller: stick muovi · A interagisci/conferma · X colpo · Y colpo forte · B schiva · RB riscrivi · LB riapplica · Select ripristina frase<br>Tastiera: WASD · J colpo · K forte · Spazio schiva · E interagisci · Q riscrivi · R riapplica · T ripristina · Y ricomponi · Esc pausa</p></div>
+  <div id="pOpts" class="hidden"><h2>Opzioni</h2>
+  <div class="ogrid"><section><h3>Suono</h3>
   <label>Volume <input type="range" id="oVol" min="0" max="1" step="0.05"></label>
-  <label>Musica <input type="range" id="oMus" min="0" max="1" step="0.05"></label>
-  <label><input type="checkbox" id="oPauseFull"> Lettura a pausa completa (al posto del rallentamento 0,3x)</label>
-  <label><input type="checkbox" id="oReduce"> Riduci movimento (niente scosse ed effetti forti)</label>
-  <label><input type="checkbox" id="oContrast"> Alto contrasto</label>
-  <label><input type="checkbox" id="oBig"> Testo grande</label>
-  <label><input type="checkbox" id="oPanel"> Pannello laterale avanzato (slot)</label>
+  <label>Musica <input type="range" id="oMus" min="0" max="1" step="0.05"></label></section>
+  <section><h3>Gioco</h3>
   <label>Difficoltà <select id="oDiff"><option value="storia">Storia (danni dimezzati, più inchiostro)</option><option value="normale">Normale</option><option value="secco">Inchiostro secco (più dura)</option></select></label>
-  <label>Scossa della camera <input type="range" id="oShake" min="0" max="1.5" step="0.1"></label>
-  <label>Velocità del testo <input type="range" id="oText" min="0.5" max="2" step="0.1"></label>
   <label><input type="checkbox" id="oAim"> Mira assistita (il colpo si gira verso il nemico vicino)</label>
   <label><input type="checkbox" id="oTut"> Tutorial a ogni nuova partita</label>
   <label>Scena di scrittura <select id="oScrivi"><option value="auto">Lunga la prima volta, poi breve</option><option value="lunga">Sempre lunga</option><option value="off">Spenta</option></select></label>
   <label>Indizi <select id="oHints"><option value="gradi">A gradini (prima cosa fare, poi come)</option><option value="sempre">Sempre completi</option></select></label>
-  <label>Qualità <select id="oQ"><option value="alta">Alta (nitida)</option><option value="media">Media (più fluida)</option></select></label>
-  <button class="pbtn" id="pTele">Esporta telemetria locale</button>
-  <button class="pbtn" id="pRestart">Ricomincia il frammento</button>
-  <p class="small">Controller: stick muovi · A interagisci/conferma · X colpo · Y colpo forte · B schiva · RB riscrivi · LB riapplica · Select ripristina frase<br>Tastiera: WASD · J colpo · K forte · Spazio schiva · E interagisci · Q riscrivi · R riapplica · T ripristina · Y ricomponi · Esc pausa</p>
+  <label><input type="checkbox" id="oPauseFull"> Lettura a pausa completa (al posto del rallentamento 0,3x)</label>
+  <label><input type="checkbox" id="oPanel"> Pannello laterale avanzato (slot)</label></section>
+  <section><h3>Vista e accessibilità</h3>
+  <label><input type="checkbox" id="oReduce"> Riduci movimento (niente scosse ed effetti forti)</label>
+  <label><input type="checkbox" id="oContrast"> Alto contrasto</label>
+  <label><input type="checkbox" id="oBig"> Testo grande</label>
+  <label>Scossa della camera <input type="range" id="oShake" min="0" max="1.5" step="0.1"></label>
+  <label>Velocità del testo <input type="range" id="oText" min="0.5" max="2" step="0.1"></label>
+  <label>Qualità <select id="oQ"><option value="alta">Alta (nitida)</option><option value="media">Media (più fluida)</option></select></label></section></div>
+  <button class="pbtn big" id="pOptBack">◂ Indietro</button>
+  <button class="pbtn small2" id="pTele">Esporta telemetria locale</button></div>
 </div>
-<div id="title"><div class="tpage"><h1>PALIMPSEST</h1><p class="sub">«Cambia una parola. Scopri chi o cosa cambia con lei.»</p><button id="bContinue" class="pbtn big hidden">Continua</button><button id="bStart" class="pbtn big">Apri il libro</button><button id="bChapters" class="pbtn">Capitoli</button><button id="bReplayIntro" class="pbtn">Rivedi il prologo (film)</button><p class="small" id="ver">versione 2.5.0</p><p class="small" id="tMem"></p><p class="small">Meglio con le cuffie. Controller o touch.</p></div></div>
+<div id="title"><div class="tpage"><h1>PALIMPSEST</h1><p class="sub">«Cambia una parola. Scopri chi o cosa cambia con lei.»</p><button id="bContinue" class="pbtn big hidden">Continua</button><button id="bStart" class="pbtn big">Apri il libro</button><button id="bChapters" class="pbtn">Capitoli</button><button id="bReplayIntro" class="pbtn">Rivedi il prologo (film)</button><button id="bCredits" class="pbtn small2">Titoli di coda</button><p class="small" id="ver">versione 2.6.0-prova</p><p class="small" id="tMem"></p><p class="small">Meglio con le cuffie. Controller o touch.</p></div></div>
 <div id="chapters" class="hidden"><div class="tpage"><h2>Capitoli</h2><div id="chList"></div><button id="chClose" class="pbtn">Chiudi</button></div></div>
 <div id="film" class="hidden"><div class="bar top"></div><div class="bar bot"></div><div id="fFade"></div><div id="fSub"></div><div id="fTitle">PALIMPSEST</div><button id="fVoice">🔊 Voce</button><button id="fSkip">Salta ▸▸</button><div id="fProg"><i></i></div></div>
+<div id="credits" class="hidden"><div id="crRoll"></div><button id="crSkip" type="button">Salta ▸▸</button><small id="crHelp">tieni premuto per andare più veloce</small></div>
 <div id="fade"></div>
-<script type="module" src="src/main.js?v=2.5.0"></script>
+<script type="module" src="src/main.js?v=2.6.0-prova"></script>
 </body></html>

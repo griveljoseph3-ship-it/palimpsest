@@ -1,5 +1,5 @@
 // S1 · Resolver: slot, combinazioni, Ripristina frase, Ricomponi prova (GDD §03, §10).
-import { SLOTS, EFFECTS, COMBOS, ENTITY_DEFS } from './data.js?v=2.5.0';
+import { SLOTS, EFFECTS, COMBOS, ENTITY_DEFS } from './data.js?v=2.6.0-prova';
 
 export class Grammar {
   constructor() { this.ents = new Map(); this.listeners = []; this.snapshots = new Map(); }

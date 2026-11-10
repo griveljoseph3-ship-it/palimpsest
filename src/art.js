@@ -1,5 +1,5 @@
 // S5 · Pipeline NPR: inchiostro vivo + carta. InkMaster unico (DissolveAmount, ColorShift, TextureBlend).
-import * as THREE from '../vendor/three.module.js?v=2.5.0';
+import * as THREE from '../vendor/three.module.js?v=2.6.0-prova';
 
 export function paperTexture(size = 512) {
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
@@ -71,10 +71,11 @@ export function inkMaster(opts = {}) {
       uH: { value: new THREE.Vector2(opts.y0 ?? 0, opts.y1 ?? 2) }, uScale: { value: opts.texScale ?? 0.25 },
       uSkin: { value: opts.skin || null }, uSkinK: { value: 0 }, uSkinS: { value: opts.skinScale ?? 0.4 }, // v2.2: texture dalle tavole (muri)
       uMap: { value: opts.map || null }, ...(opts.anim || {}), // v2.3: texture e movimento dei modelli 3D
+      uPen: { value: opts.pen ?? 0 }, uPenH: { value: new THREE.Vector2(opts.penH?.[0] ?? -0.5, opts.penH?.[1] ?? 0.5) }, uPenR: { value: opts.penR ?? 0.5 }, uPenB: { value: new THREE.Vector4(...(opts.penB || [0, 0, 0, 0])) }, // v2.6: oggetti di scena disegnati a penna
     },
     defines: { ...(opts.map ? { USE_M3D: '' } : {}), ...(opts.anim ? { USE_ANIM: '' } : {}) },
     vertexColors: true,
-    vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; uniform float uTime;
+    vertexShader: `varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; varying vec3 vL; uniform float uTime;
 #ifdef USE_M3D
  varying vec2 vUv3;
 #endif
@@ -93,7 +94,7 @@ export function inkMaster(opts = {}) {
  #include <skinbase_vertex>
  #include <skinnormal_vertex>
  #include <skinning_vertex>
- pos=transformed;
+ pos=transformed; vL=pos;
 
 #ifdef USE_INSTANCING
  mat4 mm=modelMatrix*instanceMatrix;
@@ -101,8 +102,8 @@ export function inkMaster(opts = {}) {
  mat4 mm=modelMatrix;
 #endif
  vec4 w=mm*vec4(pos,1.); vW=w.xyz; vN=normalize(mat3(mm)*objectNormal); vMask=color.r; gl_Position=projectionMatrix*viewMatrix*w; vS=gl_Position; }`,
-    fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH; uniform sampler2D uSkin; uniform float uSkinK,uSkinS;
-      varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; ${NOISE}
+    fragmentShader: `uniform vec4 uPL[${NL}]; uniform vec3 uPC[${NL}]; uniform float uHit; uniform float uPR; uniform float uTime,DissolveAmount,ColorShift,TextureBlend,uRedraw,uMarks,uCrack,uScale,uContrast,uLampR; uniform vec3 uLamp,uLight,uColor,uInk,uShiftColor,uGlow; uniform sampler2D uPaper; uniform vec2 uH; uniform sampler2D uSkin; uniform float uSkinK,uSkinS; uniform float uPen,uPenR; uniform vec2 uPenH; uniform vec4 uPenB;
+      varying vec3 vN; varying vec3 vW; varying float vMask; varying vec4 vS; varying vec3 vL; ${NOISE}
 #ifdef USE_M3D
  uniform sampler2D uMap; varying vec2 vUv3;
 #endif
@@ -114,7 +115,10 @@ export function inkMaster(opts = {}) {
 #ifdef USE_M3D
         base=texture2D(uMap,vUv3).rgb*mix(vec3(1.),paper*1.18,TextureBlend); // il colore del modello (dalle tavole), con la grana della carta
 #endif
-        if(uSkinK>0.&&an.y<.6){ vec3 sk=texture2D(uSkin,uv*uSkinS).rgb; base=mix(base,sk*1.12,uSkinK); }
+        // v2.6 · coordinate «sulla superficie» per gli oggetti a penna: intorno al cilindro (uPen 1) o sulle facce (uPen 2)
+        vec2 pu=uv; float hN=clamp((vL.y-uPenH.x)/max(uPenH.y-uPenH.x,.001),0.,1.);
+        if(uPen>.5&&uPen<1.5) pu=an.y>.6? vL.xz*1.4 : vec2(atan(vL.z,vL.x)*uPenR,vL.y); // sul coperchio righe dritte, sul fianco righe che girano
+        if(uSkinK>0.&&(an.y<.6||uPen>.5)){ vec3 sk=texture2D(uSkin,pu*uSkinS).rgb; base=mix(base,sk*1.12,uSkinK*(an.y<.6?1.:.6)); }
         float wob=vnoise(vW.xz*2.+uTime*.15)*.12;
         float tone=smoothstep(-.15+wob,.05+wob,ndl)*.55+smoothstep(.45,.6+wob,ndl)*.45;
         vec2 sp=gl_FragCoord.xy/uPR; float hv=(sp.x+sp.y)*.16+vnoise(sp*.02)*1.5; float hw=fwidth(hv)*.75+.02; float hatch=smoothstep(.5-hw,.5+hw,fract(hv))*smoothstep(1.,1.-hw,fract(hv));
@@ -122,6 +126,20 @@ export function inkMaster(opts = {}) {
         float dark=1.-tone; float hm=mix(1.,.7,hatch*smoothstep(.35,.5,dark))*mix(1.,.78,hatch2*smoothstep(.7,.8,dark));
         float ao=mix(.68,1.,smoothstep(0.,.9,vW.y-uH.x+.05));
         vec3 shadowC=base*vec3(.33,.33,.43); vec3 litC=base*vec3(1.04,1.,.92); vec3 col=mix(shadowC,litC,tone)*hm*ao;
+        if(uPen>.5){ // v2.6 · tratteggio a penna come nelle tavole: righe che seguono la forma, più fitte nell'ombra, bordi e cerchi d'inchiostro irregolari
+          float dk=1.-tone; vec2 q=pu*vec2(1.,1.); float wb=vnoise(q*vec2(2.,5.))*.45;
+          float f1=fract(q.x*7.+wb+vnoise(q*vec2(9.,1.3))*.25); float w1=.07+.09*vnoise(q*vec2(3.,11.));
+          float s1=(1.-smoothstep(w1,w1+.06,abs(f1-.5)))*step(.3,vnoise(q*vec2(1.7,2.6)+3.))*(.35+.65*smoothstep(.12,.4,dk));
+          float f2=fract((q.x+q.y*.9)*8.5+wb); float s2=(1.-smoothstep(.06,.12,abs(f2-.5)))*smoothstep(.4,.65,dk);
+          float sv=0.; if(uPenB.y>.5){ float fs=fract(atan(vL.z,vL.x)/6.2832*uPenB.y+vnoise(vec2(vL.y*3.,0.))*.06); sv=(1.-smoothstep(.0,.025,min(fs,1.-fs)))*step(an.y,.6); } // doghe del barile
+          float dE=min(vL.y-uPenH.x,uPenH.y-vL.y); float ew=.035+.05*vnoise(pu*6.+1.); float edge=(1.-smoothstep(ew,ew+.03,dE))*step(an.y,.6);
+          float rim2=0.; if(an.y>.6){ float rr=length(vL.xz)/max(uPenR,.01); rim2=smoothstep(.86-.05*vnoise(vL.xz*9.),.95,rr); }
+          float hoop=0.; if(uPenB.x>.5){ for(int k=0;k<3;k++){ float c=k==0?.17:k==1?.83:.5; if(k==2&&uPenB.x<2.5) break; float d=abs(hN-c)+vnoise(pu*8.)*.012; hoop=max(hoop,1.-smoothstep(.035,.05,d)); } }
+          float blot=smoothstep(.7,.74,fbm(pu*2.3+7.))*.6;
+          float ink=clamp(s1*.62+s2*.5+sv*.75+edge*.85+rim2*.8+hoop*.9+blot,0.,1.);
+          if(uPenB.z>.5&&an.y>.6&&hN>.9){ float pool=1.-smoothstep(.62,.7,length(vL.xz)/max(uPenR,.01)+vnoise(vL.xz*8.)*.08); col=mix(col,vec3(.02,.015,.02)+vec3(.12)*pow(max(ndl,0.),8.),pool); } // inchiostro nel barile
+          col=mix(col,uInk*(.65+.35*tone),ink);
+        }
         col+=vec3(1.,.82,.55)*pow(max(ndl,0.),3.)*.12; // luce calda
         float rim=pow(1.-abs(dot(n,normalize(cameraPosition-vW))),3.); col=mix(col,uInk,rim*.35*vMask);
         col=mix(col, uShiftColor*(.6+.4*tone), ColorShift*vMask);
@@ -153,8 +171,8 @@ export function inkMaster(opts = {}) {
 // Contorno a scafo invertito con linea "viva" che tremola appena.
 export function outlineMat(w = 0.035, anim = null) {
   return new THREE.ShaderMaterial({
-    uniforms: { uTime: INK_UNIFORMS.uTime, uW: { value: w }, uCol: { value: new THREE.Color(0x15100c) }, ...(anim || {}) }, side: THREE.BackSide, defines: anim ? { USE_ANIM: '' } : {},
-    vertexShader: `uniform float uTime,uW;
+    uniforms: { uTime: INK_UNIFORMS.uTime, uW: { value: w }, uWV: { value: 0 }, uCol: { value: new THREE.Color(0x15100c) }, ...(anim || {}) }, side: THREE.BackSide, defines: anim ? { USE_ANIM: '' } : {},
+    vertexShader: `uniform float uTime,uW,uWV;
 #ifdef USE_ANIM
  ${ANIM_GLSL}
 #endif
@@ -163,10 +181,16 @@ export function outlineMat(w = 0.035, anim = null) {
 #ifdef USE_ANIM
  q=animPos(q);
 #endif
- vec3 transformed=q+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)); vec3 objectNormal=normal;
+ vec3 transformed=q+normal*uW*(1.+.35*sin(uTime*3.+position.y*7.+position.x*5.)+uWV*(sin(position.y*9.1+position.x*6.3+position.z*4.7)*.6+sin(position.y*23.+position.z*17.)*.4)); vec3 objectNormal=normal; // v2.6: uWV = tratto di penna più grosso e più fine
  #include <skinbase_vertex>
  #include <skinning_vertex>
- vec3 p=transformed; gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
+ vec3 p=transformed;
+#ifdef USE_INSTANCING
+ gl_Position=projectionMatrix*viewMatrix*modelMatrix*instanceMatrix*vec4(p,1.);
+#else
+ gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
+#endif
+ }`,
     fragmentShader: `uniform vec3 uCol; void main(){ gl_FragColor=vec4(uCol,1.); }`,
   });
 }
@@ -307,3 +331,26 @@ export function loadFigures(names) { const L = new THREE.TextureLoader(); for (c
   f.tex = L.load('assets/figure/' + k + '.webp', (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; f.aspect = t.image.width / t.image.height; f.ready = true; t.needsUpdate = true; }); } }
 // figura di altezza h (metri) con le proporzioni dell'immagine, o null se l'immagine non è ancora arrivata (si resta sul corpo 3D)
 export function figure(k, h, opts) { const f = FIG[k]; if (!f || !f.ready) return null; return paperSprite(f.tex, h * f.aspect, h, opts); }
+
+// ================= v2.6 · giro grafico parte 2: oggetti di scena «disegnati a penna» =================
+// Bordi irregolari: ogni vertice si sposta un poco in fuori o in dentro con un rumore che dipende solo dalla posizione
+// (così i vertici doppi delle cuciture si spostano insieme e non si aprono buchi). Costo: zero a ogni fotogramma.
+export function roughen(geo, amt = 0.03, freq = 3.3) { const p = geo.attributes.position, v = new THREE.Vector3(), c = new THREE.Vector3();
+  geo.computeBoundingBox(); geo.boundingBox.getCenter(c);
+  const n3 = (x, y, z) => Math.sin(x * freq * 1.7 + y * freq * 2.3 + 1.1) * Math.sin(z * freq * 1.9 - y * freq * 1.3 + 0.7) * 0.7 + Math.sin((x + z) * freq * 4.1 + y * freq * 5.3) * 0.3;
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const rx = v.x - c.x, rz = v.z - c.z, r = Math.hypot(rx, rz); const n = n3(Math.round(v.x * 500) / 500, Math.round(v.y * 500) / 500, Math.round(v.z * 500) / 500) * amt;
+    if (r > 1e-3) { v.x += rx / r * n; v.z += rz / r * n; } v.y += n * 0.35; p.setXYZ(i, v.x, v.y, v.z); }
+  p.needsUpdate = true; geo.computeBoundingSphere(); return geo; }
+// texture delle tavole di Joseph per gli oggetti (legno 062, mattoni 023/003): caricate una volta, condivise
+const PLATE_TEX = {}; export function plateTex(name, onLoad) { let e = PLATE_TEX[name]; if (!e) { e = PLATE_TEX[name] = { t: null, ready: false, cbs: [] };
+  e.t = new THREE.TextureLoader().load('assets/texture/' + name + '.jpg', (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; e.ready = true; for (const f of e.cbs) f(t); e.cbs.length = 0; }); }
+  if (onLoad) { if (e.ready) onLoad(e.t); else e.cbs.push(onLoad); } return e.t; }
+// materiale «a penna»: tratteggio che segue la forma + texture della tavola + bordi d'inchiostro; opts.mode 1 = cilindro, 2 = scatola
+export function penMat(opts = {}) { const m = inkMaster({ ...opts, pen: opts.mode ?? 1 });
+  if (opts.skin) { m.uniforms.uSkin.value = plateTex(opts.skin, () => { m.uniforms.uSkinK.value = opts.skinK ?? 0.7; }); m.uniforms.uSkinS.value = opts.skinScale ?? 0.5; }
+  return m; }
+// mesh a penna con contorno irregolare (il contorno è più grosso e più fine come un tratto vero)
+export function penned(geo, opts = {}) { geo.computeBoundingBox(); const bb = geo.boundingBox; withMask(geo, opts.mask ?? 1);
+  const mat = penMat({ penH: [bb.min.y, bb.max.y], penR: opts.penR ?? Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2, ...opts }); const m = new THREE.Mesh(geo, mat);
+  if (opts.outline !== false) { const om = outlineMat(opts.ow ?? 0.035); om.uniforms.uWV.value = opts.owv ?? 0.55; const o = new THREE.Mesh(geo, om); o.renderOrder = -1; m.add(o); m.userData.outline = o; }
+  return m; }

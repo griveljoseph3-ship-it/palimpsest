@@ -32,4 +32,5 @@ Non ci sono altre immagini, modelli 3D, suoni, musiche, font o voci presi da alt
 - **Effetti sonori e musica**: sintetizzati in tempo reale con la Web Audio API (`src/audio.js`). La musica (re minore, livelli per esplorazione/labirinto/combattimento/boss) è composta da regole nel codice, non campionata.
 - **Voce del prologo**: la sintesi vocale di sistema del dispositivo (Web Speech API); non viene distribuito nessun file audio.
 - **Font**: si usano i font di sistema (Georgia, serif).
+- **Atmosfera, caricamento e titoli di coda (v2.6)**: pulviscolo, aloni, tratteggio a penna degli oggetti, goccia e pennino del caricamento sono disegnati dal codice (`src/atmosfera.js`, `src/art.js`, `index.html`); le texture degli oggetti e le immagini dei titoli di coda sono le tavole di Joseph.
 - **Testi e storia**: originali di questo progetto.
